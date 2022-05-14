@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Runs all code quality tools prior to each commit. 
+npx lint-staged
