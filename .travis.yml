@@ -1,9 +1,9 @@
 language: node_js
 node_js:
-  - 16
+    - 16
 branches:
-  only:
-    - dev
+    only:
+        - dev
 script:
-  - "npm run lint"
-  # - "npm run test"
+    - 'npm run lint'
+    # - "npm run test"

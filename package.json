@@ -1,38 +1,38 @@
 {
-  "name": "graphql-complexity-limit",
-  "version": "1.0.0",
-  "description": "A GraphQL rate limiting library using query complexity analysis.",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint src",
-    "lint:fix": "eslint --fix src",
-    "prettier": "prettier --write --single-quote",
-    "prepare": "husky install"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/oslabs-beta/graph-beaver.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/oslabs-beta/graph-beaver/issues"
-  },
-  "homepage": "https://github.com/oslabs-beta/graph-beaver#readme",
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.23.0",
-    "@typescript-eslint/parser": "^5.23.0",
-    "eslint": "^8.15.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.26.0",
-    "husky": "^8.0.1",
-    "lint-staged": "^12.4.1",
-    "prettier": "2.6.2"
-  },
-  "lint-staged": {
-    "*.{js, ts}": "eslint --cache --fix",
-    "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
-  }
+    "name": "graphql-complexity-limit",
+    "version": "1.0.0",
+    "description": "A GraphQL rate limiting library using query complexity analysis.",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "lint": "eslint src",
+        "lint:fix": "eslint --fix src",
+        "prettier": "prettier --write .",
+        "prepare": "husky install"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/oslabs-beta/graph-beaver.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/oslabs-beta/graph-beaver/issues"
+    },
+    "homepage": "https://github.com/oslabs-beta/graph-beaver#readme",
+    "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^5.23.0",
+        "@typescript-eslint/parser": "^5.23.0",
+        "eslint": "^8.15.0",
+        "eslint-config-airbnb-base": "^15.0.0",
+        "eslint-plugin-import": "^2.26.0",
+        "husky": "^8.0.1",
+        "lint-staged": "^12.4.1",
+        "prettier": "2.6.2"
+    },
+    "lint-staged": {
+        "*.{js, ts}": "eslint --cache --fix",
+        "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
+    }
 }
