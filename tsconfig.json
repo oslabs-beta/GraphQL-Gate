@@ -17,7 +17,9 @@
         "noFallthroughCasesInSwitch": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "noEmit": false
+        "noEmit": false,
+        "typeRoots": ["./@types", "node_modules/@types"],
+        "types": ["node", "jest"]
     },
     "include": ["src/**/*.ts", "src/**/*.js", "test/**/*.ts"],
     "exclude": ["node_modules", "**/*.spec.ts"]
