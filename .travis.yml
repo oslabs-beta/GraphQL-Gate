@@ -1,0 +1,9 @@
+language: node_js
+node_js:
+    - 16
+branches:
+    only:
+        - dev
+script:
+    - 'npm run lint'
+    # - "npm run test"
