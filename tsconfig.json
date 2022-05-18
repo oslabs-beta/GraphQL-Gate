@@ -5,7 +5,6 @@
         "strict": true,
         "removeComments": false,
         "preserveConstEnums": true,
-        "outFile": "../../built/local/tsc.js",
         "sourceMap": true,
         "target": "es5",
         "lib": ["dom", "dom.iterable", "esnext"],
