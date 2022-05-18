@@ -15,9 +15,9 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": "latest",
-        "project": "./tsconfig.eslint.json"
+        "project": "./tsconfig.json"
     },
-    "plugins": ["import"],
+    "plugins": ["import", "prettier"],
     "rules": {
         "indent": [
             "warn",
@@ -25,6 +25,9 @@
             {
                 "SwitchCase": 2
             }
+        ],
+        "prettier/prettier": [
+            "error"
         ]
     }, 
     "ignorePatterns": ["jest.config.js"]
