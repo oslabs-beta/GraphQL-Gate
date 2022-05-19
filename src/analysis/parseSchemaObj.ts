@@ -13,6 +13,7 @@ interface TypeWeightObject {
     [index: string]: Type;
 }
 
-function parseSchemaObject(schema: GraphQLSchemaConfig): TypeWeightObject {}
-
-export default parseSchemaObject;
+function getTypeWeightsFromSchema(schema: GraphQLSchemaConfig): TypeWeightObject {
+    throw Error(`getTypeWeightsFromSchema is not implemented.`);
+}
+export default getTypeWeightsFromSchema;

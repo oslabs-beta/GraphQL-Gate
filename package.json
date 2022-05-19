@@ -44,5 +44,8 @@
     "lint-staged": {
         "*.{js, ts}": "eslint --cache --fix",
         "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
+    },
+    "dependencies": {
+        "graphql": "^16.5.0"
     }
 }
