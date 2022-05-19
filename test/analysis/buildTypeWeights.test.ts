@@ -7,7 +7,16 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         let schema: GraphQLSchema;
     });
 
-    test('creates the type weight object from graphql schema object', () => {});
+    describe('query types', () => {
+        // cretes type weight object from schema with multipl types
+        test('creates the type weight object from graphql schema object', () => {});
 
-    test('');
+        // creates tyep weight object from schema with nested types
+        test('');
+    });
+
+    /**
+     * Above tests are for query types only
+     * todo testing functionality for mutations, pagination, lists, etc. is not yet implemented
+     */
 });
