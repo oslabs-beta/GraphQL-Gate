@@ -48,9 +48,7 @@ xdescribe('Test token bucket functionality', () => {
         expect(limiter.processRequest(user1, CAPACITY + 1)).toBe(false);
 
         // Empty user 1's bucket
-        // FIXME: What server time should we use? In what format will it be stored.
-        const currentServerTime = await client.time();
-        const timestamp = currentServerTime.microseconds;
+        const timestamp = await client.time().then((time) => time.valueOf());
         const value: RedisToken = { tokens: 0, timestamp };
         await client.set(user1, JSON.stringify(value));
 
@@ -106,12 +104,31 @@ xdescribe('Test token bucket functionality', () => {
         await doubleRefillClient.connect();
         limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
 
-        const timestamp = await doubleRefillClient.time().then((time) => time.microseconds);
+        const timestamp = await doubleRefillClient.time().then((time) => time.valueOf());
+
         const value: RedisToken = { tokens: 0, timestamp };
         await client.set(user1, JSON.stringify(value));
 
         setInterval(() => {
             expect(limiter.processRequest(user1, 2)).toBeTruthy();
         }, 1000);
+    });
+
+    test('All buckets should be able to be reset', async () => {
+        // add data to redis
+        const time = new Date();
+        const value = JSON.stringify({ tokens: 0, timestamp: time.valueOf() });
+
+        await client.set(user1, value);
+        await client.set(user2, value);
+        await client.set(user3, value);
+        limiter.reset();
+
+        const resetUser1 = await client.get(user1);
+        const resetUser2 = await client.get(user2);
+        const resetUser3 = await client.get(user3);
+        expect(resetUser1).toBeNull();
+        expect(resetUser2).toBeNull();
+        expect(resetUser3).toBeNull();
     });
 });
