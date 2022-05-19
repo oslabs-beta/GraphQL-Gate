@@ -19,13 +19,7 @@
     },
     "plugins": ["import", "prettier"],
     "rules": {
-        "indent": [
-            "warn",
-            4,
-            {
-                "SwitchCase": 2
-            }
-        ],
+        
         "prettier/prettier": [
             "error"
         ]

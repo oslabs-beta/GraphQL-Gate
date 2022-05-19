@@ -6,9 +6,9 @@ interface RateLimiter {
      * @returns true if the request is allowed
      */
     processRequest: (uuid: string, tokens?: number) => boolean;
-    /**
-     * Connects the RateLimiter instance to a db to cache current token usage for connected users
-     * @param uri database connection string
-     */
-    connect: (uri: string) => void;
+}
+
+interface RedisToken {
+    tokens: number;
+    timestamp: number;
 }
