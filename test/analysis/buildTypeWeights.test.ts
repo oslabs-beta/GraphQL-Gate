@@ -5,6 +5,7 @@ import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 describe('Test buildTypeWeightsFromSchema function', () => {
     let schema: GraphQLSchema;
 
+    // this is dependant on the default type weight settings for the function
     describe('creates the "type weight object" from a graphql schema object with...', () => {
         test('a single query type', () => {
             schema = buildSchema(`
@@ -41,7 +42,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 User: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        name: 0,
+                        email: 0,
+                    },
                 },
                 Movie: {
                     weight: 1,
@@ -139,6 +143,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 }   
             `);
 
+            // This expected output is using default type weight settings.
+            // Each test will override values for feild weights configuration.
             expectedOutput = {
                 Query: {
                     weight: 1,
@@ -180,6 +186,18 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
             expect(typeWeightObject).toEqual({ expectedOutput });
         });
+
+        test('scalar parameter', () => {
+            const typeWeightObject = buildTypeWeightsFromSchema(schema, {
+                scalar: 2,
+            });
+
+            expectedOutput.user.fields.name = 2;
+            expectedOutput.user.fields.email = 2;
+            expectedOutput.movie.fields.name = 2;
+
+            expect(typeWeightObject).toEqual({ expectedOutput });
+        });
     });
 
     describe('throws an error if...', () => {
@@ -203,10 +221,19 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         });
 
         test('user configures the type weights with negative numbers', () => {
-            expect(buildTypeWeightsFromSchema(schema, { object: -1 })).toThrow();
-            expect(buildTypeWeightsFromSchema(schema, { mutation: -1 })).toThrow();
-            expect(buildTypeWeightsFromSchema(schema, { connection: -1 })).toThrow();
-            expect(buildTypeWeightsFromSchema(schema, { scalar: -1 })).toThrow();
+            // check that the error thrown from the function includes the substring 'negative' to inform the user of negative problem
+            expect(() => buildTypeWeightsFromSchema(schema, { object: -1 })).toThrowError(
+                'negative'
+            );
+            expect(() => buildTypeWeightsFromSchema(schema, { mutation: -1 })).toThrowError(
+                'negative'
+            );
+            expect(() => buildTypeWeightsFromSchema(schema, { connection: -1 })).toThrowError(
+                'negative'
+            );
+            expect(() => buildTypeWeightsFromSchema(schema, { scalar: -1 })).toThrowError(
+                'negative'
+            );
         });
     });
 });
