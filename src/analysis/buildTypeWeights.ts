@@ -8,7 +8,6 @@ import { GraphQLSchema } from 'graphql/type/schema';
 function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
     typeWeightsConfig: TypeWeightConfig = {
-        query: 1,
         mutation: 10,
         object: 1,
         scalar: 0,

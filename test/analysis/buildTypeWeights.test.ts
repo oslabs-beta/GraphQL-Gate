@@ -5,17 +5,16 @@ import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 describe('Test buildTypeWeightsFromSchema function', () => {
     let schema: GraphQLSchema;
 
-    describe('creates the type weight object from graphql schema object with...', () => {
+    describe('creates the "type weight object" from a graphql schema object with...', () => {
         test('a single query type', () => {
             schema = buildSchema(`
-                Query {
+                type Query {
                     name: String
                     email: String
-                }`);
+                }
+            `);
 
-            const typeWeightObject = buildTypeWeightsFromSchema(schema);
-
-            expect(typeWeightObject).toEqual({
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 Query: {
                     weight: 1,
                     fields: {
@@ -28,25 +27,21 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
         test('multiple types', () => {
             schema = buildSchema(`
-                User {
+                type User {
                     name: String
                     email: String
                 }
 
-                Movie {
+                type Movie {
                     name: String
                     director: String
-                }`);
+                }
+            `);
 
-            const typeWeightObject = buildTypeWeightsFromSchema(schema);
-
-            expect(typeWeightObject).toEqual({
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 User: {
                     weight: 1,
-                    fields: {
-                        name: 0,
-                        email: 0,
-                    },
+                    fields: {},
                 },
                 Movie: {
                     weight: 1,
@@ -60,27 +55,26 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
         test('nested object types', () => {
             schema = buildSchema(`
-                Query {
-                    User {
-                        name: String
-                        email: String
-                    }
+                type Query {
+                    user: User
+                    movie: Movie
+                }
+                
+                type User {
+                    name: String
+                    email: String
+                }
+                
+                type Movie {
+                    name: String
+                    director: User
+                }  
+            `);
 
-                    Movie {
-                        name: String
-                        director: User
-                    }  
-                }`);
-
-            const typeWeightObject = buildTypeWeightsFromSchema(schema);
-
-            expect(typeWeightObject).toEqual({
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 Query: {
                     weight: 1,
-                    fields: {
-                        User: 1,
-                        Movie: 1,
-                    },
+                    fields: {},
                 },
                 User: {
                     weight: 1,
@@ -93,37 +87,62 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: 0,
-                        director: 1,
+                    },
+                },
+            });
+        });
+
+        test('all scalar types', () => {
+            schema = buildSchema(`
+                type Test {
+                    num: Int,
+                    id: ID,
+                    float: Float,
+                    bool: Boolean,
+                    string: String
+                } 
+            `);
+
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Test: {
+                    weight: 1,
+                    fields: {
+                        num: 0,
+                        id: 0,
+                        float: 0,
+                        bool: 0,
+                        string: 0,
                     },
                 },
             });
         });
     });
 
-    describe('changes type weight object with user configuration of query of...', () => {
+    describe('changes "type weight object" type weights with user configuration of...', () => {
         let expectedOutput: TypeWeightObject;
 
         beforeEach(() => {
             schema = buildSchema(`
-                Query {
-                    User {
-                        name: String
-                        email: String
-                    }
-
-                    Movie {
-                        name: String
-                        director: User
-                    }  
-                }`);
+                type Query {
+                    user: User
+                    movie: Movie
+                }
+                
+                type User {
+                    name: String
+                    email: String
+                }
+                
+                type Movie {
+                    name: String
+                    director: User
+                }   
+            `);
 
             expectedOutput = {
                 Query: {
                     weight: 1,
-                    fields: {
-                        User: 1,
-                        Movie: 1,
-                    },
+                    fields: {},
                 },
                 User: {
                     weight: 1,
@@ -136,13 +155,13 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: 0,
-                        director: 1,
                     },
                 },
             };
         });
 
-        test('query parameter', () => {
+        // this is only if we choose to have 'query' as its own property (seperate from object types) in the user configuration options
+        xtest('query parameter', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 query: 2,
             });
@@ -151,19 +170,43 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(typeWeightObject).toEqual({ expectedOutput });
         });
 
-        test('all objects types', () => {
+        test('object parameter', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 object: 2,
             });
-            expectedOutput.query.fields.user = 2;
-            expectedOutput.query.fields.movie = 2;
+
             expectedOutput.user.weight = 2;
             expectedOutput.movie.weight = 2;
-            expectedOutput.movie.fields.director = 2;
 
             expect(typeWeightObject).toEqual({ expectedOutput });
         });
     });
 
-    describe('throws an error on...', () => {});
+    describe('throws an error if...', () => {
+        beforeEach(() => {
+            schema = buildSchema(`
+                type Query {
+                    user: User
+                    movie: Movie
+                }
+                
+                type User {
+                    name: String
+                    email: String
+                }
+                
+                type Movie {
+                    name: String
+                    director: User
+                }   
+            `);
+        });
+
+        test('user configures the type weights with negative numbers', () => {
+            expect(buildTypeWeightsFromSchema(schema, { object: -1 })).toThrow();
+            expect(buildTypeWeightsFromSchema(schema, { mutation: -1 })).toThrow();
+            expect(buildTypeWeightsFromSchema(schema, { connection: -1 })).toThrow();
+            expect(buildTypeWeightsFromSchema(schema, { scalar: -1 })).toThrow();
+        });
+    });
 });
