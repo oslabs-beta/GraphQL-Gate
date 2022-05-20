@@ -29,11 +29,11 @@ class TokenBucket implements RateLimiter {
             throw Error('TokenBucket refillRate and capacity must be positive');
     }
 
-    processRequest(
+    async processRequest(
         uuid: string,
         timestamp: number,
-        tokens: number | undefined
-    ): RateLimiterResponse {
+        tokens = 1
+    ): Promise<RateLimiterResponse> {
         throw Error(`TokenBucket.processRequest not implemented, ${this}`);
     }
 
