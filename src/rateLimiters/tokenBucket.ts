@@ -16,7 +16,7 @@ class TokenBucket implements RateLimiter {
         this.refillRate = refillRate;
     }
 
-    processRequest(uuid: string, tokens: number): boolean {
+    processRequest(uuid: string, tokens?: number): boolean {
         throw Error(`TokenBucket.processRequest not implemented, ${this}`);
     }
 
