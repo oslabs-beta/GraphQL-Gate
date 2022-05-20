@@ -6,6 +6,7 @@ interface RateLimiter {
      * @param tokens Number of tokens being used in this request. Optional
      * @returns a RateLimiterResponse indicating with a sucess and tokens property indicating the number of tokens remaining
      */
+    // FIXME: Should this be async
     processRequest: (
         uuid: string,
         timestamp: number,
