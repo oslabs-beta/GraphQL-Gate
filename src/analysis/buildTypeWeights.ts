@@ -1,26 +1,5 @@
 import { GraphQLSchema } from 'graphql/type/schema';
 
-interface Fields {
-    [index: string]: number;
-}
-
-interface Type {
-    weight: number;
-    feilds: Fields;
-}
-
-interface TypeWeightObject {
-    [index: string]: Type;
-}
-
-interface TypeWeightConfig {
-    mutation?: number;
-    query?: number;
-    object?: number;
-    scalar?: number;
-    connection?: number;
-}
-
 /**
  * The default type weights object is based off of Shopifys implewentation of query
  * cost analysis. Our function should input a users configuration of type weights or fall
