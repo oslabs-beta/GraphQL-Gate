@@ -2,7 +2,7 @@ import { buildSchema } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 
-describe('Test buildTypeWeightsFromSchema function', () => {
+xdescribe('Test buildTypeWeightsFromSchema function', () => {
     let schema: GraphQLSchema;
 
     // this is dependant on the default type weight settings for the function
