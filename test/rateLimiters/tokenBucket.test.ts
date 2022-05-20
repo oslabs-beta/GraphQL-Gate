@@ -3,7 +3,7 @@ import { RedisClientType } from 'redis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
 const CAPACITY = 10;
-// FIXME: Changing the refill rate affects test outcomes.
+// FIXME: Changing the refill rate effects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
@@ -199,10 +199,18 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('bucket does not allow capacity or refill rate <= 0', () => {
-            expect(new TokenBucket(-10, 1, client)).toThrowError();
-            expect(new TokenBucket(0, 1, client)).toThrowError();
-            expect(new TokenBucket(10, -1, client)).toThrowError();
-            expect(new TokenBucket(10, 0, client)).toThrowError();
+            expect(() => new TokenBucket(0, 1, client)).toThrow(
+                'TokenBucket refillRate and capacity must be positive'
+            );
+            expect(() => new TokenBucket(-10, 1, client)).toThrow(
+                'TokenBucket refillRate and capacity must be positive'
+            );
+            expect(() => new TokenBucket(10, -1, client)).toThrow(
+                'TokenBucket refillRate and capacity must be positive'
+            );
+            expect(() => new TokenBucket(10, 0, client)).toThrow(
+                'TokenBucket refillRate and capacity must be positive'
+            );
         });
 
         test('All buckets should be able to be reset', async () => {
