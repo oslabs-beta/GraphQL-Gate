@@ -25,24 +25,23 @@ class TokenBucket implements RateLimiter {
         this.capacity = capacity;
         this.refillRate = refillRate;
         this.client = client;
+        if (refillRate <= 0 || capacity <= 0)
+            throw Error('TokenBucket refillRate and capacity must be positive');
     }
 
-    processRequest(uuid: string, tokens = 1): boolean {
+    processRequest(
+        uuid: string,
+        timestamp: number,
+        tokens: number | undefined
+    ): RateLimiterResponse {
         throw Error(`TokenBucket.processRequest not implemented, ${this}`);
-    }
-
-    /**
-     * @returns current size of the token bucket in redis store or CAPACITY if user is not present
-     */
-    getSize(uuid: string): number {
-        throw Error(`TokenBucket.connect not implemented, ${this}`);
     }
 
     /**
      * Resets the rate limiter to the intial state by clearing the redis store.
      */
     reset(): void {
-        throw Error(`TokenBucket.connect not implemented, ${this}`);
+        throw Error(`TokenBucket.reset not implemented, ${this}`);
     }
 }
 

@@ -3,132 +3,255 @@ import { RedisClientType } from 'redis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
 const CAPACITY = 10;
+// FIXME: Changing the refill rate affects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
 let client: RedisClientType;
-let user1: string;
-let user2: string;
-let user3: string;
+let timestamp: number;
+const user1 = '1';
+const user2 = '2';
+const user3 = '3';
+const user4 = '4';
 
-xdescribe('Test token bucket functionality', () => {
-    beforeAll(() => {
-        user1 = '1';
-        user2 = '2';
-        user3 = '3';
-    });
+async function getBucketFromClient(
+    redisClient: RedisClientType,
+    uuid: string
+): Promise<RedisBucket> {
+    return redisClient.get(uuid).then((res) => JSON.parse(res || '{}'));
+}
 
+async function setTokenCountInClient(
+    redisClient: RedisClientType,
+    uuid: string,
+    tokens: number,
+    time: number
+) {
+    const value: RedisBucket = { tokens, timestamp: time };
+    await redisClient.set(uuid, JSON.stringify(value));
+}
+
+describe('Test TokenBucket Rate Limiter', () => {
     beforeEach(async () => {
         // Initialize a new token bucket before each test
         // create a mock user
         // intialze the token bucket algorithm
         client = redis.createClient();
-        await client.connect();
         limiter = new TokenBucket(CAPACITY, REFILL_RATE, client);
+        timestamp = new Date().valueOf();
     });
 
-    test('allows a user to consume up to their current allotment of tokens', () => {
-        // "free requests"
-        expect(limiter.processRequest(user1, 0)).toBe(true);
-        // Test 1 token requested
-        expect(limiter.processRequest(user1, 1)).toBe(true);
-        // Test < CAPACITY tokens requested
-        expect(limiter.processRequest(user2, CAPACITY - 1)).toBe(true);
-        // <= CAPACITY tokens requested
-        expect(limiter.processRequest(user3, CAPACITY)).toBe(true);
+    describe('TokenBucket returns correct number of tokens and updates redis store as expected', () => {
+        test('after an ALLOWED request', async () => {
+            // Bucket intially full
+            const withdraw5 = 5;
+            expect(limiter.processRequest(user1, timestamp, withdraw5).tokens).toBe(
+                CAPACITY - withdraw5
+            );
+            const tokenCountFull = await getBucketFromClient(client, user1);
+            expect(tokenCountFull).toBe(CAPACITY - withdraw5);
 
-        setTimeout(() => {
-            // make sure user doesn't get extra tokens
-            expect(limiter.processRequest(user1, CAPACITY + 1)).toBe(false);
-        }, 1000);
+            // Bucket partially full but enough time has elapsed to fill the bucket since the last request and
+            // has leftover tokens after reqeust
+            const initial = 6;
+            const partialWithdraw = 1;
+            await setTokenCountInClient(client, user2, initial, timestamp);
+            expect(
+                limiter.processRequest(
+                    user2,
+                    timestamp + 1000 * (CAPACITY - initial),
+                    initial + partialWithdraw
+                )
+            ).toBe(CAPACITY - (initial + partialWithdraw));
+            const tokenCountPartial = await getBucketFromClient(client, user2);
+            expect(tokenCountPartial).toBe(CAPACITY - (initial + partialWithdraw));
+
+            // Bucket partially full and no leftover tokens after reqeust
+            const initial2 = 6;
+            await setTokenCountInClient(client, user2, initial, timestamp);
+            expect(limiter.processRequest(user2, timestamp, initial2)).toBe(0);
+            const tokenCountPartialToEmpty = await getBucketFromClient(client, user2);
+            expect(tokenCountPartialToEmpty).toBe(0);
+
+            // Bucket initially empty but enough time elapsed to paritally fill bucket since last request
+            await setTokenCountInClient(client, user4, 0, timestamp);
+            expect(limiter.processRequest(user4, timestamp + 6000, 4)).toBe(2);
+            const count = await getBucketFromClient(client, user4);
+            expect(count).toBe(2);
+        });
+
+        test('after a BLOCKED request', async () => {
+            let redisData: RedisBucket;
+            // Initial request greater than capacity
+            expect(limiter.processRequest(user1, timestamp, CAPACITY + 1)).toBe(CAPACITY);
+
+            redisData = await getBucketFromClient(client, user1);
+            expect(redisData.tokens).toBe(CAPACITY);
+
+            // Bucket is partially full and time has elapsed but not enough to allow the current request
+            const fillLevel = 5;
+            const timeDelta = 3;
+            const requestedTokens = 9;
+            await setTokenCountInClient(client, user2, fillLevel, timestamp);
+
+            expect(
+                limiter.processRequest(user1, timestamp + timeDelta * 1000, requestedTokens)
+            ).toBe(fillLevel + timeDelta * REFILL_RATE);
+
+            redisData = await getBucketFromClient(client, user2);
+            expect(redisData.tokens).toBe(fillLevel + timeDelta * REFILL_RATE);
+        });
     });
 
-    test("blocks requets exceeding the user's current allotment of tokens", async () => {
-        // Test > capacity tokens reqeusted
-        expect(limiter.processRequest(user1, CAPACITY + 1)).toBe(false);
+    describe('Token Bucket functions as expected', () => {
+        test('allows a user to consume up to their current allotment of tokens', () => {
+            // "free requests"
+            expect(limiter.processRequest(user1, timestamp, 0).success).toBe(true);
+            // Test 1 token requested
+            expect(limiter.processRequest(user1, timestamp, 1).success).toBe(true);
+            // Test < CAPACITY tokens requested
+            expect(limiter.processRequest(user2, timestamp, CAPACITY - 1).success).toBe(true);
+            // <= CAPACITY tokens requested
+            expect(limiter.processRequest(user3, timestamp, CAPACITY).success).toBe(true);
+        });
 
-        // Empty user 1's bucket
-        const timestamp = await client.time().then((time) => time.valueOf());
-        const value: RedisToken = { tokens: 0, timestamp };
-        await client.set(user1, JSON.stringify(value));
+        test("blocks requests exceeding the user's current allotment of tokens", async () => {
+            // Test > capacity tokens reqeusted
+            expect(limiter.processRequest(user1, timestamp, CAPACITY + 1).success).toBe(false);
 
-        // bucket is empty. Shouldn't be allowed to take 1 token
-        expect(limiter.processRequest(user1, 1)).toBe(false);
+            // Empty user 1's bucket
+            const value: RedisBucket = { tokens: 0, timestamp };
+            await client.set(user1, JSON.stringify(value));
 
-        // Should still be allowed to process "free" requests
-        expect(limiter.processRequest(user1, 0)).toBe(true);
+            // bucket is empty. Shouldn't be allowed to take 1 token
+            expect(limiter.processRequest(user1, timestamp, 1).success).toBe(false);
+
+            // Should still be allowed to process "free" requests
+            expect(limiter.processRequest(user1, timestamp, 0).success).toBe(true);
+        });
+
+        test('token bucket never exceeds maximum capacity', async () => {
+            // make sure bucket doesn't exceed max size without any requests.
+            // Fill the user's bucket then request additional tokens after an interval
+            const value: RedisBucket = { tokens: CAPACITY, timestamp };
+            await client.set(user1, JSON.stringify(value));
+            expect(limiter.processRequest(user1, timestamp + 1000, CAPACITY + 1).success).toBe(
+                false
+            );
+            expect(limiter.processRequest(user1, timestamp + 10000, CAPACITY + 1).success).toBe(
+                false
+            );
+            expect(limiter.processRequest(user1, timestamp + 100000, CAPACITY + 1).success).toBe(
+                false
+            );
+        });
+
+        test('token bucket refills at specified rate', async () => {
+            // make sure bucket refills if user takes tokens.
+            const withdraw = 5;
+            let timeDelta = 3;
+            limiter.processRequest(user1, timestamp, withdraw);
+            expect(
+                limiter.processRequest(
+                    user1,
+                    timestamp + timeDelta * 1000,
+                    withdraw + REFILL_RATE * timeDelta
+                ).tokens
+            ).toBe(CAPACITY - withdraw + REFILL_RATE * timeDelta);
+
+            // check if bucket refills completely and doesn't spill over.
+            timeDelta = 2 * CAPACITY;
+            expect(
+                limiter.processRequest(user1, timestamp + timeDelta * 1000, CAPACITY + 1).tokens
+            ).toBe(CAPACITY);
+        });
+
+        test('bucket allows custom refill rates', async () => {
+            const doubleRefillClient: RedisClientType = redis.createClient();
+            limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
+
+            await setTokenCountInClient(doubleRefillClient, user1, 0, timestamp);
+
+            const timeDelta = 5;
+            expect(limiter.processRequest(user1, timestamp * 1000 + timeDelta, 0)).toBe(
+                timeDelta * REFILL_RATE
+            );
+        });
+
+        test('users have their own buckets', async () => {
+            const requested = 6;
+            const user3Tokens = 8;
+            // Add tokens for user 3 so we have both a user that exists in the store (3) and one that doesn't (2)
+            await setTokenCountInClient(client, user3, user3Tokens, timestamp);
+
+            // issue a request for user 1;
+            limiter.processRequest(user1, timestamp, requested);
+
+            // Check that each user has the expected amount of tokens.
+            expect((await getBucketFromClient(client, user1)).tokens).toBe(CAPACITY - requested);
+            expect((await getBucketFromClient(client, user2)).tokens).toBe(CAPACITY);
+            expect((await getBucketFromClient(client, user3)).tokens).toBe(user3Tokens);
+
+            limiter.processRequest(user2, timestamp, 1);
+            expect((await getBucketFromClient(client, user1)).tokens).toBe(CAPACITY - requested);
+            expect((await getBucketFromClient(client, user2)).tokens).toBe(CAPACITY - 1);
+            expect((await getBucketFromClient(client, user3)).tokens).toBe(user3Tokens);
+        });
+
+        test('bucket does not allow capacity or refill rate <= 0', () => {
+            expect(new TokenBucket(-10, 1, client)).toThrowError();
+            expect(new TokenBucket(0, 1, client)).toThrowError();
+            expect(new TokenBucket(10, -1, client)).toThrowError();
+            expect(new TokenBucket(10, 0, client)).toThrowError();
+        });
+
+        test('All buckets should be able to be reset', async () => {
+            const tokens = 5;
+            await setTokenCountInClient(client, user1, tokens, timestamp);
+            await setTokenCountInClient(client, user2, tokens, timestamp);
+            await setTokenCountInClient(client, user3, tokens, timestamp);
+
+            limiter.reset();
+
+            expect(limiter.processRequest(user1, timestamp, CAPACITY)).toBe(true);
+            expect(limiter.processRequest(user2, timestamp, CAPACITY - 1)).toBe(true);
+            expect(limiter.processRequest(user3, timestamp, CAPACITY + 1)).toBe(false);
+        });
     });
 
-    test('token bucket never exceeds maximum capacity', () => {
-        // initial capacity should be max
-        expect(limiter.getSize(user1)).toBe(CAPACITY);
-        // make sure bucket doesn't exceed max size without any requests.
-        setTimeout(() => {
-            expect(limiter.getSize(user1)).toBe(CAPACITY);
-        }, 1000);
+    describe('Token Bucket correctly updates redis store', () => {
+        test('timestamp correctly updated in redis', async () => {
+            let redisData: RedisBucket;
 
-        // make sure bucket refills if user takes tokens.
-        const withdraw = 5;
-        limiter.processRequest(user1, withdraw);
-        expect(limiter.getSize(user1)).toBe(CAPACITY - withdraw);
-        setTimeout(() => {
-            expect(limiter.getSize(user1)).toBe(CAPACITY - withdraw + REFILL_RATE);
-        }, 1000);
+            // blocked request
+            limiter.processRequest(user1, timestamp, CAPACITY + 1);
+            redisData = await getBucketFromClient(client, user2);
+            expect(redisData.timestamp).toBe(timestamp);
 
-        // check if bucket refills completely and doesn't spill over.
-        setTimeout(() => {
-            expect(limiter.getSize(user1)).toBe(CAPACITY);
-        }, Math.ceil(withdraw / REFILL_RATE) * 1000);
-    });
+            timestamp += 1000;
+            // allowed request
+            limiter.processRequest(user1, timestamp, CAPACITY);
+            redisData = await getBucketFromClient(client, user2);
+            expect(redisData.timestamp).toBe(timestamp);
+        });
 
-    test('users have their own buckets', () => {
-        limiter.processRequest(user1, CAPACITY);
-        expect(limiter.getSize(user1)).toBe(0);
-        expect(limiter.getSize(user2)).toBe(CAPACITY);
-        expect(limiter.getSize(user3)).toBe(CAPACITY);
+        test('All buckets should be able to be reset', async () => {
+            // add data to redis
+            const time = new Date();
+            const value = JSON.stringify({ tokens: 0, timestamp: time.valueOf() });
 
-        limiter.processRequest(user2, 1);
-        expect(limiter.getSize(user1)).toBe(0);
-        expect(limiter.getSize(user2)).toBe(CAPACITY - 1);
-        expect(limiter.getSize(user3)).toBe(CAPACITY);
-    });
+            await client.set(user1, value);
+            await client.set(user2, value);
+            await client.set(user3, value);
 
-    test('bucket does not allow negative capacity or refill rate <= 0', () => {
-        expect(new TokenBucket(-10, 1, client)).toThrowError();
-        expect(new TokenBucket(10, -1, client)).toThrowError();
-        expect(new TokenBucket(10, 0, client)).toThrowError();
-    });
+            limiter.reset();
 
-    test('bucket allows custom refill rates', async () => {
-        const doubleRefillClient: RedisClientType = redis.createClient();
-        await doubleRefillClient.connect();
-        limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
-
-        const timestamp = await doubleRefillClient.time().then((time) => time.valueOf());
-
-        const value: RedisToken = { tokens: 0, timestamp };
-        await client.set(user1, JSON.stringify(value));
-
-        setInterval(() => {
-            expect(limiter.processRequest(user1, 2)).toBeTruthy();
-        }, 1000);
-    });
-
-    test('All buckets should be able to be reset', async () => {
-        // add data to redis
-        const time = new Date();
-        const value = JSON.stringify({ tokens: 0, timestamp: time.valueOf() });
-
-        await client.set(user1, value);
-        await client.set(user2, value);
-        await client.set(user3, value);
-        limiter.reset();
-
-        const resetUser1 = await client.get(user1);
-        const resetUser2 = await client.get(user2);
-        const resetUser3 = await client.get(user3);
-        expect(resetUser1).toBeNull();
-        expect(resetUser2).toBeNull();
-        expect(resetUser3).toBeNull();
+            const resetUser1 = await client.get(user1);
+            const resetUser2 = await client.get(user2);
+            const resetUser3 = await client.get(user3);
+            expect(resetUser1).toBe('');
+            expect(resetUser2).toBe('');
+            expect(resetUser3).toBe('');
+        });
     });
 });
