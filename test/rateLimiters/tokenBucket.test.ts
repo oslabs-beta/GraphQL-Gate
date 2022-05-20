@@ -4,9 +4,9 @@ const CAPACITY = 10;
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
-let user1;
-let user2;
-let user3;
+let user1: string;
+let user2: string;
+let user3: string;
 
 xdescribe('Test token bucket functionality', () => {
     beforeAll(() => {
