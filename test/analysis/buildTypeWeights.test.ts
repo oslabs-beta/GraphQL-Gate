@@ -134,14 +134,15 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // TODO: Tests should be written to acount for the additional scenarios possible in a schema
-        // Mutation type
-        // Subscription type
         // List type
         // Enem types
         // Interface
         // Unions
         // Input types
+
+        // TODO: Tests should be written to acount for the additional scenarios possible in a schema
+        // Mutation type
+        // Subscription type
     });
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
