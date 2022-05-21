@@ -79,8 +79,10 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                 expect((await limiter.processRequest(user2, timestamp, initial)).tokens).toBe(0);
                 const tokenCountPartialToEmpty = await getBucketFromClient(client, user2);
                 expect(tokenCountPartialToEmpty).toBe(0);
+            });
 
-                // Bucket initially empty but enough time elapsed to paritally fill bucket since last request
+            // Bucket initially empty but enough time elapsed to paritally fill bucket since last request
+            test('bucket is initially empty but enough time has elapsed to partially fill the bucket', async () => {
                 await setTokenCountInClient(client, user4, 0, timestamp);
                 expect((await limiter.processRequest(user4, timestamp + 6000, 4)).tokens).toBe(2);
                 const count = await getBucketFromClient(client, user4);
