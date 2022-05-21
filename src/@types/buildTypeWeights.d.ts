@@ -1,14 +1,14 @@
 interface Fields {
-    [index: string]: number;
+    readonly [index: string]: number;
 }
 
 interface Type {
-    weight: number;
-    fields: Fields;
+    readonly weight: number;
+    readonly fields: Fields;
 }
 
 interface TypeWeightObject {
-    [index: string]: Type;
+    readonly [index: string]: Type;
 }
 
 interface TypeWeightConfig {
