@@ -4,7 +4,7 @@
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "jest --passWithNoTests",
         "lint": "eslint src",
         "lint:fix": "eslint --fix src",
         "prettier": "prettier --write .",
@@ -22,17 +22,30 @@
     },
     "homepage": "https://github.com/oslabs-beta/graph-beaver#readme",
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^5.23.0",
-        "@typescript-eslint/parser": "^5.23.0",
+        "@babel/core": "^7.17.12",
+        "@babel/preset-env": "^7.17.12",
+        "@babel/preset-typescript": "^7.17.12",
+        "@types/jest": "^27.5.1",
+        "@typescript-eslint/eslint-plugin": "^5.24.0",
+        "@typescript-eslint/parser": "^5.24.0",
+        "babel-jest": "^28.1.0",
         "eslint": "^8.15.0",
         "eslint-config-airbnb-base": "^15.0.0",
+        "eslint-config-airbnb-typescript": "^17.0.0",
+        "eslint-config-prettier": "^8.5.0",
         "eslint-plugin-import": "^2.26.0",
         "husky": "^8.0.1",
+        "jest": "^28.1.0",
         "lint-staged": "^12.4.1",
-        "prettier": "2.6.2"
+        "prettier": "2.6.2",
+        "ts-jest": "^28.0.2",
+        "typescript": "^4.6.4"
     },
     "lint-staged": {
         "*.{js, ts}": "eslint --cache --fix",
         "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
+    },
+    "dependencies": {
+        "graphql": "^16.5.0"
     }
 }
