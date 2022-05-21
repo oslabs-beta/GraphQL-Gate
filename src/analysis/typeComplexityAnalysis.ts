@@ -1,10 +1,5 @@
 import { parse } from 'graphql';
 
-enum ComplexityOption {
-    resolve = 'resolve',
-    type = 'type',
-}
-
 /**
  * This function should
  * 1. validate the query using graphql methods
@@ -20,13 +15,8 @@ enum ComplexityOption {
  * @param {TypeWeightObject} typeWeights
  * @param {string} complexityOption
  */
-function getQueryComplexity(
-    queryString: string,
-    typeWeights: TypeWeightObject,
-    // todo: see if enums are the best way to represent complexityOption
-    complexityOption: string // can only be 'resolve' or 'type'
-): number {
+function getQueryTypeComplexity(queryString: string, typeWeights: TypeWeightObject): number {
     throw Error('getQueryComplexity is not implemented.');
 }
 
-export default getQueryComplexity;
+export default getQueryTypeComplexity;
