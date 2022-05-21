@@ -25,8 +25,17 @@ import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
     }           
 
     type Review {
+        reviewer: Actor
         stars: Int,
         body: String
+    }
+
+    type Scalars {
+        num: Int,
+        id: ID,
+        float: Float,
+        bool: Boolean,
+        string: String
     }
 */
 const typeWeights: TypeWeightObject = {
@@ -54,25 +63,62 @@ const typeWeights: TypeWeightObject = {
             body: 0,
         },
     },
+    Scalars: {
+        weight: 1,
+        fields: {
+            num: 0,
+            id: 0,
+            float: 0,
+            bool: 0,
+            string: 0,
+        },
+    },
 };
 
 describe('Test getQueryTypeComplexity function', () => {
-    let query;
+    let query = '';
     describe('Calculates the correct type complexity for queries', () => {
-        // with one feild
-        test('with one feild', () => {
-            query = `
-            Query {
-
-            }`;
+        beforeEach(() => {
+            query = '';
         });
-        // with two or more feilds
-        // with one level of nested feilds
-        // with multiple level of nesting
 
-        // with arguments
+        test('with one feild', () => {
+            query = `Query { Actor { name } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + Actor 1
+        });
+
+        test('with two or more fields', () => {
+            query = `Query { actor { name } movie { name } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + Actor 1 + Movie 1
+            query = `Query { actor { name } movie { name } review { body } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(4); // Query 1 + Actor 1 + Movie 1 + Review 1
+        });
+
+        test('with one level of nested fields', () => {
+            query = `Query { actor { name, movie { name } } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + Actor 1 + Movie 1
+        });
+
+        test('with multiple levels of nesting', () => {
+            query = `Query { actor { name, movie { name, review { body } } } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(4); // Query 1 + Actor 1 + Movie 1 + 1 Review
+        });
+
+        test('with aliases', () => {
+            query = `Query { movie-name: movie { name } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + movie
+        });
+
+        test('with all scalar fields', () => {
+            query = `Query { scalars { id, num, float, bool, string } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(42); // Query 1 + movie
+        });
+
+        test('with arguments', () => {
+            query = `Query { movie(episode: EMPIRE) { name, } }`;
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(42); // Query 1 + movie
+        });
         // with varibles and default varibales
-        // with aliases
         // with inline fragments
         // with directives
         // meta feilds - __typename
