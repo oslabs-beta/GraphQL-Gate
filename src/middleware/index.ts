@@ -10,6 +10,7 @@ import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
  * @param {RateLimiterSelection} rateLimiter Specify rate limiting algorithm to be used
+ * @param {RateLimiterOptions} options Specify the appropriate options for the selected rateLimiter
  * @param {GraphQLSchema} schema GraphQLSchema object
  * @param {RedisClientOptions} redisClientOptions valid node-redis connection options. See https://github.com/redis/node-redis/blob/HEAD/docs/client-configuration.md
  * @param {TypeWeightConfig} typeWeightConfig Optional type weight configuration for the GraphQL Schema.
@@ -20,6 +21,7 @@ import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
  */
 export function expressRateLimiter(
     rateLimiter: RateLimiterSelection,
+    rateLimiterOptions: RateLimiterOptions,
     schema: GraphQLSchema,
     redisClientOptions: RedisClientOptions,
     typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig

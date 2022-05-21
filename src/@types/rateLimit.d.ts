@@ -29,3 +29,15 @@ type RateLimiterSelection =
     | 'FIXED_WINDOW'
     | 'SLIDING_WINDOW_LOG'
     | 'SLIDING_WINDOW_COUNTER';
+
+/**
+ * @type {number} bucketSize - Size of the token bucket
+ * @type {number} refillRate - Rate at which tokens are added to the bucket in seconds
+ */
+interface TokenBucketOptions {
+    bucketSize: number;
+    refillRate: number;
+}
+
+// TODO: This will be a union type where we can specify Option types for other Rate Limiters
+type RateLimiterOptions = TokenBucketOptions;
