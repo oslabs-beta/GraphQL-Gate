@@ -2,13 +2,23 @@ interface RateLimiter {
     /**
      * Checks if a request is allowed under the given conditions and withdraws the specified number of tokens
      * @param uuid Unique identifier for the user associated with the request
+     * @param timestamp UNIX format timestamp of when request was received
      * @param tokens Number of tokens being used in this request. Optional
-     * @returns true if the request is allowed
+     * @returns a RateLimiterResponse indicating with a sucess and tokens property indicating the number of tokens remaining
      */
-    processRequest: (uuid: string, tokens?: number) => boolean;
-    /**
-     * Connects the RateLimiter instance to a db to cache current token usage for connected users
-     * @param uri database connection string
-     */
-    connect: (uri: string) => void;
+    processRequest: (
+        uuid: string,
+        timestamp: number,
+        tokens?: number
+    ) => Promise<RateLimiterResponse>;
+}
+
+interface RateLimiterResponse {
+    success: boolean;
+    tokens?: number;
+}
+
+interface RedisBucket {
+    tokens: number;
+    timestamp: number;
 }
