@@ -120,6 +120,15 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                 },
             });
         });
+
+        // TODO: Tests should be written to acount for the additional scenarios possible in a schema
+        // Mutation type
+        // Subscription type
+        // List type
+        // Enem types
+        // Interface
+        // Unions
+        // Input types
     });
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
@@ -198,6 +207,11 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
 
             expect(typeWeightObject).toEqual({ expectedOutput });
         });
+
+        // TODO: Tests should be written for the remaining configuration options
+        // mutations
+        // connections
+        // subscriptions
     });
 
     describe('throws an error if...', () => {
