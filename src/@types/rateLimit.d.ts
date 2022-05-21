@@ -9,7 +9,7 @@ interface RateLimiter {
     processRequest: (
         uuid: string,
         timestamp: number,
-        tokens?: number | undefined
+        tokens?: number
     ) => Promise<RateLimiterResponse>;
 }
 
