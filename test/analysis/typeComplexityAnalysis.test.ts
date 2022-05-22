@@ -38,6 +38,7 @@ import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
         name: String!
         friends: [Character]
         primaryFunction: String
+        appearsIn: [Episode]!
     }
 
     type Review {
@@ -104,6 +105,14 @@ const typeWeights: TypeWeightObject = {
         // enum
         weight: 0,
         fields: {},
+    },
+    character: {
+        // interface
+        weight: 1,
+        fields: {
+            id: 0,
+            name: 0,
+        },
     },
     human: {
         // implements an interface
@@ -238,7 +247,7 @@ describe('Test getQueryTypeComplexity function', () => {
 
         /**
          * With type complexity analysis, all objects returned count towards the total complexity.
-         * For example, the cost of querying for 5 friends is 5. I do not have any clue haw we would know
+         * For example, the cost of querying for 5 friends is 5. I do not have any clue how we would know
          * to look for the argument 'first' to know, before running the query, how many objects are expected to be returned.
          *
          * Anouther example, if we queried the 'Search' type with some string argument, the returned number of objects
