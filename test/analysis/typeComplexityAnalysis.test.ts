@@ -1,7 +1,7 @@
 import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
 
 /** 
- * Here is the schema that creates the followning typeWeightsObject used for the tests
+ * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
  * 
     type Query {
         hero(episode: Episode): Character
@@ -95,6 +95,8 @@ import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
         friendsConnection(first: Int, after: ID): FriendsConnection!
     to character, human and droid
 */
+
+// this object is created by the schema above for use in all the tests below
 const typeWeights: TypeWeightObject = {
     query: {
         // object type
@@ -144,7 +146,7 @@ const typeWeights: TypeWeightObject = {
         fields: {},
     },
     scalars: {
-        weight: 1,
+        weight: 1, // object weight is 1, all scalar feilds have weight 0
         fields: {
             num: 0,
             id: 0,
@@ -198,9 +200,10 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
-        test('with __typename treated asa  scalar', () => {});
+        // todo
+        test('with __typename treated as a  scalar', () => {});
 
-        test('with arguments and varibales', () => {
+        test('with arguments and variables', () => {
             query = `Query { hero(episode: EMPIRE) { id, name } }`;
             expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
             query = `Query { human(id: 1) { id, name, appearsIn } }`;
@@ -246,6 +249,7 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         /**
+         *
          * With type complexity analysis, all objects returned count towards the total complexity.
          * For example, the cost of querying for 5 friends is 5. I do not have any clue how we would know
          * to look for the argument 'first' to know, before running the query, how many objects are expected to be returned.
@@ -257,6 +261,7 @@ describe('Test getQueryTypeComplexity function', () => {
          *
          * Some user configuration will be needed unless someone has bright ideas.
          */
+        // ? type weigts are variable, not sure how to calculate this.
         test('with lists', () => {
             query = `
             Query { 
