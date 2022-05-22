@@ -200,9 +200,6 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
-        // todo
-        test('with __typename treated as a  scalar', () => {});
-
         test('with arguments and variables', () => {
             query = `Query { hero(episode: EMPIRE) { id, name } }`;
             expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
@@ -311,12 +308,20 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplxity(query, typeWeights)).toBe(5); // 1 Query + 4 search results
         });
 
-        // todo
-        // look into error handling for graphql. The only error I forsee is if the query is invalid in
-        // which case we want to pass the query along to the graphQL server to handle. What would that look like here?
-        xtest('Throws an error if for a bad query', () => {});
-
         // todo: directives @skip, @include and custom directives
+
+        // todo: error handling
+        // look into error handling for graphql. The only error I forsee is if the query is invalid in
+        // which case we want to pass the query along to the graphQL server to handle.
+        // What would that look like here? I think we should throw ar error from this function.
+        test('Throws an error if for a bad query', () => {
+            query = `Query { hello { hi } }`; // type doesn't exist
+            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            query = `Query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
+            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            query = `Query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
+            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+        });
     });
 
     xdescribe('Calculates the correct type complexity for mutations', () => {});
