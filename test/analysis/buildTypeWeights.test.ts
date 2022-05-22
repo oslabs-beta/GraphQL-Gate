@@ -28,11 +28,14 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
 
         test('multiple types', () => {
             schema = buildSchema(`
+                type Query {
+                    user: User,
+                    movie: Movie,
+                }
                 type User {
                     name: String
                     email: String
                 }
-
                 type Movie {
                     name: String
                     director: String
@@ -40,6 +43,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
                 User: {
                     weight: 1,
                     fields: {
@@ -63,12 +70,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     user: User
                     movie: Movie
                 }
-                
                 type User {
                     name: String
-                    email: String
+                    film: Movie
                 }
-                
                 type Movie {
                     name: String
                     director: User
@@ -121,14 +126,183 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        test('types with arguments', () => {
+            schema = buildSchema(`
+                type Query {
+                    character(id: ID!): Character
+                }
+                type Character {
+                    id: ID!
+                    name: String!
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+            });
+        });
+
+        test('enum types', () => {
+            schema = buildSchema(`
+                type Query {
+                    hero(episode: Episode): Character
+                }
+                type Character {
+                    id: ID!
+                    name: String!
+                }
+                enum Episode {
+                    NEWHOPE
+                    EMPIRE
+                    JEDI
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        // ? varibale weight
+        test('fields returning lists of objects', () => {
+            schema = buildSchema(`
+                type Query {
+                    reviews(episode: Episode!, first: Int): [Review]
+                }
+                type Review {
+                    episode: Episode
+                    stars: Int!
+                    commentary: String
+                }
+                enum Episode {
+                    NEWHOPE
+                    EMPIRE
+                    JEDI
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Review: {
+                    weight: 1, // ? weight is the argument passed as 'first'. it's variable...
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        test('interface types', () => {
+            schema = buildSchema(`
+                interface Character {
+                    id: ID!
+                    name: String!
+                    friends: [Character]
+                }
+            
+                type Human implements Character {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                    friends: [Character]
+                }
+            
+                type Droid implements Character {
+                    id: ID!
+                    name: String!
+                    friends: [Character]
+                    primaryFunction: String
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                        homePlanet: 0,
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                        primaryFunction: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        test('union tyes', () => {
+            schema = buildSchema(`
+                union SearchResult = Human | Droid
+                type Human{
+                    homePlanet: String
+                }
+                type Droid {
+                    primaryFunction: String
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                SearchResult: {
+                    weight: 1,
+                    fields: {},
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        homePlanet: 0,
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        primaryFunction: 0,
+                    },
+                },
+            });
+        });
+
         // TODO: Tests should be written to acount for the additional scenarios possible in a schema
         // Mutation type
+        // Input types (a part of mutations?)
         // Subscription type
-        // List type
-        // Enem types
-        // Interface
-        // Unions
-        // Input types
     });
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
@@ -251,3 +425,156 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
         });
     });
 });
+
+/** 
+ * Here is the schema that creates the followning typeWeightsObject used for the tests
+ * 
+    type Query {
+        hero(episode: Episode): Character
+        reviews(episode: Episode!, first: Int): [Review]
+        search(text: String): [SearchResult]
+        character(id: ID!): Character
+        droid(id: ID!): Droid
+        human(id: ID!): Human
+    }    
+
+    enum Episode {
+        NEWHOPE
+        EMPIRE
+        JEDI
+    }
+
+    interface Character {
+        id: ID!
+        name: String!
+        friends: [Character]
+        appearsIn: [Episode]!
+    }
+
+    type Human implements Character {
+        id: ID!
+        name: String!
+        homePlanet: String
+        friends: [Character]
+        appearsIn: [Episode]!
+    }
+
+    type Droid implements Character {
+        id: ID!
+        name: String!
+        friends: [Character]
+        primaryFunction: String
+        appearsIn: [Episode]!
+    }
+
+    type Review {
+        episode: Episode
+        stars: Int!
+        commentary: String
+    }
+
+    union SearchResult = Human | Droid
+
+    type Scalars {
+        num: Int,
+        id: ID,
+        float: Float,
+        bool: Boolean,
+        string: String
+        test: Test,
+    }
+
+    type Test {
+        name: String,
+        variable: Scalars
+    }
+    type Topic {
+        relatedTopics(first: Int): [Topic] 
+        name: String
+    }
+ *   
+ * TODO: extend this schema to include mutations, subscriptions and pagination
+ * 
+    type Mutation {
+        createReview(episode: Episode, review: ReviewInput!): Review
+    }
+    type Subscription {
+        reviewAdded(episode: Episode): Review
+    }
+    type FriendsConnection {
+        totalCount: Int
+        edges: [FriendsEdge]
+        friends: [Character]
+        pageInfo: PageInfo!
+    }
+    type FriendsEdge {
+        cursor: ID!
+        node: Character
+    }
+    type PageInfo {
+        startCursor: ID
+        endCursor: ID
+        hasNextPage: Boolean!
+    }
+
+    add
+        friendsConnection(first: Int, after: ID): FriendsConnection!
+    to character, human and droid
+*/
+const typeWeights: TypeWeightObject = {
+    query: {
+        // object type
+        weight: 1,
+        fields: {},
+    },
+    episode: {
+        // enum
+        weight: 0,
+        fields: {},
+    },
+    human: {
+        // implements an interface
+        weight: 1,
+        fields: {
+            id: 0,
+            name: 0,
+            homePlanet: 0,
+        },
+    },
+    droid: {
+        // implements an interface
+        weight: 1,
+        fields: {
+            id: 0,
+            name: 0,
+        },
+    },
+    review: {
+        weight: 1,
+        fields: {
+            stars: 0,
+            commentary: 0,
+        },
+    },
+    searchResult: {
+        // union type
+        weight: 1,
+        fields: {},
+    },
+    scalars: {
+        weight: 1,
+        fields: {
+            num: 0,
+            id: 0,
+            float: 0,
+            bool: 0,
+            string: 0,
+        },
+    },
+    test: {
+        weight: 1,
+        fields: {
+            name: 0,
+        },
+    },
+};
