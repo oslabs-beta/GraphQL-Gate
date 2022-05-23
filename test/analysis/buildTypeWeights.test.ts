@@ -311,13 +311,13 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
         beforeEach(() => {
             schema = buildSchema(`
                 type Query {
-                    user: User
-                    movie: Movie
+                    user(id: ID!): User
+                    movie(id: ID!): Movie
                 }
                 
                 type User {
                     name: String
-                    email: String
+                    film: Movie
                 }
                 
                 type Movie {
@@ -337,7 +337,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: 0,
-                        email: 0,
                     },
                 },
                 Movie: {
@@ -376,7 +375,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
 
             expectedOutput.user.fields.name = 2;
-            expectedOutput.user.fields.email = 2;
             expectedOutput.movie.fields.name = 2;
 
             expect(typeWeightObject).toEqual({ expectedOutput });
