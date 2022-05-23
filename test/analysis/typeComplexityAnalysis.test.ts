@@ -10,6 +10,7 @@ import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
         character(id: ID!): Character
         droid(id: ID!): Droid
         human(id: ID!): Human
+        scalars: Scalars
     }    
 
     enum Episode {
@@ -62,10 +63,7 @@ import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
         name: String,
         variable: Scalars
     }
-    type Topic {
-        relatedTopics(first: Int): [Topic] 
-        name: String
-    }
+
  *   
  * TODO: extend this schema to include mutations, subscriptions and pagination
  * 
@@ -163,7 +161,7 @@ const typeWeights: TypeWeightObject = {
     },
 };
 
-describe('Test getQueryTypeComplexity function', () => {
+xdescribe('Test getQueryTypeComplexity function', () => {
     let query = '';
     describe('Calculates the correct type complexity for queries', () => {
         beforeEach(() => {
@@ -264,7 +262,7 @@ describe('Test getQueryTypeComplexity function', () => {
             Query { 
                 human(id: 1) { 
                     name, 
-                    friends(first: 5) { 
+                    friends { 
                         name 
                     } 
                 }
