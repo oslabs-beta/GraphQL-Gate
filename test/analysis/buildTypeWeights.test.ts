@@ -421,5 +421,8 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                 'negative'
             );
         });
+
+        // TODO: throw validation error if schema is invalid
+        test('schema is invalid', () => {});
     });
 });
