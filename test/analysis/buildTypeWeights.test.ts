@@ -41,11 +41,14 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
 
         test('multiple types', () => {
             schema = buildSchema(`
+                type Query {
+                    user: User,
+                    movie: Movie,
+                }
                 type User {
                     name: String
                     email: String
                 }
-
                 type Movie {
                     name: String
                     director: String
@@ -53,6 +56,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
                 User: {
                     weight: 1,
                     fields: {
@@ -76,12 +83,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     user: User
                     movie: Movie
                 }
-                
                 type User {
                     name: String
-                    email: String
+                    film: Movie
                 }
-                
                 type Movie {
                     name: String
                     director: User
@@ -134,14 +139,182 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // List type
-        // Enem types
-        // Interface
-        // Unions
-        // Input types
+        test('types with arguments', () => {
+            schema = buildSchema(`
+                type Query {
+                    character(id: ID!): Character
+                }
+                type Character {
+                    id: ID!
+                    name: String!
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+            });
+        });
+
+        test('enum types', () => {
+            schema = buildSchema(`
+                type Query {
+                    hero(episode: Episode): Character
+                }
+                type Character {
+                    id: ID!
+                    name: String!
+                }
+                enum Episode {
+                    NEWHOPE
+                    EMPIRE
+                    JEDI
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        // ? varibale weight
+        test('fields returning lists of objects', () => {
+            schema = buildSchema(`
+                type Query {
+                    reviews(episode: Episode!, first: Int): [Review]
+                }
+                type Review {
+                    episode: Episode
+                    stars: Int!
+                    commentary: String
+                }
+                enum Episode {
+                    NEWHOPE
+                    EMPIRE
+                    JEDI
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Query: {
+                    weight: 1,
+                    fields: {},
+                },
+                Review: {
+                    weight: 1, // ? weight is the argument passed as 'first'. it's variable...
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        test('interface types', () => {
+            schema = buildSchema(`
+                interface Character {
+                    id: ID!
+                    name: String!
+                    friends: [Character]
+                }
+            
+                type Human implements Character {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                    friends: [Character]
+                }
+            
+                type Droid implements Character {
+                    id: ID!
+                    name: String!
+                    friends: [Character]
+                    primaryFunction: String
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                character: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                    },
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                        homePlanet: 0,
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        id: 0,
+                        name: 0,
+                        primaryFunction: 0,
+                    },
+                },
+                Episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        test('union tyes', () => {
+            schema = buildSchema(`
+                union SearchResult = Human | Droid
+                type Human{
+                    homePlanet: String
+                }
+                type Droid {
+                    primaryFunction: String
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                SearchResult: {
+                    weight: 1,
+                    fields: {},
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        homePlanet: 0,
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        primaryFunction: 0,
+                    },
+                },
+            });
+        });
 
         // TODO: Tests should be written to acount for the additional scenarios possible in a schema
         // Mutation type
+        // Input types (a part of mutations?)
         // Subscription type
     });
 
@@ -151,13 +324,13 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
         beforeEach(() => {
             schema = buildSchema(`
                 type Query {
-                    user: User
-                    movie: Movie
+                    user(id: ID!): User
+                    movie(id: ID!): Movie
                 }
                 
                 type User {
                     name: String
-                    email: String
+                    film: Movie
                 }
                 
                 type Movie {
@@ -177,7 +350,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: 0,
-                        email: 0,
                     },
                 },
                 Movie: {
@@ -216,7 +388,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
 
             expectedOutput.user.fields.name = 2;
-            expectedOutput.user.fields.email = 2;
             expectedOutput.movie.fields.name = 2;
 
             expect(typeWeightObject).toEqual({ expectedOutput });
@@ -263,5 +434,8 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                 'negative'
             );
         });
+
+        // TODO: throw validation error if schema is invalid
+        test('schema is invalid', () => {});
     });
 });

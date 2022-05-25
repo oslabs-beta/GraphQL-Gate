@@ -15,10 +15,11 @@ import { GraphQLSchema } from 'graphql/type/schema';
 function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
     typeWeightsConfig: TypeWeightConfig = {
-        mutation: 10,
-        object: 1,
-        scalar: 0,
-        connection: 2,
+        mutation: 10, // mutation
+        object: 1, // itnterfaces, unions, objects, query
+        scalar: 0, // enums, scalars
+        connection: 2, // pagination stuff
+        // ? subscription
     }
 ): TypeWeightObject {
     throw Error(`getTypeWeightsFromSchema is not implemented.`);
