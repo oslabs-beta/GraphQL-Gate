@@ -6,7 +6,7 @@
     "scripts": {
         "test": "jest --passWithNoTests",
         "lint": "eslint src test",
-        "lint:fix": "eslint --fix src test",
+        "lint:fix": "eslint --fix src test @types",
         "prettier": "prettier --write .",
         "prepare": "husky install"
     },
