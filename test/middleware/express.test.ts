@@ -220,8 +220,6 @@ describe('Express Middleware tests', () => {
 
                 middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                // We don't actually call json
-                expect(mockResponse.json).toBeCalledWith(expectedResponse);
                 expect(mockResponse.locals).toHaveProperty('complexity');
                 expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
                 expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
@@ -290,11 +288,9 @@ describe('Express Middleware tests', () => {
                         `,
                         },
                     };
-                    const expectedResponse = {
-                        status: 429,
-                    };
 
                     middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                    // FIXME: status is a function. Where does 439 actaully get set.
                     expect(mockResponse.status).toBe(429);
                     expect(nextFunction).not.toBeCalled();
 
@@ -327,7 +323,6 @@ describe('Express Middleware tests', () => {
         test('Uses User IP Address in Redis', async () => {
             const client: RedisClientType = redis.createClient();
             // Check for change in the redis store for the IP key
-            if (!mockRequest.ip) throw new Error('Expected ip to exist on mockRequest');
             const initialValue: string | null = await client.get(mockRequest?.ip);
 
             middleware(mockRequest as Request, mockResponse as Response, nextFunction);
