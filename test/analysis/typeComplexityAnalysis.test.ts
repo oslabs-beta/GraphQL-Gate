@@ -257,7 +257,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
 
         test('with lists detrmined by arguments', () => {
             query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(false); // 1 Query + 3 reviews
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(4); // 1 Query + 3 reviews
         });
 
         test('with nested lists', () => {
