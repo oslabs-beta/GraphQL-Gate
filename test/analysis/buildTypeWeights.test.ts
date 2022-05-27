@@ -215,7 +215,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         // FIXME: check the best solution during implementation and update the tests here.
-                        // we could maybe use a closure with the type already included to make this function more easily called
                         reviews: (arg: number, type: Type) => arg * type.weight,
                         // code from PR review -> reviews: (type) => args[multiplierName] * typeWeightObject[type].weight
                     },
@@ -250,7 +249,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         // FIXME: check the best solution during implementation and update the tests here.
-                        // we could maybe use a closure with the type already included to make this function more easily called
                         friends: (arg: number, type: Type) => arg * type.weight,
                     },
                 },
