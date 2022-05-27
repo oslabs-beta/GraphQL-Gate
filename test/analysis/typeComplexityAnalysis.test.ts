@@ -1,4 +1,4 @@
-import getQueryTypeComplxity from '../../src/analysis/typeComplexityAnalysis';
+import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
 
 /** 
  * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
@@ -164,48 +164,44 @@ const typeWeights: TypeWeightObject = {
 describe('Test getQueryTypeComplexity function', () => {
     let query = '';
     describe('Calculates the correct type complexity for queries', () => {
-        beforeEach(() => {
-            query = '';
-        });
-
         test('with one feild', () => {
             query = `Query { scalars { num } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + Scalars 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
         test('with two or more fields', () => {
             query = `Query { scalars { num } test { name } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with one level of nested fields', () => {
             query = `Query { scalars { num, test { name } } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with multiple levels of nesting', () => {
             query = `Query { scalars { num, test { name, scalars { id } } } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
         });
 
         test('with aliases', () => {
             query = `Query { foo: scalar { num } bar: scalar { id }}`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
         });
 
         test('with all scalar fields', () => {
             query = `Query { scalars { id, num, float, bool, string } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + scalar 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
         test('with arguments and variables', () => {
             query = `Query { hero(episode: EMPIRE) { id, name } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
             query = `Query { human(id: 1) { id, name, appearsIn } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
             // argument passed in as a variable
             query = `Query { hero(episode: $ep) { id, name } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
         test('with fragments', () => {
@@ -224,7 +220,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 appearsIn
               }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
         });
 
         test('with inline fragments', () => {
@@ -240,14 +236,11 @@ describe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1)
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1)
         });
 
         /**
-         * TODO: handle lists of unknown size
-         *
-         * Figure out the implementation before tests
-         *
+         * FIXME: handle lists of unknown size. change the expected result Once we figure out the implementation.
          */
         xtest('with lists of unknown size', () => {
             query = `
@@ -259,12 +252,12 @@ describe('Test getQueryTypeComplexity function', () => {
                     } 
                 }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(false); // ?
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(false); // ?
         });
 
         test('with lists detrmined by arguments', () => {
             query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(false); // 1 Query + 3 reviews
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(false); // 1 Query + 3 reviews
         });
 
         test('with nested lists', () => {
@@ -280,7 +273,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     } 
                 }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
         });
 
         test('accounting for __typename feild', () => {
@@ -298,7 +291,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(5); // 1 Query + 4 search results
+            expect(getQueryTypeComplexity(query, typeWeights)).toBe(5); // 1 Query + 4 search results
         });
 
         // todo: directives @skip, @include and custom directives
@@ -306,11 +299,11 @@ describe('Test getQueryTypeComplexity function', () => {
         // todo: expand on error handling
         test('Throws an error if for a bad query', () => {
             query = `Query { hello { hi } }`; // type doesn't exist
-            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
             query = `Query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
-            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
             query = `Query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
-            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
         });
     });
 
