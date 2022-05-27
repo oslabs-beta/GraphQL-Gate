@@ -2,6 +2,18 @@ import { buildSchema } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 
+// these types allow the tests to overwite properties on the typeWeightObject
+interface TestFields {
+    [index: string]: number;
+}
+interface TestType {
+    weight: number;
+    fields: TestFields;
+}
+interface TestTypeWeightObject {
+    [index: string]: TestType;
+}
+
 xdescribe('Test buildTypeWeightsFromSchema function', () => {
     let schema: GraphQLSchema;
 
@@ -306,7 +318,7 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
     });
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
-        let expectedOutput: TypeWeightObject;
+        let expectedOutput: TestTypeWeightObject;
 
         beforeEach(() => {
             schema = buildSchema(`
