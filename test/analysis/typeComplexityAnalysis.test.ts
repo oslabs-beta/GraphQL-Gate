@@ -22,7 +22,7 @@ import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
     interface Character {
         id: ID!
         name: String!
-        friends: [Character]
+        friends(first: Int): [Character]
         appearsIn: [Episode]!
     }
 
@@ -30,14 +30,14 @@ import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
         id: ID!
         name: String!
         homePlanet: String
-        friends: [Character]
+        friends(first: Int): [Character]
         appearsIn: [Episode]!
     }
 
     type Droid implements Character {
         id: ID!
         name: String!
-        friends: [Character]
+        friends(first: Int): [Character]
         primaryFunction: String
         appearsIn: [Episode]!
     }
@@ -99,7 +99,11 @@ const typeWeights: TypeWeightObject = {
     query: {
         // object type
         weight: 1,
-        fields: {},
+        fields: {
+            // FIXME: update the function def that is supposed te be here to match implementation
+            // FIXME: add the function definition for the 'search' field which returns a list
+            reviews: (arg, type) => arg * type.weight,
+        },
     },
     episode: {
         // enum
@@ -112,6 +116,7 @@ const typeWeights: TypeWeightObject = {
         fields: {
             id: 0,
             name: 0,
+            // FIXME: add the function definition for the 'friends' field which returns a list
         },
     },
     human: {
@@ -245,11 +250,9 @@ xdescribe('Test getQueryTypeComplexity function', () => {
         xtest('with lists of unknown size', () => {
             query = `
             Query { 
-                human(id: 1) { 
-                    name, 
-                    friends { 
-                        name 
-                    } 
+                search(text: 'hi') { 
+                    id
+                    name
                 }
             }`;
             expect(getQueryTypeComplexity(query, typeWeights)).toBe(false); // ?
