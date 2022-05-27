@@ -195,8 +195,7 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // ? varibale weight
-        test('fields returning lists of objects', () => {
+        test('fields returning lists of objects of determinate size', () => {
             schema = buildSchema(`
                 type Query {
                     reviews(episode: Episode!, first: Int): [Review]
@@ -214,13 +213,16 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 Query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        // ? we could maybe use a closure with the type already included to make this function more easily called
+                        reviews: (arg: number, type: Type) => arg * type.weight,
+                    },
                 },
                 Review: {
-                    weight: 1, // ? weight is the argument passed as 'first'. it's variable...
+                    weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
+                        stars: 0,
+                        commentary: 0,
                     },
                 },
                 Episode: {
@@ -230,36 +232,55 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        // TODO: need to figure out how to handle this situation. Skip for now.
+        // The field friends returns a list of an unknown number of objects.
+        xtest('fields returning lists of objects of indetermitae size', () => {
+            schema = buildSchema(`
+                type Human {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                    friends: [Human]
+                }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                Human: {
+                    weight: 1,
+                    fields: {
+                        // ? we could maybe use a closure with the type already included to make this function more easily called
+                        friends: (arg: number, type: Type) => arg * type.weight,
+                    },
+                },
+            });
+        });
+
         test('interface types', () => {
             schema = buildSchema(`
                 interface Character {
                     id: ID!
-                    name: String!
-                    friends: [Character]
+                    name: String!                    
                 }
             
                 type Human implements Character {
                     id: ID!
                     name: String!
                     homePlanet: String
-                    friends: [Character]
                 }
             
                 type Droid implements Character {
                     id: ID!
-                    name: String!
-                    friends: [Character]
+                    name: String!                
                     primaryFunction: String
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                character: {
+                Character: {
                     weight: 1,
                     fields: {
                         id: 0,
                         name: 0,
                     },
                 },
-                human: {
+                Human: {
                     weight: 1,
                     fields: {
                         id: 0,
@@ -267,7 +288,7 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                         homePlanet: 0,
                     },
                 },
-                droid: {
+                Droid: {
                     weight: 1,
                     fields: {
                         id: 0,
