@@ -9,11 +9,11 @@ import { RedisClientType } from 'redis';
  *  4. Otherwise, disallow the request and do not update the token total.
  */
 class TokenBucket implements RateLimiter {
-    capacity: number;
+    private capacity: number;
 
-    refillRate: number;
+    private refillRate: number;
 
-    client: RedisClientType;
+    private client: RedisClientType;
 
     /**
      * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
@@ -29,6 +29,15 @@ class TokenBucket implements RateLimiter {
             throw Error('TokenBucket refillRate and capacity must be positive');
     }
 
+    /**
+     *
+     *
+     * @param {string} uuid - unique identifer used to throttle requests
+     * @param {number} timestamp - time the request was recieved
+     * @param {number} [tokens=1]  - complexity of the query for throttling requests
+     * @return {*}  {Promise<RateLimiterResponse>}
+     * @memberof TokenBucket
+     */
     async processRequest(
         uuid: string,
         timestamp: number,

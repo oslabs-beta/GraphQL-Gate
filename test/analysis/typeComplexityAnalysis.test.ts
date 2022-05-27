@@ -161,7 +161,7 @@ const typeWeights: TypeWeightObject = {
     },
 };
 
-xdescribe('Test getQueryTypeComplexity function', () => {
+describe('Test getQueryTypeComplexity function', () => {
     let query = '';
     describe('Calculates the correct type complexity for queries', () => {
         beforeEach(() => {
@@ -244,20 +244,12 @@ xdescribe('Test getQueryTypeComplexity function', () => {
         });
 
         /**
+         * TODO: handle lists of unknown size
          *
-         * With type complexity analysis, all objects returned count towards the total complexity.
-         * For example, the cost of querying for 5 friends is 5. I do not have any clue how we would know
-         * to look for the argument 'first' to know, before running the query, how many objects are expected to be returned.
+         * Figure out the implementation before tests
          *
-         * Anouther example, if we queried the 'Search' type with some string argument, the returned number of objects
-         * could be very large. Our algorithm will need to know what limit is set for the returned data (limit 100 search results
-         * for example) and then account for that response to caculate the complexity. That information is in the resolvers. We
-         * have no access to the resolvers.
-         *
-         * Some user configuration will be needed unless someone has bright ideas.
          */
-        // ? type weigts are variable, not sure how to calculate this.
-        test('with lists', () => {
+        xtest('with lists of unknown size', () => {
             query = `
             Query { 
                 human(id: 1) { 
@@ -267,9 +259,12 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                     } 
                 }
             }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(7); // 1 Query + 1 human/character +  5 friends/character
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(false); // ?
+        });
+
+        test('with lists detrmined by arguments', () => {
             query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplxity(query, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(getQueryTypeComplxity(query, typeWeights)).toBe(false); // 1 Query + 3 reviews
         });
 
         test('with nested lists', () => {
@@ -308,17 +303,14 @@ xdescribe('Test getQueryTypeComplexity function', () => {
 
         // todo: directives @skip, @include and custom directives
 
-        // todo: error handling
-        // look into error handling for graphql. The only error I forsee is if the query is invalid in
-        // which case we want to pass the query along to the graphQL server to handle.
-        // What would that look like here? I think we should throw ar error from this function.
+        // todo: expand on error handling
         test('Throws an error if for a bad query', () => {
             query = `Query { hello { hi } }`; // type doesn't exist
-            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
             query = `Query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
-            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
             query = `Query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
-            expect(getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplxity(query, typeWeights)).toThrow('Error');
         });
     });
 
