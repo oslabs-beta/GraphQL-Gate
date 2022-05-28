@@ -70,7 +70,6 @@ xdescribe('Express Middleware tests', () => {
         describe('...successfully connects to redis using standard connection options', () => {
             beforeEach(() => {
                 // TODO: Setup mock redis store.
-                redisMock;
             });
 
             test('...via url', () => {
@@ -346,11 +345,13 @@ xdescribe('Express Middleware tests', () => {
             await client.connect();
             // Check for change in the redis store for the IP key
 
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore mockRequest will always have an ip address.
             const initialValue: string | null = await client.get(mockRequest.ip);
 
             middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             const finalValue: string | null = await client.get(mockRequest.ip);
 

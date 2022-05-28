@@ -20,11 +20,11 @@
     "plugins": ["import", "prettier"],
     "rules": {
         "no-plusplus": [2, {
-            "allowForLoopAfterthoughts": "true"
+            "allowForLoopAfterthoughts": true
         }],
         "prettier/prettier": [
             "error"
         ]
     }, 
-    "ignorePatterns": ["jest.config.js"]
+    "ignorePatterns": ["jest.config.ts"]
 }
