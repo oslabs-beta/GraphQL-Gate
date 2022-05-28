@@ -1,30 +1,28 @@
-import redis from 'redis-mock';
-import { RedisClientType } from 'redis';
+import { Redis as RedisType } from 'ioredis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
+
+const RedisMock = require('ioredis-mock');
 
 const CAPACITY = 10;
 // FIXME: Changing the refill rate effects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
-let client: RedisClientType;
+let client: RedisType;
 let timestamp: number;
 const user1 = '1';
 const user2 = '2';
 const user3 = '3';
 const user4 = '4';
 
-async function getBucketFromClient(
-    redisClient: RedisClientType,
-    uuid: string
-): Promise<RedisBucket> {
+async function getBucketFromClient(redisClient: RedisType, uuid: string): Promise<RedisBucket> {
     const res = await redisClient.get(uuid);
-    if (res === undefined || res === null) return { tokens: -1, timestamp: -1 };
-    return JSON.parse(res!);
+    if (res === null) return { tokens: -1, timestamp: -1 };
+    return JSON.parse(res);
 }
 
 async function setTokenCountInClient(
-    redisClient: RedisClientType,
+    redisClient: RedisType,
     uuid: string,
     tokens: number,
     time: number
@@ -33,12 +31,12 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-xdescribe('Test TokenBucket Rate Limiter', () => {
+describe('Test TokenBucket Rate Limiter', () => {
     beforeEach(async () => {
         // Initialize a new token bucket before each test
         // create a mock user
         // intialze the token bucket algorithm
-        client = redis.createClient();
+        client = new RedisMock();
         limiter = new TokenBucket(CAPACITY, REFILL_RATE, client);
         timestamp = new Date().valueOf();
     });
@@ -199,7 +197,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('bucket allows custom refill rates', async () => {
-            const doubleRefillClient: RedisClientType = redis.createClient();
+            const doubleRefillClient: RedisType = new RedisMock();
             limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
 
             await setTokenCountInClient(doubleRefillClient, user1, 0, timestamp);

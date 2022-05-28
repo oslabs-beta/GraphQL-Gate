@@ -1,4 +1,4 @@
-import { RedisClientType } from 'redis';
+import Redis from 'ioredis';
 
 /**
  * The TokenBucket instance of a RateLimiter limits requests based on a unique user ID.
@@ -13,7 +13,7 @@ class TokenBucket implements RateLimiter {
 
     private refillRate: number;
 
-    private client: RedisClientType;
+    private client: Redis;
 
     /**
      * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
@@ -21,7 +21,7 @@ class TokenBucket implements RateLimiter {
      * @param refillRate rate at which the token bucket is refilled
      * @param client redis client where rate limiter will cache information
      */
-    constructor(capacity: number, refillRate: number, client: RedisClientType) {
+    constructor(capacity: number, refillRate: number, client: Redis) {
         this.capacity = capacity;
         this.refillRate = refillRate;
         this.client = client;
@@ -50,7 +50,7 @@ class TokenBucket implements RateLimiter {
                 tokens: this.capacity - tokens,
                 timestamp,
             };
-            await this.client.setEx(uuid, keyExpiry, JSON.stringify(newUserBucket));
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
             return TokenBucket.processRequestResponse(true, newUserBucket.tokens);
         }
 
@@ -67,7 +67,7 @@ class TokenBucket implements RateLimiter {
             tokens: bucket.tokens - tokens,
             timestamp,
         };
-        await this.client.setEx(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
         return TokenBucket.processRequestResponse(true, updatedUserBucket.tokens);
     }
 
@@ -75,7 +75,7 @@ class TokenBucket implements RateLimiter {
      * Resets the rate limiter to the intial state by clearing the redis store.
      */
     public reset(): void {
-        this.client.flushAll();
+        this.client.flushall();
     }
 
     /**
