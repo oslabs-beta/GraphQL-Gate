@@ -61,9 +61,11 @@ class TokenBucket implements RateLimiter {
         }
 
         const bucket: RedisBucket = await JSON.parse(bucketJSON);
-        // TODO check the timestamp on bucket and update however many tokens are supposed to be in there
 
-        const timeSinceLastQuery: number = timestamp - bucket.timestamp;
+        const timeSinceLastQueryInSeconds: number = Math.min((timestamp - bucket.timestamp) / 60);
+        const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
+        const updatedTokenCount = bucket.tokens + tokensToAdd;
+        bucket.tokens = updatedTokenCount > this.capacity ? 10 : updatedTokenCount;
 
         if (bucket.tokens < tokens) {
             // reject the request, not enough tokens in bucket
