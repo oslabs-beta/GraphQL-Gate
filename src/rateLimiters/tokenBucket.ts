@@ -44,14 +44,14 @@ class TokenBucket implements RateLimiter {
             if (tokens > this.capacity) {
                 // reject the request, not enough tokens could even be in the bucket
                 // TODO: add key to cache for next request.
-                return this.processRequestResponse(false, this.capacity);
+                return TokenBucket.processRequestResponse(false, this.capacity);
             }
             const newUserBucket: RedisBucket = {
                 tokens: this.capacity - tokens,
                 timestamp,
             };
             await this.client.setEx(uuid, keyExpiry, JSON.stringify(newUserBucket));
-            return this.processRequestResponse(true, newUserBucket.tokens);
+            return TokenBucket.processRequestResponse(true, newUserBucket.tokens);
         }
 
         // parse the returned thring form redis and update their token budget based on the time lapse between queries
@@ -61,14 +61,14 @@ class TokenBucket implements RateLimiter {
         if (bucket.tokens < tokens) {
             // reject the request, not enough tokens in bucket
             // TODO upadte expirey and timestamp despite rejected request
-            return this.processRequestResponse(false, bucket.tokens);
+            return TokenBucket.processRequestResponse(false, bucket.tokens);
         }
         const updatedUserBucket = {
             tokens: bucket.tokens - tokens,
             timestamp,
         };
         await this.client.setEx(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
-        return this.processRequestResponse(true, updatedUserBucket.tokens);
+        return TokenBucket.processRequestResponse(true, updatedUserBucket.tokens);
     }
 
     /**
@@ -91,12 +91,16 @@ class TokenBucket implements RateLimiter {
         return updatedTokenCount > this.capacity ? 10 : updatedTokenCount;
     };
 
-    private processRequestResponse = (success: boolean, tokens: number): RateLimiterResponse => {
-        return {
-            success,
-            tokens,
-        };
-    };
+    /**
+     * A helper function to create the response object from 'processRequest'
+     */
+    private static processRequestResponse = (
+        success: boolean,
+        tokens: number
+    ): RateLimiterResponse => ({
+        success,
+        tokens,
+    });
 }
 
 export default TokenBucket;
