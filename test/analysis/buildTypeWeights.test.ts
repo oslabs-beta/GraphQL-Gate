@@ -2,7 +2,6 @@ import { buildSchema } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 
-
 // these types allow the tests to overwite properties on the typeWeightObject
 interface TestFields {
     [index: string]: number;
