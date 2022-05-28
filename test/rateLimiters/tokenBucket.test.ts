@@ -33,7 +33,7 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-describe('Test TokenBucket Rate Limiter', () => {
+xdescribe('Test TokenBucket Rate Limiter', () => {
     beforeEach(async () => {
         // Initialize a new token bucket before each test
         // create a mock user
