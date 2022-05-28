@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
-import redis from 'redis';
+import * as redis from 'redis';
 import redisMock from 'redis-mock';
 import { RedisClientType } from 'redis';
 import expressRateLimitMiddleware from '../../src/middleware/index';
@@ -9,7 +9,7 @@ let middleware: RequestHandler;
 let mockRequest: Partial<Request>;
 let complexRequest: Partial<Request>;
 let mockResponse: Partial<Response>;
-const nextFunction: NextFunction = jest.fn();
+let nextFunction: NextFunction = jest.fn();
 const schema: GraphQLSchema = buildSchema(`
                 type Query {
                     hero(episode: Episode): Character
@@ -65,8 +65,8 @@ const schema: GraphQLSchema = buildSchema(`
                 }
             `);
 
-describe('Express Middleware tests', () => {
-    xdescribe('Middleware is configurable...', () => {
+xdescribe('Express Middleware tests', () => {
+    describe('Middleware is configurable...', () => {
         describe('...successfully connects to redis using standard connection options', () => {
             beforeEach(() => {
                 // TODO: Setup mock redis store.
@@ -79,13 +79,13 @@ describe('Express Middleware tests', () => {
                 expect(true).toBeFalsy();
             });
 
-            test('via socket', () => {
+            xtest('via socket', () => {
                 // TODO: Connect to redis instance and add 'connect' event listener
                 // assert that event listener is called once
                 expect(true).toBeFalsy();
             });
 
-            test('defaults to localhost', () => {
+            xtest('defaults to localhost', () => {
                 // TODO: Connect to redis instance and add 'connect' event listener
                 // assert that event listener is called once
                 expect(true).toBeFalsy();
@@ -225,9 +225,10 @@ describe('Express Middleware tests', () => {
                 `,
                 },
             };
+            nextFunction = jest.fn();
         });
 
-        xdescribe('Adds expected properties to res.locals', () => {
+        describe('Adds expected properties to res.locals', () => {
             test('Adds UNIX timestamp and complexity', () => {
                 const expectedResponse = {
                     locals: {},
@@ -306,7 +307,7 @@ describe('Express Middleware tests', () => {
 
                     middleware(mockRequest as Request, mockResponse as Response, nextFunction);
                     // FIXME: status is a function. Where does 439 actaully get set.
-                    expect(mockResponse.status).toBe(429);
+                    expect(mockResponse.statusCode).toBe(429);
                     expect(nextFunction).not.toBeCalled();
 
                     // FIXME: There are multiple functions to send a response
@@ -326,7 +327,7 @@ describe('Express Middleware tests', () => {
                     // Send a 6th request that should be blocked.
                     const next: NextFunction = jest.fn();
                     middleware(mockRequest as Request, mockResponse as Response, next);
-                    expect(mockResponse.status).toBe(429);
+                    expect(mockResponse.statusCode).toBe(429);
                     expect(next).not.toBeCalled();
 
                     // FIXME: See above comment on sending responses
@@ -335,13 +336,13 @@ describe('Express Middleware tests', () => {
             });
         });
 
-        test('Uses User IP Address in Redis', async () => {
+        xtest('Uses User IP Address in Redis', async () => {
             // FIXME: In order to test this accurately the middleware would need to connect
             // to a mock instance or the tests would need to connect to an actual redis instance
             // We could use NODE_ENV varibale in the implementation to determine the connection type.
 
-            // connecting to the actual redis client here
-            const client: RedisClientType = redis.createClient();
+            // TODO: connect to the actual redis client here. Make sure to disconnect for proper teardown
+            const client: RedisClientType = redisMock.createClient();
             await client.connect();
             // Check for change in the redis store for the IP key
 
