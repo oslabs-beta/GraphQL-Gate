@@ -207,20 +207,17 @@ xdescribe('Express Middleware tests', () => {
 
             complexRequest = {
                 // complexity should be 10 if 'first' is accounted for.
-                // scalars: 1, droid: 1, reviews 8: 1)
+                // Query: 1, droid: 1, reviews 8: 1)
                 query: {
                     query: `Query {
-                    scalars: {
-                        num
-                    }
-                    droid(id: 1) {
-                        name
-                    }
-                    reviews(episode: 'NEWHOPE', first: 8) {
-                        episode 
-                        stars
-                        commentary
-                    }
+                        droid(id: 1) {
+                            name
+                        }
+                        reviews(episode: 'NEWHOPE', first: 8) {
+                            episode 
+                            stars
+                            commentary
+                        }
                 `,
                 },
             };
@@ -284,9 +281,9 @@ xdescribe('Express Middleware tests', () => {
 
             describe('BLOCKS requests', () => {
                 test('A single request that exceeds capacity', () => {
-                    complexRequest = {
+                    const blockedRequest: Partial<Request> = {
                         // complexity should be 12 if 'first' is accounted for.
-                        // scalars: 1, droid: 1, reviews (5 * (1 Review, 1 episode))
+                        // scalars: 1, droid: 1, reviews (10 * (1 Review, 0 episode))
                         query: {
                             query: `Query {
                             scalars: {
@@ -295,7 +292,7 @@ xdescribe('Express Middleware tests', () => {
                             droid(id: 1) {
                                 name
                             }
-                            reviews(episode: 'NEWHOPE', first: 5) {
+                            reviews(episode: 'NEWHOPE', first: 10) {
                                 episode 
                                 stars
                                 commentary
@@ -304,8 +301,7 @@ xdescribe('Express Middleware tests', () => {
                         },
                     };
 
-                    middleware(mockRequest as Request, mockResponse as Response, nextFunction);
-                    // FIXME: status is a function. Where does 439 actaully get set.
+                    middleware(blockedRequest as Request, mockResponse as Response, nextFunction);
                     expect(mockResponse.statusCode).toBe(429);
                     expect(nextFunction).not.toBeCalled();
 
