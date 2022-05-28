@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
-import redis from 'redis-mock';
+import redis from 'redis';
+import redisMock from 'redis-mock';
 import { RedisClientType } from 'redis';
 import expressRateLimitMiddleware from '../../src/middleware/index';
-import { Socket } from 'net';
 
 let middleware: RequestHandler;
 let mockRequest: Partial<Request>;
@@ -70,20 +70,24 @@ describe('Express Middleware tests', () => {
         describe('...successfully connects to redis using standard connection options', () => {
             beforeEach(() => {
                 // TODO: Setup mock redis store.
+                redisMock;
             });
 
-            test('...via connection string', () => {
-                // TODO: use event listener to listen for connections to a mock redis store
+            test('...via url', () => {
+                // TODO: Connect to redis instance and add 'connect' event listener
+                // assert that event listener is called once
                 expect(true).toBeFalsy();
             });
 
-            test('via indiividual parameters', () => {
-                // TODO:
+            test('via socket', () => {
+                // TODO: Connect to redis instance and add 'connect' event listener
+                // assert that event listener is called once
                 expect(true).toBeFalsy();
             });
 
             test('defaults to localhost', () => {
-                // TODO:
+                // TODO: Connect to redis instance and add 'connect' event listener
+                // assert that event listener is called once
                 expect(true).toBeFalsy();
             });
         });
@@ -152,6 +156,17 @@ describe('Express Middleware tests', () => {
             expect(
                 expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { url: '' })
             ).toThrowError('ValidationError');
+        });
+
+        test('Throw an error in unable to connect to redis', () => {
+            expect(
+                expressRateLimitMiddleware(
+                    'TOKEN_BUCKET',
+                    { bucketSize: 10, refillRate: 1 },
+                    schema,
+                    { socket: { host: 'localhost', port: 1 } }
+                )
+            ).toThrow('ECONNREFUSED');
         });
     });
 
@@ -321,13 +336,22 @@ describe('Express Middleware tests', () => {
         });
 
         test('Uses User IP Address in Redis', async () => {
+            // FIXME: In order to test this accurately the middleware would need to connect
+            // to a mock instance or the tests would need to connect to an actual redis instance
+            // We could use NODE_ENV varibale in the implementation to determine the connection type.
+
+            // connecting to the actual redis client here
             const client: RedisClientType = redis.createClient();
+            await client.connect();
             // Check for change in the redis store for the IP key
-            const initialValue: string | null = await client.get(mockRequest?.ip);
+
+            // @ts-ignore mockRequest will always have an ip address.
+            const initialValue: string | null = await client.get(mockRequest.ip);
 
             middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-            const finalValue: string | null = await client.get(mockRequest?.ip);
+            // @ts-ignore
+            const finalValue: string | null = await client.get(mockRequest.ip);
 
             expect(finalValue).not.toBeNull();
             expect(finalValue).not.toBe(initialValue);
