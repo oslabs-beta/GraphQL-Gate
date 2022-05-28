@@ -208,7 +208,7 @@ describe('Express Middleware tests', () => {
 
             complexRequest = {
                 // complexity should be 10 if 'first' is accounted for.
-                // scalars: 1, droid: 1, reviews (4 * (1 Review, 1 episode))
+                // scalars: 1, droid: 1, reviews 8: 1)
                 query: {
                     query: `Query {
                     scalars: {
@@ -217,7 +217,7 @@ describe('Express Middleware tests', () => {
                     droid(id: 1) {
                         name
                     }
-                    reviews(episode: 'NEWHOPE', first: 4) {
+                    reviews(episode: 'NEWHOPE', first: 8) {
                         episode 
                         stars
                         commentary
@@ -319,7 +319,7 @@ describe('Express Middleware tests', () => {
                         // Send 5 queries of complexity 2. These should all succeed
                         middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                        // advance the timers by 1 second for the next request
+                        // advance the timers by 20 miliseconds for the next request
                         jest.advanceTimersByTime(20);
                     }
 
