@@ -18,7 +18,9 @@ async function getBucketFromClient(
     redisClient: RedisClientType,
     uuid: string
 ): Promise<RedisBucket> {
-    return redisClient.get(uuid).then((res) => JSON.parse(res || '{}'));
+    const res = await redisClient.get(uuid);
+    if (res === undefined || res === null) return { tokens: -1, timestamp: -1 };
+    return JSON.parse(res!);
 }
 
 async function setTokenCountInClient(
@@ -31,7 +33,7 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-xdescribe('Test TokenBucket Rate Limiter', () => {
+describe('Test TokenBucket Rate Limiter', () => {
     beforeEach(async () => {
         // Initialize a new token bucket before each test
         // create a mock user
@@ -50,7 +52,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                     CAPACITY - withdraw5
                 );
                 const tokenCountFull = await getBucketFromClient(client, user1);
-                expect(tokenCountFull).toBe(CAPACITY - withdraw5);
+                expect(tokenCountFull.tokens).toBe(CAPACITY - withdraw5);
             });
 
             test('bucket is partially full and request has leftover tokens', async () => {
@@ -69,7 +71,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                     ).tokens
                 ).toBe(CAPACITY - (initial + partialWithdraw));
                 const tokenCountPartial = await getBucketFromClient(client, user2);
-                expect(tokenCountPartial).toBe(CAPACITY - (initial + partialWithdraw));
+                expect(tokenCountPartial.tokens).toBe(CAPACITY - (initial + partialWithdraw));
             });
 
             // Bucket partially full and no leftover tokens after reqeust
@@ -78,7 +80,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user2, initial, timestamp);
                 expect((await limiter.processRequest(user2, timestamp, initial)).tokens).toBe(0);
                 const tokenCountPartialToEmpty = await getBucketFromClient(client, user2);
-                expect(tokenCountPartialToEmpty).toBe(0);
+                expect(tokenCountPartialToEmpty.tokens).toBe(0);
             });
 
             // Bucket initially empty but enough time elapsed to paritally fill bucket since last request
@@ -86,7 +88,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user4, 0, timestamp);
                 expect((await limiter.processRequest(user4, timestamp + 6000, 4)).tokens).toBe(2);
                 const count = await getBucketFromClient(client, user4);
-                expect(count).toBe(2);
+                expect(count.tokens).toBe(2);
             });
         });
 

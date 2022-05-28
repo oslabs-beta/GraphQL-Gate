@@ -34,14 +34,10 @@ class TokenBucket implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set an expiry for key-pairs in redis to 24 hours
-        const bucketExpiry = 86400000;
-
         // attempt to get the value for the uuid from the redis cache
-        const bucketJSON = await this.client.get('uuid');
-
+        const bucketJSON = await this.client.get(uuid);
         // if the response is null, we need to create bucket for the user
-        if (bucketJSON === null) {
+        if (bucketJSON === undefined || bucketJSON === null) {
             if (tokens > this.capacity) {
                 // reject the request, not enough tokens in bucket
                 return {
@@ -53,7 +49,7 @@ class TokenBucket implements RateLimiter {
                 tokens: this.capacity - tokens,
                 timestamp,
             };
-            await this.client.setEx(uuid, bucketExpiry, JSON.stringify(newUserBucket));
+            await this.client.set(uuid, JSON.stringify(newUserBucket));
             return {
                 success: true,
                 tokens: newUserBucket.tokens,
@@ -78,7 +74,7 @@ class TokenBucket implements RateLimiter {
             tokens: bucket.tokens - tokens,
             timestamp,
         };
-        await this.client.setEx(uuid, bucketExpiry, JSON.stringify(updatedUserBucket));
+        await this.client.set(uuid, JSON.stringify(updatedUserBucket));
         return {
             success: true,
             tokens: updatedUserBucket.tokens,
