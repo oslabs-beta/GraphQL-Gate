@@ -6,10 +6,12 @@ import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 interface TestFields {
     [index: string]: number;
 }
+
 interface TestType {
     weight: number;
     fields: TestFields;
 }
+
 interface TestTypeWeightObject {
     [index: string]: TestType;
 }
