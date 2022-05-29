@@ -26,7 +26,7 @@ export function expressRateLimiter(
     redisClientOptions: RedisClientOptions,
     typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig
 ): RequestHandler {
-    // TODO: Set 'timestamp' on res.locals to record when the request is received in UNIX format. HTTP does not inlude this.
+    const timeStamp = new Date().valueOf();
     // TODO: Parse the schema to create a TypeWeightObject. Throw ValidationError if schema is invalid
     // TODO: Connect to Redis store using provided options. Default to localhost:6379
     // TODO: Configure the selected RateLimtier
