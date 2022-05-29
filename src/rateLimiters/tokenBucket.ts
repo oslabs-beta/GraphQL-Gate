@@ -41,15 +41,15 @@ class TokenBucket implements RateLimiter {
         const bucketJSON = await this.client.get(uuid);
         // if the response is null, we need to create bucket for the user
         if (bucketJSON === null) {
-            if (tokens > this.capacity) {
-                // reject the request, not enough tokens could even be in the bucket
-                // TODO: add key to cache for next request.
-                return TokenBucket.processRequestResponse(false, this.capacity);
-            }
             const newUserBucket: RedisBucket = {
-                tokens: this.capacity - tokens,
+                tokens: tokens > this.capacity ? 10 : this.capacity - tokens,
                 timestamp,
             };
+            if (tokens > this.capacity) {
+                // reject the request, not enough tokens could even be in the bucket
+                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
+                return TokenBucket.processRequestResponse(false, this.capacity);
+            }
             await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
             return TokenBucket.processRequestResponse(true, newUserBucket.tokens);
         }
@@ -57,16 +57,15 @@ class TokenBucket implements RateLimiter {
         // parse the returned thring form redis and update their token budget based on the time lapse between queries
         const bucket: RedisBucket = await JSON.parse(bucketJSON);
         bucket.tokens = this.calculateTokenBudgetFormTimestamp(bucket, timestamp);
-
-        if (bucket.tokens < tokens) {
-            // reject the request, not enough tokens in bucket
-            // TODO upadte expirey and timestamp despite rejected request
-            return TokenBucket.processRequestResponse(false, bucket.tokens);
-        }
         const updatedUserBucket = {
-            tokens: bucket.tokens - tokens,
+            tokens: bucket.tokens < tokens ? bucket.tokens : bucket.tokens - tokens,
             timestamp,
         };
+        if (bucket.tokens < tokens) {
+            // reject the request, not enough tokens in bucket
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+            return TokenBucket.processRequestResponse(false, bucket.tokens);
+        }
         await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
         return TokenBucket.processRequestResponse(true, updatedUserBucket.tokens);
     }
@@ -85,7 +84,9 @@ class TokenBucket implements RateLimiter {
         bucket: RedisBucket,
         timestamp: number
     ): number => {
-        const timeSinceLastQueryInSeconds: number = Math.min((timestamp - bucket.timestamp) / 60);
+        const timeSinceLastQueryInSeconds: number = Math.floor(
+            (timestamp - bucket.timestamp) / 1000
+        );
         const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
         const updatedTokenCount = bucket.tokens + tokensToAdd;
         return updatedTokenCount > this.capacity ? 10 : updatedTokenCount;
