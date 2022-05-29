@@ -29,7 +29,16 @@ class TokenBucket implements RateLimiter {
             throw Error('TokenBucket refillRate and capacity must be positive');
     }
 
-    public async processRequest(
+    /**
+     *
+     *
+     * @param {string} uuid - unique identifer used to throttle requests
+     * @param {number} timestamp - time the request was recieved
+     * @param {number} [tokens=1]  - complexity of the query for throttling requests
+     * @return {*}  {Promise<RateLimiterResponse>}
+     * @memberof TokenBucket
+     */
+    async processRequest(
         uuid: string,
         timestamp: number,
         tokens = 1
