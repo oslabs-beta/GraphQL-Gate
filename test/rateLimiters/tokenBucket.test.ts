@@ -1,21 +1,30 @@
-import { Redis as RedisType } from 'ioredis';
+import * as ioredis from 'ioredis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
 const RedisMock = require('ioredis-mock');
+
+/**  trying to solve ts-eslint error with require */
+
+// import * as ioredis from 'ioredis';
+// // import RedisMock from 'ioredis-mock';
+// // import { createRequire } from 'module'; // this just makes it so can use require for ioredis-mock
+// import TokenBucket from '../../src/rateLimiters/tokenBucket';
+// const RedisMock = require('ioredis-mock');
+// // const c = new RedisMock();
 
 const CAPACITY = 10;
 // FIXME: Changing the refill rate effects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
-let client: RedisType;
+let client: ioredis.Redis;
 let timestamp: number;
 const user1 = '1';
 const user2 = '2';
 const user3 = '3';
 const user4 = '4';
 
-async function getBucketFromClient(redisClient: RedisType, uuid: string): Promise<RedisBucket> {
+async function getBucketFromClient(redisClient: ioredis.Redis, uuid: string): Promise<RedisBucket> {
     const res = await redisClient.get(uuid);
     // if no uuid is found, return -1 for tokens and timestamp, which are both impossible
     if (res === null) return { tokens: -1, timestamp: -1 };
@@ -23,7 +32,7 @@ async function getBucketFromClient(redisClient: RedisType, uuid: string): Promis
 }
 
 async function setTokenCountInClient(
-    redisClient: RedisType,
+    redisClient: ioredis.Redis,
     uuid: string,
     tokens: number,
     time: number
@@ -45,7 +54,7 @@ describe('Test TokenBucket Rate Limiter', () => {
     describe('TokenBucket returns correct number of tokens and updates redis store as expected', () => {
         describe('after an ALLOWED request...', () => {
             afterEach(() => {
-                limiter.reset();
+                client.flushall();
             });
             test('bucket is initially full', async () => {
                 // Bucket intially full
@@ -98,7 +107,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             let redisData: RedisBucket;
 
             afterAll(() => {
-                limiter.reset();
+                client.flushall();
             });
 
             test('where intial request is greater than bucket capacity', async () => {
@@ -136,7 +145,7 @@ describe('Test TokenBucket Rate Limiter', () => {
 
     describe('Token Bucket functions as expected', () => {
         afterEach(() => {
-            limiter.reset();
+            client.flushall();
         });
         test('allows a user to consume up to their current allotment of tokens', async () => {
             // "free requests"
@@ -208,7 +217,7 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('bucket allows custom refill rates', async () => {
-            const doubleRefillClient: RedisType = new RedisMock();
+            const doubleRefillClient: ioredis.Redis = new RedisMock();
             limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
 
             await setTokenCountInClient(doubleRefillClient, user1, 0, timestamp);
