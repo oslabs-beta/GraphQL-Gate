@@ -17,6 +17,7 @@ const user4 = '4';
 
 async function getBucketFromClient(redisClient: RedisType, uuid: string): Promise<RedisBucket> {
     const res = await redisClient.get(uuid);
+    // if no uuid is found, return -1 for tokens and timestamp, which are both impossible
     if (res === null) return { tokens: -1, timestamp: -1 };
     return JSON.parse(res);
 }
