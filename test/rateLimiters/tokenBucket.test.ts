@@ -1,28 +1,27 @@
-import redis from 'redis-mock';
-import { RedisClientType } from 'redis';
+import * as ioredis from 'ioredis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const RedisMock = require('ioredis-mock');
 
 const CAPACITY = 10;
 // FIXME: Changing the refill rate effects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
 
 let limiter: TokenBucket;
-let client: RedisClientType;
+let client: ioredis.Redis;
 let timestamp: number;
 const user1 = '1';
 const user2 = '2';
 const user3 = '3';
 const user4 = '4';
 
-async function getBucketFromClient(
-    redisClient: RedisClientType,
-    uuid: string
-): Promise<RedisBucket> {
+async function getBucketFromClient(redisClient: ioredis.Redis, uuid: string): Promise<RedisBucket> {
     return redisClient.get(uuid).then((res) => JSON.parse(res || '{}'));
 }
 
 async function setTokenCountInClient(
-    redisClient: RedisClientType,
+    redisClient: ioredis.Redis,
     uuid: string,
     tokens: number,
     time: number
@@ -36,7 +35,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
         // Initialize a new token bucket before each test
         // create a mock user
         // intialze the token bucket algorithm
-        client = redis.createClient();
+        client = new RedisMock();
         limiter = new TokenBucket(CAPACITY, REFILL_RATE, client);
         timestamp = new Date().valueOf();
     });
@@ -197,7 +196,7 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('bucket allows custom refill rates', async () => {
-            const doubleRefillClient: RedisClientType = redis.createClient();
+            const doubleRefillClient: ioredis.Redis = new RedisMock();
             limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
 
             await setTokenCountInClient(doubleRefillClient, user1, 0, timestamp);
