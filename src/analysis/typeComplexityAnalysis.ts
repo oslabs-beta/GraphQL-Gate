@@ -15,7 +15,11 @@ import { parse } from 'graphql';
  * @param {TypeWeightObject} typeWeights
  * @param {string} complexityOption
  */
-function getQueryTypeComplexity(queryString: string, typeWeights: TypeWeightObject): number {
+function getQueryTypeComplexity(
+    queryString: string,
+    queryVariables: any,
+    typeWeights: TypeWeightObject
+): number {
     throw Error('getQueryComplexity is not implemented.');
 }
 

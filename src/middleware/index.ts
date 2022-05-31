@@ -42,7 +42,7 @@ export function expressRateLimiter(
     // return the rate limiting middleware
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         const requestTimestamp = new Date().valueOf();
-        const { query }: { query: string } = req.body;
+        const { query, variables }: { query: string; variables: any } = req.body;
         if (!query) {
             // FIXME: Throw an error here? Code currently passes this on to whatever is next
             console.log('There is no query on the request');
@@ -62,7 +62,7 @@ export function expressRateLimiter(
         const ip: string = req.ips[0] || req.ip;
 
         // FIXME: this will only work with type complexity
-        const queryComplexity = getQueryTypeComplexity(query, typeWeightObject);
+        const queryComplexity = getQueryTypeComplexity(query, variables, typeWeightObject);
 
         try {
             // process the request and conditinoally respond to client with status code 429 o
