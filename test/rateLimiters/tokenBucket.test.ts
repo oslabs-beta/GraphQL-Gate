@@ -1,16 +1,8 @@
 import * as ioredis from 'ioredis';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');
-
-/**  trying to solve ts-eslint error with require */
-
-// import * as ioredis from 'ioredis';
-// // import RedisMock from 'ioredis-mock';
-// // import { createRequire } from 'module'; // this just makes it so can use require for ioredis-mock
-// import TokenBucket from '../../src/rateLimiters/tokenBucket';
-// const RedisMock = require('ioredis-mock');
-// // const c = new RedisMock();
 
 const CAPACITY = 10;
 // FIXME: Changing the refill rate effects test outcomes.
