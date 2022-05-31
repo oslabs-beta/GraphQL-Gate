@@ -39,6 +39,7 @@ export function expressRateLimiter(
     const redisClient = new Redis(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
+    // return the rate limiting middleware
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         const requestTimestamp = new Date().valueOf();
         const { query }: { query: string } = req.body;
@@ -57,11 +58,15 @@ export function expressRateLimiter(
          *
          * req.ip and req.ips will worx in express but not with other frameworks
          */
+        // check for a proxied ip address before using the ip address on request
         const ip: string = req.ips[0] || req.ip;
+
         // FIXME: this will only work with type complexity
         const queryComplexity = getQueryTypeComplexity(query, typeWeightObject);
 
         try {
+            // process the request and conditinoally respond to client with status code 429 o
+            // r pass the request onto the next middleware function
             const rateLimiterResponse = await rateLimiter.processRequest(
                 ip,
                 requestTimestamp,
