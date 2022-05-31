@@ -62,7 +62,8 @@ export function expressRateLimiter(
         const ip: string = req.ips[0] || req.ip;
 
         // FIXME: this will only work with type complexity
-        const queryComplexity = getQueryTypeComplexity(query, variables, typeWeightObject);
+        // TODO: add query varibales parameter
+        const queryComplexity = getQueryTypeComplexity(query, typeWeightObject);
 
         try {
             // process the request and conditinoally respond to client with status code 429 o
