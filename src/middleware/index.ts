@@ -75,11 +75,8 @@ export function expressRateLimiter(
             );
             if (rateLimiterResponse.success === false) {
                 // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
-                res.status(429).json({
-                    timestamp: requestTimestamp,
-                    complexity: queryComplexity,
-                    tokens: rateLimiterResponse.tokens,
-                });
+                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
+                res.status(429).send();
             }
             res.locals.graphqlGate = {
                 timestamp: requestTimestamp,
