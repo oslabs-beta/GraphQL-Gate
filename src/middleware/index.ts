@@ -1,4 +1,4 @@
-import { RedisClientOptions } from 'redis';
+import RedisClientOptions from 'ioredis';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
