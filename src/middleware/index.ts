@@ -1,4 +1,5 @@
 import Redis, { RedisOptions } from 'ioredis';
+import { parse, validate } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 
@@ -62,8 +63,13 @@ export function expressRateLimiter(
         const ip: string = req.ips[0] || req.ip;
 
         // FIXME: this will only work with type complexity
-        // TODO: add query varibales parameter
-        const queryComplexity = getQueryTypeComplexity(query, typeWeightObject);
+        const queryAST = parse(query);
+        // validate the query against the schema. The GraphQL validation function returns an array of errors.
+        const validationErrors = validate(schema, queryAST);
+        // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
+        if (validationErrors.length > 0) return next();
+
+        const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
 
         try {
             // process the request and conditinoally respond to client with status code 429 o
