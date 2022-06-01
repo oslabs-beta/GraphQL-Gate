@@ -24,5 +24,5 @@
             "error"
         ]
     }, 
-    "ignorePatterns": ["jest.config.js"]
+    "ignorePatterns": ["jest.*"]
 }

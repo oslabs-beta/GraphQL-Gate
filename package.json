@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "test": "jest --passWithNoTests",
         "lint": "eslint src test",
