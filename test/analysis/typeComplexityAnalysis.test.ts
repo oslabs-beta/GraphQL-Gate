@@ -167,7 +167,7 @@ const typeWeights: TypeWeightObject = {
     },
 };
 
-xdescribe('Test getQueryTypeComplexity function', () => {
+describe('Test getQueryTypeComplexity function', () => {
     let query = '';
     let variables: any | undefined;
     describe('Calculates the correct type complexity for queries', () => {
