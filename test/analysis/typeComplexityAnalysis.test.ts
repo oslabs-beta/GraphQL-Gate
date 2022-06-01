@@ -169,7 +169,7 @@ const typeWeights: TypeWeightObject = {
 
 xdescribe('Test getQueryTypeComplexity function', () => {
     let query = '';
-    const variables: any | undefined = undefined;
+    let variables: any | undefined;
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
             query = `Query { scalars { num } }`;
@@ -207,6 +207,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
             query = `Query { human(id: 1) { id, name, appearsIn } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
             // argument passed in as a variable
+            variables = { ep: 'EMPIRE' };
             query = `Query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
@@ -263,6 +264,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
         test('with lists detrmined by arguments and variables', () => {
             query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            variables = { first: 3 };
             query = `Query queryVaribales($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
         });
