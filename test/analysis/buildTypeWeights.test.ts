@@ -16,7 +16,7 @@ interface TestTypeWeightObject {
     [index: string]: TestType;
 }
 
-xdescribe('Test buildTypeWeightsFromSchema function', () => {
+describe('Test buildTypeWeightsFromSchema function', () => {
     let schema: GraphQLSchema;
 
     // this is dependant on the default type weight settings for the function
@@ -103,7 +103,6 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: 0,
-                        email: 0,
                     },
                 },
                 Movie: {
@@ -212,12 +211,18 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     EMPIRE
                     JEDI
                 }`);
+
+            function reviews(multiplier: number): number {
+                return 1;
+            }
+
+            // TODO: Add tests for what the function does
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 Query: {
                     weight: 1,
                     fields: {
                         // FIXME: check the best solution during implementation and update the tests here.
-                        reviews: (arg: number, type: Type) => arg * type.weight,
+                        reviews: expect.any(Function), // FIXME: Better way to test this?
                         // code from PR review -> reviews: (type) => args[multiplierName] * typeWeightObject[type].weight
                     },
                 },
@@ -237,7 +242,7 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
 
         // TODO: need to figure out how to handle this situation. Skip for now.
         // The field friends returns a list of an unknown number of objects.
-        xtest('fields returning lists of objects of indetermitae size', () => {
+        xtest('fields returning lists of objects of indeterminate size', () => {
             schema = buildSchema(`
                 type Human {
                     id: ID!
@@ -299,14 +304,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                         primaryFunction: 0,
                     },
                 },
-                Episode: {
-                    weight: 0,
-                    fields: {},
-                },
             });
         });
 
-        test('union tyes', () => {
+        test('union types', () => {
             schema = buildSchema(`
                 union SearchResult = Human | Droid
                 type Human{
@@ -320,13 +321,13 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {},
                 },
-                human: {
+                Human: {
                     weight: 1,
                     fields: {
                         homePlanet: 0,
                     },
                 },
-                droid: {
+                Droid: {
                     weight: 1,
                     fields: {
                         primaryFunction: 0,
@@ -389,9 +390,9 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 query: 2,
             });
-            expectedOutput.query.weight = 2;
+            expectedOutput.Query.weight = 2;
 
-            expect(typeWeightObject).toEqual({ expectedOutput });
+            expect(typeWeightObject).toEqual(expectedOutput);
         });
 
         test('object parameter', () => {
@@ -399,10 +400,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                 object: 2,
             });
 
-            expectedOutput.user.weight = 2;
-            expectedOutput.movie.weight = 2;
+            expectedOutput.User.weight = 2;
+            expectedOutput.Movie.weight = 2;
 
-            expect(typeWeightObject).toEqual({ expectedOutput });
+            expect(typeWeightObject).toEqual(expectedOutput);
         });
 
         test('scalar parameter', () => {
@@ -410,10 +411,10 @@ xdescribe('Test buildTypeWeightsFromSchema function', () => {
                 scalar: 2,
             });
 
-            expectedOutput.user.fields.name = 2;
-            expectedOutput.movie.fields.name = 2;
+            expectedOutput.User.fields.name = 2;
+            expectedOutput.Movie.fields.name = 2;
 
-            expect(typeWeightObject).toEqual({ expectedOutput });
+            expect(typeWeightObject).toEqual(expectedOutput);
         });
 
         // TODO: Tests should be written for the remaining configuration options

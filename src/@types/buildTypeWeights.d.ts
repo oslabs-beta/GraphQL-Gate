@@ -1,5 +1,5 @@
 interface Fields {
-    readonly [index: string]: number | ((arg: number, type: Type) => number);
+    [index: string]: number | ((arg: number, type: Type) => number);
 }
 
 interface Type {
@@ -8,7 +8,7 @@ interface Type {
 }
 
 interface TypeWeightObject {
-    readonly [index: string]: Type;
+    [index: string]: Type;
 }
 
 interface TypeWeightConfig {
