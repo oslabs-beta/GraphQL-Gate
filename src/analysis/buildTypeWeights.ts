@@ -1,18 +1,23 @@
 import {
+    ArgumentNode,
     GraphQLArgument,
-    GraphQLEnumType,
     GraphQLFieldMap,
-    GraphQLInterfaceType,
-    GraphQLList,
     GraphQLNamedType,
-    GraphQLNonNull,
     GraphQLObjectType,
     GraphQLOutputType,
-    GraphQLScalarType,
-    GraphQLUnionType,
+    IntValueNode,
     isCompositeType,
+    isEnumType,
+    isInterfaceType,
+    isListType,
+    isNonNullType,
+    isObjectType,
+    isScalarType,
+    isUnionType,
+    ValueNode,
 } from 'graphql';
 import { Maybe } from 'graphql/jsutils/Maybe';
+import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
 
 const KEYWORDS = ['first', 'last', 'limit'];
@@ -24,11 +29,16 @@ const KEYWORDS = ['first', 'last', 'limit'];
  * scalar: 0
  * connection: 2
  */
+
+// These variables exist to provide a default value for typescript when accessing a weight
+// since all props are optioal in TypeWeightConfig
 const DEFAULT_MUTATION_WEIGHT = 10;
 const DEFAULT_OBJECT_WEIGHT = 1;
 const DEFAULT_SCALAR_WEIGHT = 0;
 const DEFAULT_CONNECTION_WEIGHT = 2;
 const DEFAULT_QUERY_WEIGHT = 1;
+
+// FIXME: What about Union, Enum and Interface defaults
 
 export const defaultTypeWeightsConfig: TypeWeightConfig = {
     mutation: DEFAULT_MUTATION_WEIGHT,
@@ -43,8 +53,8 @@ export const defaultTypeWeightsConfig: TypeWeightConfig = {
  * back on shopifys settings. We can change this later.
  *
  * This function should
- *  - TODO: iterate through the schema object and create the typeWeightObject as described in the tests
- *  - TODO: validate that the typeWeightsConfig parameter has no negative values (throw an error if it does)
+ *  - iterate through the schema object and create the typeWeightObject as described in the tests
+ *  - validate that the typeWeightsConfig parameter has no negative values (throw an error if it does)
  *
  * @param schema
  * @param typeWeightsConfig Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
@@ -53,14 +63,6 @@ function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
     typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig
 ): TypeWeightObject {
-    // Iterate each key in the schema object
-    // this includes scalars, types, interfaces, unions, enums etc.
-    // check the type of each add set the appropriate weight.
-    // iterate through that types fields and set the appropriate weight
-    // this is kind of only relevant for things like Query or Mutation
-    // that have functions(?) as fields for which we should set the weight as a function
-    // that take any required params.
-
     if (!schema) throw new Error('Must provide schema');
 
     //  Merge the provided type weights with the default to account for missing values
@@ -78,23 +80,18 @@ function buildTypeWeightsFromSchema(
 
     const result: TypeWeightObject = {};
 
-    // Iterate through __typeMap and set weights of all object types?
+    const typeMap: ObjMap<GraphQLNamedType> = schema.getTypeMap();
 
-    const typeMap = schema.getTypeMap();
-
+    // Handle Object, Interface, Enum and Union types
     Object.keys(typeMap).forEach((type) => {
         const currentType: GraphQLNamedType = typeMap[type];
-        // Limit to object types for now
-        // Get all types that aren't Query or Mutation and don't start with __
+        // Get all types that aren't Query or Mutation or a built in type that starts with '__'
         if (
             currentType.name !== 'Query' &&
             currentType.name !== 'Mutation' &&
             !currentType.name.startsWith('__')
         ) {
-            if (
-                currentType instanceof GraphQLObjectType ||
-                currentType instanceof GraphQLInterfaceType
-            ) {
+            if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type to the result
                 result[type] = {
                     fields: {},
@@ -102,26 +99,25 @@ function buildTypeWeightsFromSchema(
                 };
 
                 const fields = currentType.getFields();
+
                 Object.keys(fields).forEach((field: string) => {
                     const fieldType: GraphQLOutputType = fields[field].type;
                     if (
-                        fieldType instanceof GraphQLScalarType ||
-                        (fieldType instanceof GraphQLNonNull &&
-                            fieldType.ofType instanceof GraphQLScalarType)
+                        isScalarType(fieldType) ||
+                        (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
                     ) {
                         result[type].fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
                     }
-                    // FIXME: Do any other types need to be included?
                 });
-            } else if (currentType instanceof GraphQLEnumType) {
+            } else if (isEnumType(currentType)) {
                 result[currentType.name] = {
                     fields: {},
-                    weight: 0,
+                    weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
-            } else if (currentType instanceof GraphQLUnionType) {
+            } else if (isUnionType(currentType)) {
                 result[currentType.name] = {
                     fields: {},
-                    weight: 1, // FIXME: Use the correct weight
+                    weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
                 };
             }
         }
@@ -133,40 +129,79 @@ function buildTypeWeightsFromSchema(
     if (queryType) {
         result.Query = {
             weight: typeWeights.query || DEFAULT_QUERY_WEIGHT,
-            fields: {
-                // This object gets populated with the query fields and associated weights.
-            },
+            // fields gets populated with the query fields and associated weights.
+            fields: {},
         };
+
         const queryFields: GraphQLFieldMap<any, any> = queryType.getFields();
+
         Object.keys(queryFields).forEach((field) => {
+            // this is the type the query resolves to
             const resolveType: GraphQLOutputType = queryFields[field].type;
 
+            // check if any of our keywords 'first', 'last', 'limit' exist in the arg list
             queryFields[field].args.forEach((arg: GraphQLArgument) => {
-                // check if any of our keywords 'first', 'last', 'limit' exist in the arglist
-                if (KEYWORDS.includes(arg.name) && resolveType instanceof GraphQLList) {
+                // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
+                // should be dependent on both the weight of the resolved type and the limiting argument.
+                if (KEYWORDS.includes(arg.name) && isListType(resolveType)) {
                     const defaultVal: number = <number>arg.defaultValue;
-                    // FIXME: How can we provide the complexity analysis algo with name of the argument to use?
+
+                    // Get the type that comprises the list
                     const listType = resolveType.ofType;
+
+                    // Composite Types are Objects, Interfaces and Unions.
                     if (isCompositeType(listType)) {
-                        result.Query.fields[field] = (multiplier: number = defaultVal) =>
-                            multiplier * result[listType.name].weight;
+                        // Set the field weight to a function that accepts
+                        // TODO: Accept ArgumentNode[] and look for the arg we need.
+                        // TODO: Test this function
+                        result.Query.fields[field] = (args: ArgumentNode[]): number => {
+                            // Function should receive object with arg, value as k, v pairs
+                            // function iterate on this object looking for a keyword then returns
+                            const limitArg: ArgumentNode | undefined = args.find(
+                                (cur) => cur.name.value === arg.name
+                            );
+
+                            // const isVariable = (node: any): node is VariableNode => {
+                            //     if (node as VariableNode) return true;
+                            //     return false;
+                            // };
+
+                            const isIntNode = (node: any): node is IntValueNode => {
+                                if (node as IntValueNode) return true;
+                                return false;
+                            };
+
+                            if (limitArg) {
+                                const node: ValueNode = limitArg.value;
+
+                                // FIXME: Is there a better way to check for the type here?
+                                if (isIntNode(node)) {
+                                    const multiplier = Number(node.value || arg.defaultValue);
+
+                                    return result[listType.name].weight * multiplier;
+                                }
+                            }
+
+                            // FIXME: The list is unbounded. Return the object weight
+                            return result[listType.name].weight;
+                        };
+                    } else {
+                        // TODO: determine the type of the list and use the appropriate weight
+                        // TODO: This should multiply as well
+                        result.Query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
                     }
                 }
             });
 
-            // if the field is a scalars set weight accordingly
+            // if the field is a scalar set weight accordingly
             // FIXME: Enums shouldn't be here???
-            if (
-                resolveType instanceof GraphQLScalarType ||
-                resolveType instanceof GraphQLEnumType
-            ) {
+            if (isScalarType(resolveType) || isEnumType(resolveType)) {
                 result.Query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
             }
         });
     }
 
-    // get the type of the field
-
     return result;
 }
+
 export default buildTypeWeightsFromSchema;

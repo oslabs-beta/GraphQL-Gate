@@ -1,5 +1,5 @@
 interface Fields {
-    [index: string]: number | ((arg: number, type: Type) => number);
+    [index: string]: number | ((args: ArgumentNode[]) => number);
 }
 
 interface Type {
