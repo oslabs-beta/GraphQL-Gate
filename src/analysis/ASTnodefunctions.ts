@@ -10,6 +10,7 @@ import {
 } from 'graphql';
 
 // TODO: handle variables and arguments
+// ! this is not functional
 const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
     const argObj: { [index: string]: any } = {};
     for (let i = 0; i < args.length; i + 1) {
@@ -23,6 +24,25 @@ const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
     }
     return argObj;
 };
+/**
+ * The AST node functions call each other following the nested structure below
+ * Each function handles a specific GraphQL AST node type
+ *
+ * AST nodes call each other in the following way
+ *
+ *                        Document Node
+ *                            |
+ *                        Definiton Node
+ *              (operation and fragment definitons)
+ *                     /                \
+ *  |-----> Selection Set Node         not done
+ *  |               /
+ *  |          Selection Node
+ *  |  (Field, Inline fragment and fragment spread)
+ *  |      |            \               \
+ *  |--Field Node       not done       not done
+ *
+ */
 
 export function fieldNode(
     node: FieldNode,
@@ -54,6 +74,7 @@ export function fieldNode(
         } else {
             // otherwise the the feild weight is a list, invoke the function with variables
             // TODO: calculate the complexity for lists with arguments and varibales
+            // ! this is not functional
             // iterate through the arguments to build the object to
             // eslint-disable-next-line no-lonely-if
             if (node.arguments) {
