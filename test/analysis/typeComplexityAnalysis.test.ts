@@ -172,49 +172,49 @@ describe('Test getQueryTypeComplexity function', () => {
     let variables: any | undefined;
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
-            query = `query { scalars { num } }`;
+            query = `uery { scalars { num } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
-        xtest('with two or more fields', () => {
-            query = `Query { scalars { num } test { name } }`;
+        test('with two or more fields', () => {
+            query = `query { scalars { num } test { name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         xtest('with one level of nested fields', () => {
-            query = `Query { scalars { num, test { name } } }`;
+            query = `query { scalars { num, test { name } } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         xtest('with multiple levels of nesting', () => {
-            query = `Query { scalars { num, test { name, scalars { id } } } }`;
+            query = `query { scalars { num, test { name, scalars { id } } } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
         });
 
         xtest('with aliases', () => {
-            query = `Query { foo: scalar { num } bar: scalar { id }}`;
+            query = `query { foo: scalar { num } bar: scalar { id }}`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
         });
 
         xtest('with all scalar fields', () => {
-            query = `Query { scalars { id, num, float, bool, string } }`;
+            query = `query { scalars { id, num, float, bool, string } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
         xtest('with arguments and variables', () => {
-            query = `Query { hero(episode: EMPIRE) { id, name } }`;
+            query = `query { hero(episode: EMPIRE) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
-            query = `Query { human(id: 1) { id, name, appearsIn } }`;
+            query = `query { human(id: 1) { id, name, appearsIn } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
             // argument passed in as a variable
             variables = { ep: 'EMPIRE' };
-            query = `Query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
+            query = `query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
         xtest('with fragments', () => {
             query = `
-            Query {
+            query {
                 leftComparison: hero(episode: EMPIRE) {
                   ...comparisonFields
                 }
@@ -233,7 +233,7 @@ describe('Test getQueryTypeComplexity function', () => {
 
         xtest('with inline fragments', () => {
             query = `
-            Query {
+            query {
                 hero(episode: EMPIRE) {
                     name
                     ... on Droid {
@@ -252,7 +252,7 @@ describe('Test getQueryTypeComplexity function', () => {
          */
         xtest('with lists of unknown size', () => {
             query = `
-            Query { 
+            query { 
                 search(text: 'hi') { 
                     id
                     name
@@ -307,15 +307,15 @@ describe('Test getQueryTypeComplexity function', () => {
 
         // todo: expand on error handling
         xtest('Throws an error if for a bad query', () => {
-            query = `Query { hello { hi } }`; // type doesn't exist
+            query = `query { hello { hi } }`; // type doesn't exist
             expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
                 'Error'
             );
-            query = `Query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
+            query = `query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
             expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
                 'Error'
             );
-            query = `Query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
+            query = `query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
             expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
                 'Error'
             );

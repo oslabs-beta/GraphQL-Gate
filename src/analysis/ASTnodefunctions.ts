@@ -7,7 +7,6 @@ import {
     Kind,
     SelectionNode,
     ArgumentNode,
-    BooleanValueNode,
 } from 'graphql';
 
 // TODO: handle variables and arguments
@@ -39,7 +38,7 @@ export function fieldNode(
         complexity += typeWeights[node.name.value].weight;
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
-            complexity *= selectionSetNode(
+            complexity += selectionSetNode(
                 node.selectionSet,
                 typeWeights,
                 variables,
@@ -90,9 +89,8 @@ export function selectionSetNode(
     parentName: string
 ): number {
     let complexity = 0;
-    console.log('selectionSetNode', node.selections.length, parentName);
     // iterate shrough the 'selections' array on the seletion set node
-    for (let i = 0; i < node.selections.length; i + 1) {
+    for (let i = 0; i < node.selections.length; i += 1) {
         // call the function to handle seletion nodes
         // pass the current parent through because selection sets act only as intermediaries
         complexity += selectionNode(node.selections[i], typeWeights, variables, parentName);
@@ -106,7 +104,6 @@ export function definitionNode(
     variables: any | undefined
 ): number {
     let complexity = 0;
-    console.log('definitionTode', node);
     // check the kind property against the set of definiton nodes that are possible
     if (node.kind === Kind.OPERATION_DEFINITION) {
         // check if the operation is in the type weights object.
@@ -134,7 +131,7 @@ export function documentNode(
 ): number {
     let complexity = 0;
     // iterate through 'definitions' array on the document node
-    for (let i = 0; i < node.definitions.length; i + 1) {
+    for (let i = 0; i < node.definitions.length; i += 1) {
         // call the function to handle the various types of definition nodes
         complexity += definitionNode(node.definitions[i], typeWeights, variables);
     }
