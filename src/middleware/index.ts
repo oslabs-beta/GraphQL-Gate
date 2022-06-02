@@ -17,7 +17,8 @@ import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
  * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
- * @throws ValidationError if GraphQL Schema is invalid
+ * FIXME: How about the specific GraphQLError?
+ * @throws ValidationError if GraphQL Schema is invalid.
  */
 export function expressRateLimiter(
     rateLimiter: RateLimiterSelection,
@@ -31,7 +32,6 @@ export function expressRateLimiter(
     // TODO: Connect to Redis store using provided options. Default to localhost:6379
     // TODO: Configure the selected RateLimtier
     // TODO: Configure the complexity analysis algorithm to run for incoming requests
-
     const middleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
         // TODO: Parse query from req.query, compute complexity and pass necessary info to rate limiter
         // TODO: Call next if query is successful, send 429 status if query blocked, call next(err) with any thrown errors

@@ -3,10 +3,11 @@
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "test": "jest --passWithNoTests",
         "lint": "eslint src test",
-        "lint:fix": "eslint --fix src test",
+        "lint:fix": "eslint --fix src test @types",
         "prettier": "prettier --write .",
         "prepare": "husky install"
     },
@@ -44,6 +45,7 @@
         "lint-staged": "^12.4.1",
         "prettier": "2.6.2",
         "ts-jest": "^28.0.2",
+        "ts-node": "^10.8.0",
         "typescript": "^4.6.4"
     },
     "lint-staged": {
