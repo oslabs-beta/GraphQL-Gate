@@ -1,10 +1,5 @@
-import { ASTNode, DocumentNode, Kind } from 'graphql';
-import {
-    selectionSetNode,
-    fieldNode,
-    documentNode,
-    operationDefinitionNode,
-} from './ASTnodefunctions';
+import { DocumentNode } from 'graphql';
+import { documentNode } from './ASTnodefunctions';
 
 /**
  * Calculate the complexity for the query by recursivly traversing through the query AST,

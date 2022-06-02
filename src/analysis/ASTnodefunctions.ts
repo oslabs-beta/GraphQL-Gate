@@ -7,17 +7,23 @@ import {
     Kind,
     SelectionNode,
     ArgumentNode,
+    BooleanValueNode,
 } from 'graphql';
 
-// const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
-//     const argObj: { [index: string]: any } = {};
-//     for (let i = 0; i < args.length; i + 1) {
-//         if (args[i].kind === Kind.BOOLEAN) {
-//             argObj[args[i].name.value] = args[i].value.value;
-//         }
-//     }
-//     return argObj;
-// };
+// TODO: handle variables and arguments
+const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
+    const argObj: { [index: string]: any } = {};
+    for (let i = 0; i < args.length; i + 1) {
+        const node = args[i];
+        if (args[i].value.kind !== Kind.VARIABLE) {
+            if (args[i].value.kind === Kind.INT) {
+                // FIXME: this does not work
+                argObj[args[i].name.value] = args[i].value;
+            }
+        }
+    }
+    return argObj;
+};
 
 export function fieldNode(
     node: FieldNode,
@@ -26,18 +32,20 @@ export function fieldNode(
     parentName: string
 ): number {
     let complexity = 0;
+    // console.log('fieldNode', node, parentName);
     // check if the field name is in the type weight object.
     if (node.name.value.toLocaleLowerCase() in typeWeights) {
         // if it is, than the field is an object type, add itss type weight to the total
         complexity += typeWeights[node.name.value].weight;
         // call the function to handle selection set node with selectionSet property if it is not undefined
-        if (node.selectionSet)
+        if (node.selectionSet) {
             complexity *= selectionSetNode(
                 node.selectionSet,
                 typeWeights,
                 variables,
                 node.name.value
             );
+        }
     } else {
         // otherwise the field is a scalar or a list.
         const fieldWeight = typeWeights[parentName].fields[node.name.value];
@@ -48,7 +56,11 @@ export function fieldNode(
             // otherwise the the feild weight is a list, invoke the function with variables
             // TODO: calculate the complexity for lists with arguments and varibales
             // iterate through the arguments to build the object to
-            // complexity += fieldWeight(getArgObj(node.arguments));
+            // eslint-disable-next-line no-lonely-if
+            if (node.arguments) {
+                const argumentsCopy = [...node.arguments];
+                complexity += fieldWeight(getArgObj(argumentsCopy));
+            }
         }
     }
     return complexity;
@@ -61,6 +73,7 @@ export function selectionNode(
     parentName: string
 ): number {
     let complexity = 0;
+    // console.log('selectionNode', node, parentName);
     // check the kind property against the set of selection nodes that are possible
     if (node.kind === Kind.FIELD) {
         // call the function that handle field nodes
@@ -77,6 +90,7 @@ export function selectionSetNode(
     parentName: string
 ): number {
     let complexity = 0;
+    console.log('selectionSetNode', node.selections.length, parentName);
     // iterate shrough the 'selections' array on the seletion set node
     for (let i = 0; i < node.selections.length; i + 1) {
         // call the function to handle seletion nodes
@@ -92,6 +106,7 @@ export function definitionNode(
     variables: any | undefined
 ): number {
     let complexity = 0;
+    console.log('definitionTode', node);
     // check the kind property against the set of definiton nodes that are possible
     if (node.kind === Kind.OPERATION_DEFINITION) {
         // check if the operation is in the type weights object.
