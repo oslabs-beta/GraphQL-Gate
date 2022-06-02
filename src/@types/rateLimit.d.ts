@@ -40,4 +40,6 @@ interface TokenBucketOptions {
 }
 
 // TODO: This will be a union type where we can specify Option types for other Rate Limiters
-type RateLimiterOptions = TokenBucketOptions;
+// Record<string, never> represents the empty object for alogorithms that don't require settings
+// and might be able to be removed in the future.
+type RateLimiterOptions = TokenBucketOptions | Record<string, never>;
