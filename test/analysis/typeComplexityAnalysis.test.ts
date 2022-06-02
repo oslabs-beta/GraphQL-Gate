@@ -172,7 +172,7 @@ describe('Test getQueryTypeComplexity function', () => {
     let variables: any | undefined;
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
-            query = `uery { scalars { num } }`;
+            query = `query { scalars { num } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
@@ -181,22 +181,22 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
-        xtest('with one level of nested fields', () => {
+        test('with one level of nested fields', () => {
             query = `query { scalars { num, test { name } } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
-        xtest('with multiple levels of nesting', () => {
+        test('with multiple levels of nesting', () => {
             query = `query { scalars { num, test { name, scalars { id } } } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
         });
 
-        xtest('with aliases', () => {
-            query = `query { foo: scalar { num } bar: scalar { id }}`;
+        test('with aliases', () => {
+            query = `query { foo: scalars { num } bar: scalars { id }}`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
         });
 
-        xtest('with all scalar fields', () => {
+        test('with all scalar fields', () => {
             query = `query { scalars { id, num, float, bool, string } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
@@ -304,22 +304,6 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         // todo: directives @skip, @include and custom directives
-
-        // todo: expand on error handling
-        xtest('Throws an error if for a bad query', () => {
-            query = `query { hello { hi } }`; // type doesn't exist
-            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
-                'Error'
-            );
-            query = `query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
-            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
-                'Error'
-            );
-            query = `query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
-            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
-                'Error'
-            );
-        });
     });
 
     xdescribe('Calculates the correct type complexity for mutations', () => {});
