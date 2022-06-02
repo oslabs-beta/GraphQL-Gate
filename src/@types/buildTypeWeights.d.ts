@@ -1,5 +1,5 @@
 interface Fields {
-    readonly [index: string]: number | ((arg: number, type: Type) => number);
+    readonly [index: string]: number | ((arg: { [index: string]: any }) => number);
 }
 
 interface Type {

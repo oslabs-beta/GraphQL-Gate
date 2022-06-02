@@ -16,7 +16,6 @@ import {
  * @param {any | undefined} varibales
  * @param {TypeWeightObject} typeWeights
  */
-// TODO add queryVaribables parameter
 function getQueryTypeComplexity(
     queryAST: DocumentNode,
     variables: any | undefined,
