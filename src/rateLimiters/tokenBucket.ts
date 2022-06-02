@@ -53,7 +53,7 @@ class TokenBucket implements RateLimiter {
         if (bucketJSON === null) {
             const newUserBucket: RedisBucket = {
                 // conditionally set tokens depending on how many are requested comapred to the capacity
-                tokens: tokens > this.capacity ? 10 : this.capacity - tokens,
+                tokens: tokens > this.capacity ? this.capacity : this.capacity - tokens,
                 timestamp,
             };
             // reject the request, not enough tokens could even be in the bucket
@@ -98,11 +98,11 @@ class TokenBucket implements RateLimiter {
         timestamp: number
     ): number => {
         const timeSinceLastQueryInSeconds: number = Math.floor(
-            (timestamp - bucket.timestamp) / 1000
+            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second
         );
         const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
         const updatedTokenCount = bucket.tokens + tokensToAdd;
-        return updatedTokenCount > this.capacity ? 10 : updatedTokenCount;
+        return updatedTokenCount > this.capacity ? this.capacity : updatedTokenCount;
     };
 }
 
