@@ -1,4 +1,4 @@
-import RedisClientOptions from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
@@ -24,7 +24,7 @@ export function expressRateLimiter(
     rateLimiter: RateLimiterSelection,
     rateLimiterOptions: RateLimiterOptions,
     schema: GraphQLSchema,
-    redisClientOptions: RedisClientOptions,
+    redisClientOptions: RedisOptions,
     typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig
 ): RequestHandler {
     // TODO: Set 'timestamp' on res.locals to record when the request is received in UNIX format. HTTP does not inlude this.

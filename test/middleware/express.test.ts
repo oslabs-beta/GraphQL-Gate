@@ -101,7 +101,7 @@ xdescribe('Express Middleware tests', () => {
                         'TOKEN_BUCKET',
                         { refillRate: 1, bucketSize: 10 },
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -112,7 +112,7 @@ xdescribe('Express Middleware tests', () => {
                         'LEAKY_BUCKET',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -123,7 +123,7 @@ xdescribe('Express Middleware tests', () => {
                         'FIXED_WINDOW',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -134,7 +134,7 @@ xdescribe('Express Middleware tests', () => {
                         'SLIDING_WINDOW_LOG',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -145,7 +145,7 @@ xdescribe('Express Middleware tests', () => {
                         'SLIDING_WINDOW_COUNTER',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -155,7 +155,7 @@ xdescribe('Express Middleware tests', () => {
             const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
             expect(
-                expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { url: '' })
+                expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
             ).toThrowError('ValidationError');
         });
 
@@ -165,7 +165,7 @@ xdescribe('Express Middleware tests', () => {
                     'TOKEN_BUCKET',
                     { bucketSize: 10, refillRate: 1 },
                     schema,
-                    { socket: { host: 'localhost', port: 1 } }
+                    { host: 'localhost', port: 1 }
                 )
             ).toThrow('ECONNREFUSED');
         });
