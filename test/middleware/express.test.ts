@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
-import * as redis from 'redis';
-import redisMock from 'redis-mock';
-import { RedisClientType } from 'redis';
+import * as ioredis from 'ioredis';
+
 import expressRateLimitMiddleware from '../../src/middleware/index';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const RedisMock = require('ioredis-mock');
 
 let middleware: RequestHandler;
 let mockRequest: Partial<Request>;
@@ -99,7 +101,7 @@ xdescribe('Express Middleware tests', () => {
                         'TOKEN_BUCKET',
                         { refillRate: 1, bucketSize: 10 },
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -110,7 +112,7 @@ xdescribe('Express Middleware tests', () => {
                         'LEAKY_BUCKET',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -121,7 +123,7 @@ xdescribe('Express Middleware tests', () => {
                         'FIXED_WINDOW',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -132,7 +134,7 @@ xdescribe('Express Middleware tests', () => {
                         'SLIDING_WINDOW_LOG',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -143,7 +145,7 @@ xdescribe('Express Middleware tests', () => {
                         'SLIDING_WINDOW_COUNTER',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
-                        { url: '' }
+                        { path: '' }
                     )
                 ).not.toThrow();
             });
@@ -153,7 +155,7 @@ xdescribe('Express Middleware tests', () => {
             const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
             expect(
-                expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { url: '' })
+                expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
             ).toThrowError('ValidationError');
         });
 
@@ -163,7 +165,7 @@ xdescribe('Express Middleware tests', () => {
                     'TOKEN_BUCKET',
                     { bucketSize: 10, refillRate: 1 },
                     schema,
-                    { socket: { host: 'localhost', port: 1 } }
+                    { host: 'localhost', port: 1 }
                 )
             ).toThrow('ECONNREFUSED');
         });
@@ -337,7 +339,7 @@ xdescribe('Express Middleware tests', () => {
             // We could use NODE_ENV varibale in the implementation to determine the connection type.
 
             // TODO: connect to the actual redis client here. Make sure to disconnect for proper teardown
-            const client: RedisClientType = redisMock.createClient();
+            const client: ioredis.Redis = new RedisMock();
             await client.connect();
             // Check for change in the redis store for the IP key
 
