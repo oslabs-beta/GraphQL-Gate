@@ -21,7 +21,8 @@ import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
  * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
- * @throws ValidationError if GraphQL Schema is invalid
+ * FIXME: How about the specific GraphQLError?
+ * @throws ValidationError if GraphQL Schema is invalid.
  */
 export function expressRateLimiter(
     rateLimiterAlgo: RateLimiterSelection,
