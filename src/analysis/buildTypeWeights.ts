@@ -24,14 +24,6 @@ import { GraphQLSchema } from 'graphql/type/schema';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
-/**
- * Default TypeWeight Configuration:
- * mutation: 10
- * object: 1
- * scalar: 0
- * connection: 2
- */
-
 // These variables exist to provide a default value for typescript when accessing a weight
 // since all props are optioal in TypeWeightConfig
 const DEFAULT_MUTATION_WEIGHT = 10;
@@ -42,6 +34,13 @@ const DEFAULT_QUERY_WEIGHT = 1;
 
 // FIXME: What about Union, Enum and Interface defaults
 
+/**
+ * Default TypeWeight Configuration:
+ * mutation: 10
+ * object: 1
+ * scalar: 0
+ * connection: 2
+ */
 export const defaultTypeWeightsConfig: TypeWeightConfig = {
     mutation: DEFAULT_MUTATION_WEIGHT,
     object: DEFAULT_OBJECT_WEIGHT,
@@ -49,6 +48,13 @@ export const defaultTypeWeightsConfig: TypeWeightConfig = {
     connection: DEFAULT_CONNECTION_WEIGHT,
 };
 
+/**
+ * Parses the Query type in the provided schema object and outputs a new TypeWeightObject
+ * @param schema
+ * @param typeWeightObject
+ * @param typeWeights
+ * @returns
+ */
 function parseQuery(
     schema: GraphQLSchema,
     typeWeightObject: TypeWeightObject,
@@ -81,53 +87,47 @@ function parseQuery(
                 // Get the type that comprises the list
                 const listType = resolveType.ofType;
 
-                // Composite Types are Objects, Interfaces and Unions.
-                if (isCompositeType(listType)) {
-                    // Set the field weight to a function that accepts
+                // FIXME: This function can only handle integer arguments for one of the keyword params.
+                // In order to handle variable arguments, we may need to accept a second parameter so that the complexity aglorithm
+                // can pass in the variables as well.
+                // FIXME: If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
+                result.query.fields[field] = (args: ArgumentNode[]): number => {
+                    // TODO: Test this function
+                    const limitArg: ArgumentNode | undefined = args.find(
+                        (cur) => cur.name.value === arg.name
+                    );
 
-                    // FIXME: This function can only handle integer arguments for one of the keyword params.
-                    // In order to handle variable arguments, we may need to accept a second parameter so that the complexity aglorithm
-                    // can pass in the variables as well.
-                    result.query.fields[field] = (args: ArgumentNode[]): number => {
-                        // TODO: Test this function
-                        const limitArg: ArgumentNode | undefined = args.find(
-                            (cur) => cur.name.value === arg.name
-                        );
+                    if (limitArg) {
+                        const node: ValueNode = limitArg.value;
 
-                        if (limitArg) {
-                            const node: ValueNode = limitArg.value;
+                        if (Kind.INT === node.kind) {
+                            const multiplier = Number(node.value || arg.defaultValue);
+                            const weight = isCompositeType(listType)
+                                ? result[listType.name.toLowerCase()].weight
+                                : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
 
-                            if (Kind.INT === node.kind) {
-                                const multiplier = Number(node.value || arg.defaultValue);
-
-                                return result[listType.name.toLowerCase()].weight * multiplier;
-                            }
-
-                            if (Kind.VARIABLE === node.kind) {
-                                // TODO: Get variable value and return
-                                // const multiplier: number =
-                                // return result[listType.name.toLowerCase()].weight * multiplier;
-                                throw new Error(
-                                    'ERROR: buildTypeWeights Variable arge values not supported;'
-                                );
-                            }
+                            return weight * multiplier;
                         }
 
-                        // FIXME: The list is unbounded. Return the object weight for
-                        throw new Error(
-                            `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
-                        );
-                    };
-                } else {
-                    // TODO: determine the type of the list and use the appropriate weight
-                    // TODO: This should multiply as well
-                    result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
-                }
+                        if (Kind.VARIABLE === node.kind) {
+                            // TODO: Get variable value and return
+                            // const multiplier: number =
+                            // return result[listType.name.toLowerCase()].weight * multiplier;
+                            throw new Error(
+                                'ERROR: buildTypeWeights Variable arge values not supported;'
+                            );
+                        }
+                    }
+
+                    // FIXME: The list is unbounded. Return the object weight for
+                    throw new Error(
+                        `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                    );
+                };
             }
         });
 
-        // if the field is a scalar set weight accordingly
-        // TODO: Allow config for enum weights
+        // if the field is a scalar or an enum set weight accordingly
         if (isScalarType(resolveType) || isEnumType(resolveType)) {
             result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
         }
@@ -135,6 +135,14 @@ function parseQuery(
     return result;
 }
 
+/**
+ * Parses all types in the provided schema object excempt for Query, Mutation
+ * and built in types that begin with '__' and outputs a new TypeWeightObject
+ * @param schema
+ * @param typeWeightObject
+ * @param typeWeights
+ * @returns
+ */
 function parseTypes(
     schema: GraphQLSchema,
     typeWeightObject: TypeWeightObject,
