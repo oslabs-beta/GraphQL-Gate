@@ -1,4 +1,4 @@
-import { RedisClientType } from 'redis';
+import Redis from 'ioredis';
 
 /**
  * The TokenBucket instance of a RateLimiter limits requests based on a unique user ID.
@@ -13,7 +13,7 @@ class TokenBucket implements RateLimiter {
 
     private refillRate: number;
 
-    private client: RedisClientType;
+    private client: Redis;
 
     /**
      * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
@@ -21,7 +21,7 @@ class TokenBucket implements RateLimiter {
      * @param refillRate rate at which the token bucket is refilled
      * @param client redis client where rate limiter will cache information
      */
-    constructor(capacity: number, refillRate: number, client: RedisClientType) {
+    constructor(capacity: number, refillRate: number, client: Redis) {
         this.capacity = capacity;
         this.refillRate = refillRate;
         this.client = client;
@@ -43,15 +43,67 @@ class TokenBucket implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        throw Error(`TokenBucket.processRequest not implemented, ${this}`);
+        // set the expiry of key-value pairs in the cache to 24 hours
+        const keyExpiry = 86400000;
+
+        // attempt to get the value for the uuid from the redis cache
+        const bucketJSON = await this.client.get(uuid);
+
+        // if the response is null, we need to create a bucket for the user
+        if (bucketJSON === null) {
+            const newUserBucket: RedisBucket = {
+                // conditionally set tokens depending on how many are requested comapred to the capacity
+                tokens: tokens > this.capacity ? this.capacity : this.capacity - tokens,
+                timestamp,
+            };
+            // reject the request, not enough tokens could even be in the bucket
+            if (tokens > this.capacity) {
+                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
+                return { success: false, tokens: this.capacity };
+            }
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
+            return { success: true, tokens: newUserBucket.tokens };
+        }
+
+        // parse the returned string from redis and update their token budget based on the time lapse between queries
+        const bucket: RedisBucket = await JSON.parse(bucketJSON);
+        bucket.tokens = this.calculateTokenBudgetFromTimestamp(bucket, timestamp);
+
+        const updatedUserBucket = {
+            // conditionally set tokens depending on how many are requested comapred to the bucket
+            tokens: bucket.tokens < tokens ? bucket.tokens : bucket.tokens - tokens,
+            timestamp,
+        };
+        if (bucket.tokens < tokens) {
+            // reject the request, not enough tokens in bucket
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+            return { success: false, tokens: bucket.tokens };
+        }
+        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+        return { success: true, tokens: updatedUserBucket.tokens };
     }
 
     /**
      * Resets the rate limiter to the intial state by clearing the redis store.
      */
-    reset(): void {
-        throw Error(`TokenBucket.reset not implemented, ${this}`);
+    public reset(): void {
+        this.client.flushall();
     }
+
+    /**
+     * Calculates the tokens a user bucket should have given the time lapse between requests.
+     */
+    private calculateTokenBudgetFromTimestamp = (
+        bucket: RedisBucket,
+        timestamp: number
+    ): number => {
+        const timeSinceLastQueryInSeconds: number = Math.floor(
+            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second
+        );
+        const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
+        const updatedTokenCount = bucket.tokens + tokensToAdd;
+        return updatedTokenCount > this.capacity ? this.capacity : updatedTokenCount;
+    };
 }
 
 export default TokenBucket;
