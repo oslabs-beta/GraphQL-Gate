@@ -20,7 +20,7 @@ import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
 
-const KEYWORDS = ['first', 'last', 'limit'];
+export const KEYWORDS = ['first', 'last', 'limit'];
 
 /**
  * Default TypeWeight Configuration:
@@ -93,7 +93,7 @@ function buildTypeWeightsFromSchema(
         ) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type to the result
-                result[type] = {
+                result[type.toLowerCase()] = {
                     fields: {},
                     weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
                 };
@@ -106,16 +106,17 @@ function buildTypeWeightsFromSchema(
                         isScalarType(fieldType) ||
                         (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
                     ) {
-                        result[type].fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
+                        result[type.toLowerCase()].fields[field] =
+                            typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
                     }
                 });
             } else if (isEnumType(currentType)) {
-                result[currentType.name] = {
+                result[currentType.name.toLowerCase()] = {
                     fields: {},
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
             } else if (isUnionType(currentType)) {
-                result[currentType.name] = {
+                result[currentType.name.toLowerCase()] = {
                     fields: {},
                     weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
                 };
@@ -127,7 +128,7 @@ function buildTypeWeightsFromSchema(
     const queryType: Maybe<GraphQLObjectType> = schema.getQueryType();
 
     if (queryType) {
-        result.Query = {
+        result.query = {
             weight: typeWeights.query || DEFAULT_QUERY_WEIGHT,
             // fields gets populated with the query fields and associated weights.
             fields: {},
@@ -154,13 +155,14 @@ function buildTypeWeightsFromSchema(
                         // Set the field weight to a function that accepts
                         // TODO: Accept ArgumentNode[] and look for the arg we need.
                         // TODO: Test this function
-                        result.Query.fields[field] = (args: ArgumentNode[]): number => {
+                        result.query.fields[field] = (args: ArgumentNode[]): number => {
                             // Function should receive object with arg, value as k, v pairs
                             // function iterate on this object looking for a keyword then returns
                             const limitArg: ArgumentNode | undefined = args.find(
                                 (cur) => cur.name.value === arg.name
                             );
 
+                            // FIXME: Need to use the value of this variable
                             // const isVariable = (node: any): node is VariableNode => {
                             //     if (node as VariableNode) return true;
                             //     return false;
@@ -178,17 +180,17 @@ function buildTypeWeightsFromSchema(
                                 if (isIntNode(node)) {
                                     const multiplier = Number(node.value || arg.defaultValue);
 
-                                    return result[listType.name].weight * multiplier;
+                                    return result[listType.name.toLowerCase()].weight * multiplier;
                                 }
                             }
 
                             // FIXME: The list is unbounded. Return the object weight
-                            return result[listType.name].weight;
+                            return result[listType.name.toLowerCase()].weight;
                         };
                     } else {
                         // TODO: determine the type of the list and use the appropriate weight
                         // TODO: This should multiply as well
-                        result.Query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
+                        result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
                     }
                 }
             });
@@ -196,7 +198,7 @@ function buildTypeWeightsFromSchema(
             // if the field is a scalar set weight accordingly
             // FIXME: Enums shouldn't be here???
             if (isScalarType(resolveType) || isEnumType(resolveType)) {
-                result.Query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
+                result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
             }
         });
     }

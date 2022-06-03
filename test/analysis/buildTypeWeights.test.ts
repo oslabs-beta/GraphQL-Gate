@@ -30,7 +30,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {
                         name: 0,
@@ -57,18 +57,18 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {},
                 },
-                User: {
+                user: {
                     weight: 1,
                     fields: {
                         name: 0,
                         email: 0,
                     },
                 },
-                Movie: {
+                movie: {
                     weight: 1,
                     fields: {
                         name: 0,
@@ -95,17 +95,17 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {},
                 },
-                User: {
+                user: {
                     weight: 1,
                     fields: {
                         name: 0,
                     },
                 },
-                Movie: {
+                movie: {
                     weight: 1,
                     fields: {
                         name: 0,
@@ -126,7 +126,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             `);
 
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Test: {
+                test: {
                     weight: 1,
                     fields: {
                         num: 0,
@@ -149,11 +149,11 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     name: String!
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {},
                 },
-                Character: {
+                character: {
                     weight: 1,
                     fields: {
                         id: 0,
@@ -178,18 +178,18 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     JEDI
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {},
                 },
-                Character: {
+                character: {
                     weight: 1,
                     fields: {
                         id: 0,
                         name: 0,
                     },
                 },
-                Episode: {
+                episode: {
                     weight: 0,
                     fields: {},
                 },
@@ -218,7 +218,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
             // TODO: Add tests for what the function does
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Query: {
+                query: {
                     weight: 1,
                     fields: {
                         // FIXME: check the best solution during implementation and update the tests here.
@@ -226,14 +226,14 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         // code from PR review -> reviews: (type) => args[multiplierName] * typeWeightObject[type].weight
                     },
                 },
-                Review: {
+                review: {
                     weight: 1,
                     fields: {
                         stars: 0,
                         commentary: 0,
                     },
                 },
-                Episode: {
+                episode: {
                     weight: 0,
                     fields: {},
                 },
@@ -252,7 +252,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 }
             `);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Human: {
+                human: {
                     weight: 1,
                     fields: {
                         // FIXME: check the best solution during implementation and update the tests here.
@@ -281,14 +281,14 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     primaryFunction: String
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                Character: {
+                character: {
                     weight: 1,
                     fields: {
                         id: 0,
                         name: 0,
                     },
                 },
-                Human: {
+                human: {
                     weight: 1,
                     fields: {
                         id: 0,
@@ -296,7 +296,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         homePlanet: 0,
                     },
                 },
-                Droid: {
+                droid: {
                     weight: 1,
                     fields: {
                         id: 0,
@@ -317,17 +317,17 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     primaryFunction: String
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                SearchResult: {
+                searchresult: {
                     weight: 1,
                     fields: {},
                 },
-                Human: {
+                human: {
                     weight: 1,
                     fields: {
                         homePlanet: 0,
                     },
                 },
-                Droid: {
+                droid: {
                     weight: 1,
                     fields: {
                         primaryFunction: 0,
@@ -366,17 +366,17 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             // This expected output is using default type weight settings.
             // Each test will override values for feild weights configuration.
             expectedOutput = {
-                Query: {
+                query: {
                     weight: 1,
                     fields: {},
                 },
-                User: {
+                user: {
                     weight: 1,
                     fields: {
                         name: 0,
                     },
                 },
-                Movie: {
+                movie: {
                     weight: 1,
                     fields: {
                         name: 0,
@@ -390,7 +390,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 query: 2,
             });
-            expectedOutput.Query.weight = 2;
+            expectedOutput.query.weight = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
@@ -400,8 +400,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 object: 2,
             });
 
-            expectedOutput.User.weight = 2;
-            expectedOutput.Movie.weight = 2;
+            expectedOutput.user.weight = 2;
+            expectedOutput.movie.weight = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
@@ -411,8 +411,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 scalar: 2,
             });
 
-            expectedOutput.User.fields.name = 2;
-            expectedOutput.Movie.fields.name = 2;
+            expectedOutput.user.fields.name = 2;
+            expectedOutput.movie.fields.name = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
