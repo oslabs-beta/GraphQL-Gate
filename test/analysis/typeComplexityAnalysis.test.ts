@@ -1,3 +1,5 @@
+import { ArgumentNode, IntValueNode, ValueNode } from 'graphql/language';
+import { KEYWORDS } from '../../src/analysis/buildTypeWeights';
 import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
 
 /** 
@@ -102,7 +104,7 @@ const typeWeights: TypeWeightObject = {
         fields: {
             // FIXME: update the function def that is supposed te be here to match implementation
             // FIXME: add the function definition for the 'search' field which returns a list
-            reviews: (arg, type) => arg * type.weight,
+            reviews: (args: ArgumentNode[]): number => 10,
         },
     },
     episode: {
