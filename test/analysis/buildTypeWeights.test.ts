@@ -212,18 +212,11 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     JEDI
                 }`);
 
-            function reviews(multiplier: number): number {
-                return 1;
-            }
-
-            // TODO: Add tests for what the function does
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 query: {
                     weight: 1,
                     fields: {
-                        // FIXME: check the best solution during implementation and update the tests here.
-                        reviews: expect.any(Function), // FIXME: Better way to test this?
-                        // code from PR review -> reviews: (type) => args[multiplierName] * typeWeightObject[type].weight
+                        reviews: expect.any(Function), // TODO: Test this function separately
                     },
                 },
                 review: {
@@ -255,8 +248,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 human: {
                     weight: 1,
                     fields: {
-                        // FIXME: check the best solution during implementation and update the tests here.
-                        friends: (arg: number, type: Type) => arg * type.weight,
+                        // TODO: Test this function separately.
+                        friends: expect.any(Function),
                     },
                 },
             });
