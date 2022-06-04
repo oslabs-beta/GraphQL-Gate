@@ -1,7 +1,11 @@
 import Redis, { RedisOptions } from 'ioredis';
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { parse, validate } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
-import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+
+import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
+import setupRateLimiter from './rateLimiterSetup';
+import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema
@@ -12,7 +16,7 @@ import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
  * @param {RateLimiterSelection} rateLimiter Specify rate limiting algorithm to be used
  * @param {RateLimiterOptions} options Specify the appropriate options for the selected rateLimiter
  * @param {GraphQLSchema} schema GraphQLSchema object
- * @param {RedisClientOptions} redisClientOptions valid node-redis connection options. See https://github.com/redis/node-redis/blob/HEAD/docs/client-configuration.md
+ * @param {RedisClientOptions} RedisOptions ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
  * @param {TypeWeightConfig} typeWeightConfig Optional type weight configuration for the GraphQL Schema.
  * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
@@ -21,23 +25,76 @@ import { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
  * @throws ValidationError if GraphQL Schema is invalid.
  */
 export function expressRateLimiter(
-    rateLimiter: RateLimiterSelection,
+    rateLimiterAlgo: RateLimiterSelection,
     rateLimiterOptions: RateLimiterOptions,
     schema: GraphQLSchema,
     redisClientOptions: RedisOptions,
     typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig
 ): RequestHandler {
-    // TODO: Set 'timestamp' on res.locals to record when the request is received in UNIX format. HTTP does not inlude this.
-    // TODO: Parse the schema to create a TypeWeightObject. Throw ValidationError if schema is invalid
-    // TODO: Connect to Redis store using provided options. Default to localhost:6379
-    // TODO: Configure the selected RateLimtier
-    // TODO: Configure the complexity analysis algorithm to run for incoming requests
-    const middleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-        // TODO: Parse query from req.query, compute complexity and pass necessary info to rate limiter
-        // TODO: Call next if query is successful, send 429 status if query blocked, call next(err) with any thrown errors
-        next(Error('Express rate limiting middleware not implemented'));
+    /**
+     * build the type weight object, create the redis client and instantiate the ratelimiter
+     * before returning the express middleware that calculates query complexity and throttles the requests
+     */
+    // TODO: Throw ValidationError if schema is invalid
+    const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
+    // TODO: Throw error if connection is unsuccessful
+    const redisClient = new Redis(redisClientOptions); // Default port is 6379 automatically
+    const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
+
+    // return the rate limiting middleware
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        const requestTimestamp = new Date().valueOf();
+        const { query, variables }: { query: string; variables: any } = req.body;
+        if (!query) {
+            // FIXME: Throw an error here? Code currently passes this on to whatever is next
+            console.log('There is no query on the request');
+            return next();
+        }
+
+        /**
+         * There are numorous ways to get the ip address off of the request object.
+         * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
+         * - req.ips wwill hold an array of ip addresses in'x-forward-for' header. client is likely at index zero
+         * - req.ip will have the ip address
+         * - req.socket.remoteAddress is an insatnce of net.socket which is used as another method of getting the ip address
+         *
+         * req.ip and req.ips will worx in express but not with other frameworks
+         */
+        // check for a proxied ip address before using the ip address on request
+        const ip: string = req.ips[0] || req.ip;
+
+        // FIXME: this will only work with type complexity
+        const queryAST = parse(query);
+        // validate the query against the schema. The GraphQL validation function returns an array of errors.
+        const validationErrors = validate(schema, queryAST);
+        // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
+        if (validationErrors.length > 0) return next();
+
+        const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
+
+        try {
+            // process the request and conditinoally respond to client with status code 429 o
+            // r pass the request onto the next middleware function
+            const rateLimiterResponse = await rateLimiter.processRequest(
+                ip,
+                requestTimestamp,
+                queryComplexity
+            );
+            if (rateLimiterResponse.success === false) {
+                // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
+                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
+                res.status(429).send();
+            }
+            res.locals.graphqlGate = {
+                timestamp: requestTimestamp,
+                complexity: queryComplexity,
+                tokens: rateLimiterResponse.tokens,
+            };
+            return next();
+        } catch (err) {
+            return next(err);
+        }
     };
-    return middleware;
 }
 
 export default expressRateLimiter;
