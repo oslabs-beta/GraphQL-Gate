@@ -16,7 +16,7 @@ import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
  * @param {RateLimiterSelection} rateLimiter Specify rate limiting algorithm to be used
  * @param {RateLimiterOptions} options Specify the appropriate options for the selected rateLimiter
  * @param {GraphQLSchema} schema GraphQLSchema object
- * @param {RedisClientOptions} RedisOptions // TODO add dsecription
+ * @param {RedisClientOptions} RedisOptions ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
  * @param {TypeWeightConfig} typeWeightConfig Optional type weight configuration for the GraphQL Schema.
  * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware

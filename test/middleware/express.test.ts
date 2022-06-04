@@ -2,7 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
 import * as ioredis from 'ioredis';
 
-import expressRateLimitMiddleware from '../../src/middleware/index';
+import { expressRateLimiter as expressRateLimitMiddleware } from '../../src/middleware/index';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');
