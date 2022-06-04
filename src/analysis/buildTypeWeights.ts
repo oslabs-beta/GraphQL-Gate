@@ -1,4 +1,3 @@
-import { query } from 'express';
 import {
     ArgumentNode,
     GraphQLArgument,
@@ -6,7 +5,6 @@ import {
     GraphQLNamedType,
     GraphQLObjectType,
     GraphQLOutputType,
-    IntValueNode,
     isCompositeType,
     isEnumType,
     isInterfaceType,
@@ -32,7 +30,7 @@ const DEFAULT_SCALAR_WEIGHT = 0;
 const DEFAULT_CONNECTION_WEIGHT = 2;
 const DEFAULT_QUERY_WEIGHT = 1;
 
-// FIXME: What about Union, Enum and Interface defaults
+// FIXME: What about Interface defaults
 
 /**
  * Default TypeWeight Configuration:
