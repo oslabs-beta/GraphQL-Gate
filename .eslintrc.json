@@ -26,5 +26,5 @@
             "error"
         ]
     }, 
-    "ignorePatterns": ["jest.config.ts"]
+    "ignorePatterns": ["jest.*"]
 }

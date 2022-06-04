@@ -1,6 +1,8 @@
 interface Fields {
-    readonly [index: string]: number | ((arg: { [index: string]: any }) => number);
+    [index: string]: FieldWeight;
 }
+type WeightFunction = (args: ArgumentNode[]) => number;
+type FieldWeight = number | WeightFunction;
 
 interface Type {
     readonly weight: number;
@@ -8,7 +10,7 @@ interface Type {
 }
 
 interface TypeWeightObject {
-    readonly [index: string]: Type;
+    [index: string]: Type;
 }
 
 interface TypeWeightConfig {

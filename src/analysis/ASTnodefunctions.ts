@@ -67,20 +67,16 @@ export function fieldNode(
         }
     } else {
         // otherwise the field is a scalar or a list.
-        const fieldWeight = typeWeights[parentName].fields[node.name.value];
+        const fieldWeight: FieldWeight = typeWeights[parentName].fields[node.name.value];
         if (typeof fieldWeight === 'number') {
             // if the feild weight is a number, add the number to the total complexity
             complexity += fieldWeight;
-        } else {
+        } else if (node.arguments) {
             // otherwise the the feild weight is a list, invoke the function with variables
             // TODO: calculate the complexity for lists with arguments and varibales
             // ! this is not functional
             // iterate through the arguments to build the object to
-            // eslint-disable-next-line no-lonely-if
-            if (node.arguments) {
-                const argumentsCopy = [...node.arguments];
-                complexity += fieldWeight(getArgObj(argumentsCopy));
-            }
+            complexity += fieldWeight([...node.arguments]);
         }
     }
     return complexity;
