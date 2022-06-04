@@ -15,7 +15,7 @@ interface RateLimiter {
 
 interface RateLimiterResponse {
     success: boolean;
-    tokens?: number;
+    tokens: number;
 }
 
 interface RedisBucket {

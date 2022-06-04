@@ -1,4 +1,4 @@
-import { parse } from 'graphql';
+import { DocumentNode } from 'graphql';
 
 /**
  * This function should
@@ -13,9 +13,15 @@ import { parse } from 'graphql';
  *
  * @param {string} queryString
  * @param {TypeWeightObject} typeWeights
+ * @param {any | undefined} varibales
  * @param {string} complexityOption
  */
-function getQueryTypeComplexity(queryString: string, typeWeights: TypeWeightObject): number {
+// TODO add queryVaribables parameter
+function getQueryTypeComplexity(
+    queryString: DocumentNode,
+    varibales: any | undefined,
+    typeWeights: TypeWeightObject
+): number {
     throw Error('getQueryComplexity is not implemented.');
 }
 

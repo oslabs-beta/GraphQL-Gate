@@ -1,3 +1,4 @@
+import { parse } from 'graphql';
 import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
 
 /** 
@@ -168,45 +169,47 @@ const typeWeights: TypeWeightObject = {
 
 xdescribe('Test getQueryTypeComplexity function', () => {
     let query = '';
+    let variables: any | undefined;
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
             query = `Query { scalars { num } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + Scalars 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
         test('with two or more fields', () => {
             query = `Query { scalars { num } test { name } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with one level of nested fields', () => {
             query = `Query { scalars { num, test { name } } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with multiple levels of nesting', () => {
             query = `Query { scalars { num, test { name, scalars { id } } } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
         });
 
         test('with aliases', () => {
             query = `Query { foo: scalar { num } bar: scalar { id }}`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
         });
 
         test('with all scalar fields', () => {
             query = `Query { scalars { id, num, float, bool, string } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + scalar 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
         test('with arguments and variables', () => {
             query = `Query { hero(episode: EMPIRE) { id, name } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
             query = `Query { human(id: 1) { id, name, appearsIn } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
             // argument passed in as a variable
-            query = `Query { hero(episode: $ep) { id, name } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            variables = { ep: 'EMPIRE' };
+            query = `Query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
         test('with fragments', () => {
@@ -225,7 +228,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                 appearsIn
               }
             }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
         });
 
         test('with inline fragments', () => {
@@ -241,7 +244,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(2); // Query 1 + hero/character 1)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1)
         });
 
         /**
@@ -255,12 +258,15 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                     name
                 }
             }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(false); // ?
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        test('with lists detrmined by arguments', () => {
+        test('with lists detrmined by arguments and variables', () => {
             query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            variables = { first: 3 };
+            query = `Query queryVaribales($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
         });
 
         test('with nested lists', () => {
@@ -276,7 +282,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                     } 
                 }
             }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
         });
 
         test('accounting for __typename feild', () => {
@@ -294,7 +300,7 @@ xdescribe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplexity(query, typeWeights)).toBe(5); // 1 Query + 4 search results
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 search results
         });
 
         // todo: directives @skip, @include and custom directives
@@ -302,11 +308,17 @@ xdescribe('Test getQueryTypeComplexity function', () => {
         // todo: expand on error handling
         test('Throws an error if for a bad query', () => {
             query = `Query { hello { hi } }`; // type doesn't exist
-            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
+                'Error'
+            );
             query = `Query { hero(episode: EMPIRE){ starship } }`; // field doesn't exist
-            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
+                'Error'
+            );
             query = `Query { hero(episode: EMPIRE) { id, name }`; // missing a closing bracket
-            expect(() => getQueryTypeComplexity(query, typeWeights)).toThrow('Error');
+            expect(() => getQueryTypeComplexity(parse(query), variables, typeWeights)).toThrow(
+                'Error'
+            );
         });
     });
 
