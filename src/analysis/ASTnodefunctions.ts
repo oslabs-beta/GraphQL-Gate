@@ -8,6 +8,7 @@ import {
     SelectionNode,
     ArgumentNode,
 } from 'graphql';
+import { FieldWeight, TypeWeightObject } from '../@types/buildTypeWeights';
 
 // TODO: handle variables and arguments
 // ! this is not functional

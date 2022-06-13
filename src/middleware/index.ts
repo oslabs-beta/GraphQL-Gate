@@ -6,6 +6,8 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
+import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { TypeWeightConfig } from '../@types/buildTypeWeights';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema
@@ -50,7 +52,6 @@ export function expressRateLimiter(
             console.log('There is no query on the request');
             return next();
         }
-
         /**
          * There are numorous ways to get the ip address off of the request object.
          * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
@@ -68,10 +69,12 @@ export function expressRateLimiter(
         // validate the query against the schema. The GraphQL validation function returns an array of errors.
         const validationErrors = validate(schema, queryAST);
         // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
-        if (validationErrors.length > 0) return next();
+        if (validationErrors.length > 0) {
+            // FIXME: Customize this error to throw the GraphQLError
+            return next(Error('invalid query'));
+        }
 
         const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
-
         try {
             // process the request and conditinoally respond to client with status code 429 o
             // r pass the request onto the next middleware function
@@ -83,14 +86,15 @@ export function expressRateLimiter(
             if (rateLimiterResponse.success === false) {
                 // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
                 // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                res.status(429).send();
+                res.status(429).json({ graphqlGate: rateLimiterResponse });
+            } else {
+                res.locals.graphqlGate = {
+                    timestamp: requestTimestamp,
+                    complexity: queryComplexity,
+                    tokens: rateLimiterResponse.tokens,
+                };
+                return next();
             }
-            res.locals.graphqlGate = {
-                timestamp: requestTimestamp,
-                complexity: queryComplexity,
-                tokens: rateLimiterResponse.tokens,
-            };
-            return next();
         } catch (err) {
             return next(err);
         }

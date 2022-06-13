@@ -26,5 +26,5 @@
             "error"
         ]
     }, 
-    "ignorePatterns": ["jest.*"]
+    "ignorePatterns": ["jest.*", "build/*"]
 }
