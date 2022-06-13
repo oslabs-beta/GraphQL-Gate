@@ -44,7 +44,11 @@ export function expressRateLimiter(
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
     // return the rate limiting middleware
-    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    return async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ): Promise<void | Response<any, Record<string, any>>> => {
         const requestTimestamp = new Date().valueOf();
         const { query, variables }: { query: string; variables: any } = req.body;
         if (!query) {
@@ -83,18 +87,17 @@ export function expressRateLimiter(
                 requestTimestamp,
                 queryComplexity
             );
-            if (rateLimiterResponse.success === false) {
+            if (!rateLimiterResponse.success) {
                 // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
                 // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                res.status(429).json({ graphqlGate: rateLimiterResponse });
-            } else {
-                res.locals.graphqlGate = {
-                    timestamp: requestTimestamp,
-                    complexity: queryComplexity,
-                    tokens: rateLimiterResponse.tokens,
-                };
-                return next();
+                return res.status(429).json({ graphqlGate: rateLimiterResponse });
             }
+            res.locals.graphqlGate = {
+                timestamp: requestTimestamp,
+                complexity: queryComplexity,
+                tokens: rateLimiterResponse.tokens,
+            };
+            return next();
         } catch (err) {
             return next(err);
         }
