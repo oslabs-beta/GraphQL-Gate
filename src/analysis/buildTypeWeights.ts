@@ -19,6 +19,7 @@ import {
 import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
+import { TypeWeightConfig, TypeWeightObject } from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
@@ -81,6 +82,7 @@ function parseQuery(
         queryFields[field].args.forEach((arg: GraphQLArgument) => {
             // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
             // should be dependent on both the weight of the resolved type and the limiting argument.
+            // FIXME: Can nonnull wrap list types?
             if (KEYWORDS.includes(arg.name) && isListType(resolveType)) {
                 // Get the type that comprises the list
                 const listType = resolveType.ofType;
@@ -125,7 +127,7 @@ function parseQuery(
             }
         });
 
-        // if the field is a scalar or an enum set weight accordingly
+        // if the field is a scalar or an enum set weight accordingly. It is not a list in this case
         if (isScalarType(resolveType) || isEnumType(resolveType)) {
             result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
         }
@@ -152,7 +154,7 @@ function parseTypes(
 
     // Handle Object, Interface, Enum and Union types
     Object.keys(typeMap).forEach((type) => {
-        const typeName = type.toLowerCase();
+        const typeName: string = type.toLowerCase();
 
         const currentType: GraphQLNamedType = typeMap[type];
         // Get all types that aren't Query or Mutation or a built in type that starts with '__'
@@ -219,7 +221,7 @@ function buildTypeWeightsFromSchema(
         ...typeWeightsConfig,
     };
 
-    // Confirm that any custom weights are positive
+    // Confirm that any custom weights are non-negative
     Object.entries(typeWeights).forEach((value: [string, number]) => {
         if (value[1] < 0) {
             throw new Error(`Type weights cannot be negative. Received: ${value[0]}: ${value[1]} `);

@@ -1,4 +1,4 @@
-interface RateLimiter {
+export interface RateLimiter {
     /**
      * Checks if a request is allowed under the given conditions and withdraws the specified number of tokens
      * @param uuid Unique identifier for the user associated with the request
@@ -13,17 +13,17 @@ interface RateLimiter {
     ) => Promise<RateLimiterResponse>;
 }
 
-interface RateLimiterResponse {
+export interface RateLimiterResponse {
     success: boolean;
     tokens: number;
 }
 
-interface RedisBucket {
+export interface RedisBucket {
     tokens: number;
     timestamp: number;
 }
 
-type RateLimiterSelection =
+export type RateLimiterSelection =
     | 'TOKEN_BUCKET'
     | 'LEAKY_BUCKET'
     | 'FIXED_WINDOW'
@@ -34,7 +34,7 @@ type RateLimiterSelection =
  * @type {number} bucketSize - Size of the token bucket
  * @type {number} refillRate - Rate at which tokens are added to the bucket in seconds
  */
-interface TokenBucketOptions {
+export interface TokenBucketOptions {
     bucketSize: number;
     refillRate: number;
 }
@@ -42,4 +42,4 @@ interface TokenBucketOptions {
 // TODO: This will be a union type where we can specify Option types for other Rate Limiters
 // Record<string, never> represents the empty object for alogorithms that don't require settings
 // and might be able to be removed in the future.
-type RateLimiterOptions = TokenBucketOptions | Record<string, never>;
+export type RateLimiterOptions = TokenBucketOptions | Record<string, never>;

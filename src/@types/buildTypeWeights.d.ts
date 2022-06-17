@@ -1,17 +1,16 @@
-interface Fields {
-    [index: string]: number | ((args: ArgumentNode[]) => number);
+export interface Fields {
+    [index: string]: FieldWeight;
 }
-
-interface Type {
+export type WeightFunction = (args: ArgumentNode[]) => number;
+export type FieldWeight = number | WeightFunction;
+export interface Type {
     readonly weight: number;
     readonly fields: Fields;
 }
-
-interface TypeWeightObject {
+export interface TypeWeightObject {
     [index: string]: Type;
 }
-
-interface TypeWeightConfig {
+export interface TypeWeightConfig {
     mutation?: number;
     query?: number;
     object?: number;

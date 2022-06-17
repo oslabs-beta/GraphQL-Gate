@@ -1,4 +1,5 @@
 import * as ioredis from 'ioredis';
+import { RedisBucket } from '../../src/@types/rateLimit';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires

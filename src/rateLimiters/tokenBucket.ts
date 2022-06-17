@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { RateLimiter, RateLimiterResponse, RedisBucket } from '../@types/rateLimit';
 
 /**
  * The TokenBucket instance of a RateLimiter limits requests based on a unique user ID.
@@ -98,7 +99,7 @@ class TokenBucket implements RateLimiter {
         timestamp: number
     ): number => {
         const timeSinceLastQueryInSeconds: number = Math.floor(
-            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second
+            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second FIXME: magic number if specifying custom timeframe
         );
         const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
         const updatedTokenCount = bucket.tokens + tokensToAdd;

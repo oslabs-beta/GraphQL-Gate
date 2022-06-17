@@ -1,28 +1,25 @@
 import { DocumentNode } from 'graphql';
+import { TypeWeightObject } from '../@types/buildTypeWeights';
+import { documentNode } from './ASTnodefunctions';
 
 /**
- * This function should
- * 1. validate the query using graphql methods
- * 2. parse the query string using the graphql parse method
- * 3. itreate through the query AST and
- *      - cross reference the type weight object to check type weight
- *      - total all the eweights of all types in the query
- * 4. return the total as the query complexity
+ * Calculate the complexity for the query by recursivly traversing through the query AST,
+ * checking the query fields against the type weight object and totaling the weights of every field.
  *
- * TO DO: extend the functionality to work for mutations and subscriptions
+ * TO DO: extend the functionality to work for mutations and subscriptions and directives
  *
- * @param {string} queryString
- * @param {TypeWeightObject} typeWeights
+ * @param {string} queryAST
  * @param {any | undefined} varibales
- * @param {string} complexityOption
+ * @param {TypeWeightObject} typeWeights
  */
-// TODO add queryVaribables parameter
 function getQueryTypeComplexity(
-    queryString: DocumentNode,
-    varibales: any | undefined,
+    queryAST: DocumentNode,
+    variables: any | undefined,
     typeWeights: TypeWeightObject
 ): number {
-    throw Error('getQueryComplexity is not implemented.');
+    let complexity = 0;
+    complexity += documentNode(queryAST, typeWeights, variables);
+    return complexity;
 }
 
 export default getQueryTypeComplexity;
