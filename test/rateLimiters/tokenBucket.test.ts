@@ -186,7 +186,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             ).toBe(false);
         });
 
-        xtest('token bucket refills at specified rate', async () => {
+        test('token bucket refills at specified rate', async () => {
             // make sure bucket refills if user takes tokens.
             const withdraw = 5;
             let timeDelta = 3;
@@ -199,7 +199,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                         withdraw + REFILL_RATE * timeDelta // 5 + 3 = 8 tokens requested after this , 0 remaining
                     )
                 ).tokens
-            ).toBe(CAPACITY - withdraw + REFILL_RATE * timeDelta); // 10 - 5 + 3 = 8 ??
+            ).toBe(0);
 
             // check if bucket refills completely and doesn't spill over.
             timeDelta = 2 * CAPACITY;
