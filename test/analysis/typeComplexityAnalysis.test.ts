@@ -1,7 +1,6 @@
-import { ArgumentNode } from 'graphql/language';
 import { parse } from 'graphql';
 import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
-import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
+import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
  * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
@@ -97,15 +96,23 @@ import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
     to character, human and droid
 */
 
+const mockWeightFunction = jest.fn();
+const mockHumanFriendsFunction = jest.fn();
+const mockDroidFriendsFunction = jest.fn();
+
 // this object is created by the schema above for use in all the tests below
 const typeWeights: TypeWeightObject = {
     query: {
         // object type
         weight: 1,
         fields: {
-            // FIXME: update the function def that is supposed te be here to match implementation
-            // FIXME: add the function definition for the 'search' field which returns a list
-            reviews: (args: ArgumentNode[]): number => 10,
+            reviews: mockWeightFunction,
+            hero: 1,
+            search: jest.fn(), // FIXME: Unbounded list result
+            character: 1,
+            droid: 1,
+            human: 1,
+            scalars: 1,
         },
     },
     episode: {
@@ -129,6 +136,8 @@ const typeWeights: TypeWeightObject = {
             id: 0,
             name: 0,
             homePlanet: 0,
+            appearsIn: jest.fn(), // FIXME: resolves to an unbounded list of enums. We aren't handling this yet
+            friends: mockHumanFriendsFunction,
         },
     },
     droid: {
@@ -137,6 +146,8 @@ const typeWeights: TypeWeightObject = {
         fields: {
             id: 0,
             name: 0,
+            appearsIn: jest.fn(), // FIXME: resolves to an unbounded list of enums. We aren't handling this yet
+            friends: mockDroidFriendsFunction,
         },
     },
     review: {
@@ -170,8 +181,13 @@ const typeWeights: TypeWeightObject = {
 };
 
 describe('Test getQueryTypeComplexity function', () => {
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
     let query = '';
-    let variables: any | undefined;
+    let variables: Variables = {};
+
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
             query = `query { scalars { num } }`;
@@ -203,14 +219,14 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
-        xtest('with arguments and variables', () => {
+        test('with arguments and variables', () => {
             query = `query { hero(episode: EMPIRE) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
-            query = `query { human(id: 1) { id, name, appearsIn } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
+            query = `query { human(id: 1) { id, name, homePlanet } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + human/character 1
             // argument passed in as a variable
             variables = { ep: 'EMPIRE' };
-            query = `query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
+            query = `query variableQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
@@ -263,15 +279,22 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        xtest('with lists detrmined by arguments and variables', () => {
-            query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
-            variables = { first: 3 };
-            query = `Query queryVaribales($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
+        test('with lists determined by arguments and variables', () => {
+            query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
+            mockWeightFunction.mockReturnValueOnce(3);
+            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(mockWeightFunction.mock.calls.length).toBe(1);
+            expect(mockWeightFunction.mock.calls[0].length).toBe(1);
+
+            variables = { first: 4 };
+            mockWeightFunction.mockReturnValueOnce(4);
+            query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 3 reviews
+            expect(mockWeightFunction.mock.calls.length).toBe(2);
+            expect(mockWeightFunction.mock.calls[1].length).toBe(1);
         });
 
-        xtest('with nested lists', () => {
+        test('with nested lists', () => {
             query = `
             query { 
                 human(id: 1) { 
@@ -284,7 +307,9 @@ describe('Test getQueryTypeComplexity function', () => {
                     } 
                 }
             }`;
+            mockHumanFriendsFunction.mockReturnValueOnce(5).mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+            expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
         });
 
         xtest('accounting for __typename feild', () => {

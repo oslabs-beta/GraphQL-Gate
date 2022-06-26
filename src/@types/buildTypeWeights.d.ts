@@ -17,3 +17,7 @@ export interface TypeWeightConfig {
     scalar?: number;
     connection?: number;
 }
+
+type Variables = {
+    [index: string]: readonly unknown;
+};
