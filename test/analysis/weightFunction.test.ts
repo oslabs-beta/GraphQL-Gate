@@ -37,7 +37,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
     const typeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema);
 
     describe('a default value is provided in the schema', () => {
-        test('and a value is not provided with the query', () => {
+        xtest('and a value is not provided with the query', () => {
             const query = `query { reviews(episode: NEWHOPE) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(5);
@@ -49,7 +49,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(4);
         });
 
-        test('and the argument is passed in as a variable', () => {
+        xtest('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ reviews(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7, first: 4 }, typeWeights)).toBe(8);
@@ -71,7 +71,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(4);
         });
 
-        test('and the argument is passed in as a variable', () => {
+        xtest('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(8);

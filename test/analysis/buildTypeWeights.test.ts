@@ -239,7 +239,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            test('are not on the Query type', () => {
+            xtest('are not on the Query type', () => {
                 schema = buildSchema(`
                     type Query {
                         reviews(episode: Episode!, first: Int): [Movie]
@@ -289,7 +289,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            test('the list resolves to an enum or scalar', () => {
+            xtest('the list resolves to an enum or scalar', () => {
                 schema = buildSchema(`
                     type Query {
                         episodes(first: Int): [Episode]
@@ -318,7 +318,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            test('the list resolves to an enum or scalar and a custom scalar weight was configured', () => {
+            xtest('the list resolves to an enum or scalar and a custom scalar weight was configured', () => {
                 schema = buildSchema(`
                     type Query {
                         episodes(first: Int): [Episode]
