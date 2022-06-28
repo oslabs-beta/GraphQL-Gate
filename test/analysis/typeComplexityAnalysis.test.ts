@@ -26,6 +26,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         name: String!
         friends(first: Int): [Character]
         appearsIn: [Episode]!
+        scalarList(first: Int): [Int]
     }
 
     type Human implements Character {
@@ -294,22 +295,42 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(mockWeightFunction.mock.calls[1].length).toBe(1);
         });
 
-        test('with nested lists', () => {
-            query = `
-            query { 
-                human(id: 1) { 
-                    name, 
-                    friends(first: 5) { 
+        xdescribe('with nested lists', () => {
+            test('and simple nesting', () => {
+                query = `
+                query { 
+                    human(id: 1) { 
                         name, 
-                        friends(first: 3){ 
-                            name 
+                        friends(first: 5) { 
+                            name, 
+                            friends(first: 3){ 
+                                name 
+                            } 
                         } 
-                    } 
-                }
-            }`;
-            mockHumanFriendsFunction.mockReturnValueOnce(5).mockReturnValueOnce(3);
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
-            expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
+                    }
+                }`;
+                mockHumanFriendsFunction.mockReturnValueOnce(5).mockReturnValueOnce(3);
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
+            });
+
+            test('and inner scalar lists', () => {
+                query = `
+                query { 
+                    human(id: 1) { 
+                        name, 
+                        friends(first: 5) { 
+                            name, 
+                            scalarList(first: 3){ 
+                                name 
+                            } 
+                        } 
+                    }
+                }`;
+                mockHumanFriendsFunction.mockReturnValueOnce(5);
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
+            });
         });
 
         xtest('accounting for __typename feild', () => {
