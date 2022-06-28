@@ -32,6 +32,8 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             JEDI
         }`);
 
+    // building the typeWeights object here since we're testing the weight function created in
+    // the typeWeights object
     const typeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema);
 
     describe('a default value is provided in the schema', () => {
@@ -74,6 +76,15 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(8);
         });
+    });
+
+    test('a custom object weight was configured', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            object: 3,
+        });
+        const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
+        const queryAST: DocumentNode = parse(query);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(10);
     });
 
     xtest('an invalid arg type is provided', () => {
