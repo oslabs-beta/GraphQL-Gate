@@ -30,22 +30,14 @@ const DEFAULT_OBJECT_WEIGHT = 1;
 const DEFAULT_SCALAR_WEIGHT = 0;
 const DEFAULT_CONNECTION_WEIGHT = 2;
 const DEFAULT_QUERY_WEIGHT = 1;
-
-// FIXME: What about Interface defaults
-
-/**
- * Default TypeWeight Configuration:
- * mutation: 10
- * object: 1
- * scalar: 0
- * connection: 2
- */
 export const defaultTypeWeightsConfig: TypeWeightConfig = {
     mutation: DEFAULT_MUTATION_WEIGHT,
     object: DEFAULT_OBJECT_WEIGHT,
     scalar: DEFAULT_SCALAR_WEIGHT,
     connection: DEFAULT_CONNECTION_WEIGHT,
 };
+
+// FIXME: What about Interface defaults
 
 /**
  * Parses the Query type in the provided schema object and outputs a new TypeWeightObject
@@ -143,14 +135,10 @@ function parseQuery(
  * @param typeWeights
  * @returns
  */
-function parseTypes(
-    schema: GraphQLSchema,
-    typeWeightObject: TypeWeightObject,
-    typeWeights: TypeWeightConfig
-): TypeWeightObject {
+function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeWeightObject {
     const typeMap: ObjMap<GraphQLNamedType> = schema.getTypeMap();
 
-    const result: TypeWeightObject = { ...typeWeightObject };
+    const result: TypeWeightObject = {};
 
     // Handle Object, Interface, Enum and Union types
     Object.keys(typeMap).forEach((type) => {
@@ -228,7 +216,7 @@ function buildTypeWeightsFromSchema(
         }
     });
 
-    const objectTypeWeights = parseTypes(schema, {}, typeWeights);
+    const objectTypeWeights = parseTypes(schema, typeWeights);
     return parseQuery(schema, objectTypeWeights, typeWeights);
 }
 
