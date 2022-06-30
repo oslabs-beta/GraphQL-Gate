@@ -10,21 +10,6 @@ import {
 } from 'graphql';
 import { FieldWeight, TypeWeightObject } from '../@types/buildTypeWeights';
 
-// TODO: handle variables and arguments
-// ! this is not functional
-const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
-    const argObj: { [index: string]: any } = {};
-    for (let i = 0; i < args.length; i + 1) {
-        const node = args[i];
-        if (args[i].value.kind !== Kind.VARIABLE) {
-            if (args[i].value.kind === Kind.INT) {
-                // FIXME: this does not work
-                argObj[args[i].name.value] = args[i].value;
-            }
-        }
-    }
-    return argObj;
-};
 /**
  * The AST node functions call each other following the nested structure below
  * Each function handles a specific GraphQL AST node type
@@ -52,7 +37,6 @@ export function fieldNode(
     parentName: string
 ): number {
     let complexity = 0;
-    // console.log('fieldNode', node, parentName);
     // check if the field name is in the type weight object.
     if (node.name.value.toLocaleLowerCase() in typeWeights) {
         // if it is, than the field is an object type, add itss type weight to the total
@@ -70,14 +54,12 @@ export function fieldNode(
         // otherwise the field is a scalar or a list.
         const fieldWeight: FieldWeight = typeWeights[parentName].fields[node.name.value];
         if (typeof fieldWeight === 'number') {
-            // if the feild weight is a number, add the number to the total complexity
+            // if the field weight is a number, add the number to the total complexity
             complexity += fieldWeight;
         } else if (node.arguments) {
-            // otherwise the the feild weight is a list, invoke the function with variables
+            // otherwise the the field weight is a list, invoke the function with variables
             // TODO: calculate the complexity for lists with arguments and varibales
-            // ! this is not functional
-            // iterate through the arguments to build the object to
-            complexity += fieldWeight([...node.arguments]);
+            complexity += fieldWeight([...node.arguments], variables[node.name.value]);
         }
     }
     return complexity;
@@ -90,7 +72,6 @@ export function selectionNode(
     parentName: string
 ): number {
     let complexity = 0;
-    // console.log('selectionNode', node, parentName);
     // check the kind property against the set of selection nodes that are possible
     if (node.kind === Kind.FIELD) {
         // call the function that handle field nodes

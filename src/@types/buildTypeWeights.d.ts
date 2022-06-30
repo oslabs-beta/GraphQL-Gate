@@ -1,7 +1,7 @@
 export interface Fields {
     [index: string]: FieldWeight;
 }
-export type WeightFunction = (args: ArgumentNode[]) => number;
+export type WeightFunction = (args: ArgumentNode[], variables) => number;
 export type FieldWeight = number | WeightFunction;
 export interface Type {
     readonly weight: number;

@@ -53,7 +53,6 @@ function parseQueryType(
 ): TypeWeightObject {
     // Get any Query fields (these are the queries that the API exposes)
     const queryType: Maybe<GraphQLObjectType> = schema.getQueryType();
-
     if (!queryType) return typeWeightObject;
 
     const result: TypeWeightObject = { ...typeWeightObject };
@@ -78,17 +77,15 @@ function parseQueryType(
             if (KEYWORDS.includes(arg.name) && isListType(resolveType)) {
                 // Get the type that comprises the list
                 const listType = resolveType.ofType;
+                // TODO: If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
+                // if (result[listType].weight === 0) result.query.fields[field] = 0;
 
-                // FIXME: This function can only handle integer arguments for one of the keyword params.
                 // In order to handle variable arguments, we may need to accept a second parameter so that the complexity aglorithm
                 // can pass in the variables as well.
-                // FIXME: If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
-                result.query.fields[field] = (args: ArgumentNode[]): number => {
-                    // TODO: Test this function
+                result.query.fields[field] = (args: ArgumentNode[], variables): number => {
                     const limitArg: ArgumentNode | undefined = args.find(
                         (cur) => cur.name.value === arg.name
                     );
-
                     if (limitArg) {
                         const node: ValueNode = limitArg.value;
 
@@ -102,12 +99,12 @@ function parseQueryType(
                         }
 
                         if (Kind.VARIABLE === node.kind) {
-                            // TODO: Get variable value and return
-                            // const multiplier: number =
-                            // return result[listType.name.toLowerCase()].weight * multiplier;
-                            throw new Error(
-                                'ERROR: buildTypeWeights Variable arge values not supported;'
-                            );
+                            const multiplier = Number(variables[node.name.value]);
+                            const weight = isCompositeType(listType)
+                                ? result[listType.name.toLowerCase()].weight
+                                : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                            return weight * multiplier;
                         }
                     }
 
@@ -140,11 +137,12 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
 
     const result: TypeWeightObject = {};
 
+    // ? lists
     // Handle Object, Interface, Enum and Union types
     Object.keys(typeMap).forEach((type) => {
         const typeName: string = type.toLowerCase();
-
         const currentType: GraphQLNamedType = typeMap[type];
+
         // Get all types that aren't Query or Mutation or a built in type that starts with '__'
         if (type !== 'Query' && type !== 'Mutation' && !type.startsWith('__')) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
