@@ -137,7 +137,7 @@ const typeWeights: TypeWeightObject = {
             id: 0,
             name: 0,
             homePlanet: 0,
-            appearsIn: jest.fn(), // FIXME: resolves to an unbounded list of enums. We aren't handling this yet
+            appearsIn: 0,
             friends: mockHumanFriendsFunction,
         },
     },
@@ -147,7 +147,7 @@ const typeWeights: TypeWeightObject = {
         fields: {
             id: 0,
             name: 0,
-            appearsIn: jest.fn(), // FIXME: resolves to an unbounded list of enums. We aren't handling this yet
+            appearsIn: 0,
             friends: mockDroidFriendsFunction,
         },
     },
@@ -290,12 +290,12 @@ describe('Test getQueryTypeComplexity function', () => {
             variables = { first: 4 };
             mockWeightFunction.mockReturnValueOnce(4);
             query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 3 reviews
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(2);
             expect(mockWeightFunction.mock.calls[1].length).toBe(1);
         });
 
-        xdescribe('with nested lists', () => {
+        describe('with nested lists', () => {
             test('and simple nesting', () => {
                 query = `
                 query { 
@@ -310,7 +310,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     }
                 }`;
                 mockHumanFriendsFunction.mockReturnValueOnce(5).mockReturnValueOnce(3);
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
             });
 
