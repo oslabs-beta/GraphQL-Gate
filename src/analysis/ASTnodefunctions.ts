@@ -78,7 +78,10 @@ export function selectionNode(
         // call the function that handle field nodes
         calculatedCost += fieldNode(node, typeWeights, variables, parentName);
 
-        if (calculatedCost !== 0) complexity *= calculatedCost;
+        if (calculatedCost !== 0) {
+            complexity += 1;
+            complexity *= calculatedCost;
+        }
     }
     // TODO: add checks for Kind.FRAGMENT_SPREAD and Kind.INLINE_FRAGMENT here
     return complexity;
