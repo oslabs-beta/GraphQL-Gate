@@ -72,10 +72,13 @@ export function selectionNode(
     parentName: string
 ): number {
     let complexity = 0;
+    let calculatedCost = 0;
     // check the kind property against the set of selection nodes that are possible
     if (node.kind === Kind.FIELD) {
         // call the function that handle field nodes
-        complexity += fieldNode(node, typeWeights, variables, parentName);
+        calculatedCost += fieldNode(node, typeWeights, variables, parentName);
+
+        if (calculatedCost !== 0) complexity *= calculatedCost;
     }
     // TODO: add checks for Kind.FRAGMENT_SPREAD and Kind.INLINE_FRAGMENT here
     return complexity;
