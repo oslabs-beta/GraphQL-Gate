@@ -295,7 +295,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(mockWeightFunction.mock.calls[1].length).toBe(1);
         });
 
-        describe('with nested lists', () => {
+        xdescribe('with nested lists', () => {
             test('and simple nesting', () => {
                 query = `
                 query { 
