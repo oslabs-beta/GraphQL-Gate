@@ -1,5 +1,5 @@
 import { DocumentNode } from 'graphql';
-import { TypeWeightObject } from '../@types/buildTypeWeights';
+import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 import { documentNode } from './ASTnodefunctions';
 
 /**
@@ -9,12 +9,12 @@ import { documentNode } from './ASTnodefunctions';
  * TO DO: extend the functionality to work for mutations and subscriptions and directives
  *
  * @param {string} queryAST
- * @param {any | undefined} varibales
+ * @param {Variables} variables
  * @param {TypeWeightObject} typeWeights
  */
 function getQueryTypeComplexity(
     queryAST: DocumentNode,
-    variables: any | undefined,
+    variables: Variables,
     typeWeights: TypeWeightObject
 ): number {
     let complexity = 0;

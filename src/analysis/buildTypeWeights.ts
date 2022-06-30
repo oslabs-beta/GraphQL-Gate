@@ -74,6 +74,7 @@ function parseQueryType(
             // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
             // should be dependent on both the weight of the resolved type and the limiting argument.
             // FIXME: Can nonnull wrap list types?
+            // BUG: Lists need to be accounted for in all types not just queries
             if (KEYWORDS.includes(arg.name) && isListType(resolveType)) {
                 // Get the type that comprises the list
                 const listType = resolveType.ofType;

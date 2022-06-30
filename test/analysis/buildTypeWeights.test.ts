@@ -1,3 +1,4 @@
+import 'ts-jest';
 import { buildSchema } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
@@ -196,45 +197,159 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        test('fields returning lists of objects of determinate size', () => {
-            schema = buildSchema(`
-                type Query {
-                    reviews(episode: Episode!, first: Int): [Review]
-                }
-                type Review {
-                    episode: Episode
-                    stars: Int!
-                    commentary: String
-                }
-                enum Episode {
-                    NEWHOPE
-                    EMPIRE
-                    JEDI
-                }`);
+        describe('fields returning lists of objects of determinate size and...', () => {
+            test('args include limiting keywords: "first", "last", "limit"', () => {
+                schema = buildSchema(`
+                    type Query {
+                        reviews(episode: Episode!, first: Int): [Review]
+                        heroes(episode: Episode!, last: Int): [Review]
+                        villains(episode: Episode!, limit: Int): [Review]
+                    }
+                    type Review {
+                        episode: Episode
+                        stars: Int!
+                        commentary: String
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }`);
 
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                query: {
-                    weight: 1,
-                    fields: {
-                        reviews: expect.any(Function), // TODO: Test this function separately
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    query: {
+                        weight: 1,
+                        fields: {
+                            reviews: expect.any(Function),
+                            heroes: expect.any(Function),
+                            villains: expect.any(Function),
+                        },
                     },
-                },
-                review: {
-                    weight: 1,
-                    fields: {
-                        stars: 0,
-                        commentary: 0,
+                    review: {
+                        weight: 1,
+                        fields: {
+                            stars: 0,
+                            commentary: 0,
+                        },
                     },
-                },
-                episode: {
-                    weight: 0,
-                    fields: {},
-                },
+                    episode: {
+                        weight: 0,
+                        fields: {},
+                    },
+                });
+            });
+
+            xtest('are not on the Query type', () => {
+                schema = buildSchema(`
+                    type Query {
+                        reviews(episode: Episode!, first: Int): [Movie]
+                    }
+                    type Movie {
+                        episode: Episode
+                        stars: Int!
+                        commentary: String
+                        heroes(episode: Episode!, last: Int): [Character]
+                        villains(episode: Episode!, limit: Int): [Character]
+                    }
+                    type Character {
+                        name: String!
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }`);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    query: {
+                        weight: 1,
+                        fields: {
+                            reviews: expect.any(Function),
+                        },
+                    },
+                    movie: {
+                        weight: 1,
+                        fields: {
+                            stars: 0,
+                            commentary: 0,
+                            heroes: expect.any(Function),
+                            villains: expect.any(Function),
+                        },
+                    },
+                    character: {
+                        weight: 1,
+                        fields: {
+                            name: 0,
+                        },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
+                    },
+                });
+            });
+
+            xtest('the list resolves to an enum or scalar', () => {
+                schema = buildSchema(`
+                    type Query {
+                        episodes(first: Int): [Episode]
+                        heroes(episode: Episode!, first: Int = 3): [Int]
+                        villains(episode: Episode!, limit: Int! = 1): [String]
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }`);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    query: {
+                        weight: 1,
+                        fields: {
+                            episodes: 0,
+                            heroes: 0,
+                            villains: 0,
+                        },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
+                    },
+                });
+            });
+
+            xtest('the list resolves to an enum or scalar and a custom scalar weight was configured', () => {
+                schema = buildSchema(`
+                    type Query {
+                        episodes(first: Int): [Episode]
+                        heroes(episode: Episode!, first: Int = 3): [Int]
+                        villains(episode: Episode!, limit: Int! = 1): [String]
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }`);
+
+                expect(buildTypeWeightsFromSchema(schema, { scalar: 11 })).toEqual({
+                    query: {
+                        weight: 1,
+                        fields: {
+                            episodes: 11,
+                            heroes: 11,
+                            villains: 11,
+                        },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
+                    },
+                });
             });
         });
 
-        // TODO: need to figure out how to handle this situation. Skip for now.
-        // The field friends returns a list of an unknown number of objects.
+        // FIXME: need to figure out how to handle this situation. Skip for now.
+        // The field 'friends' returns a list of an unknown number of objects.
         xtest('fields returning lists of objects of indeterminate size', () => {
             schema = buildSchema(`
                 type Human {
@@ -248,7 +363,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 human: {
                     weight: 1,
                     fields: {
-                        // TODO: Test this function separately.
                         friends: expect.any(Function),
                     },
                 },
@@ -329,7 +443,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // TODO: Tests should be written to acount for the additional scenarios possible in a schema
+        // TODO: Tests should be written to account for the additional scenarios possible in a schema
         // Mutation type
         // Input types (a part of mutations?)
         // Subscription type
@@ -453,6 +567,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         });
 
         // TODO: throw validation error if schema is invalid
-        test('schema is invalid', () => {});
+        xtest('schema is invalid', () => {});
     });
 });

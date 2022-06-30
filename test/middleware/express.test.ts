@@ -179,6 +179,8 @@ xdescribe('Express Middleware tests', () => {
 
         afterAll(() => {
             jest.useRealTimers();
+            jest.clearAllTimers();
+            jest.clearAllMocks();
         });
 
         beforeEach(() => {
