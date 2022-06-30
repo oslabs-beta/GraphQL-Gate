@@ -46,7 +46,7 @@ export const defaultTypeWeightsConfig: TypeWeightConfig = {
  * @param typeWeights
  * @returns
  */
-function parseQuery(
+function parseQueryType(
     schema: GraphQLSchema,
     typeWeightObject: TypeWeightObject,
     typeWeights: TypeWeightConfig
@@ -217,7 +217,7 @@ function buildTypeWeightsFromSchema(
     });
 
     const objectTypeWeights = parseTypes(schema, typeWeights);
-    return parseQuery(schema, objectTypeWeights, typeWeights);
+    return parseQueryType(schema, objectTypeWeights, typeWeights);
 }
 
 export default buildTypeWeightsFromSchema;
