@@ -8,7 +8,7 @@ import {
     SelectionNode,
     ArgumentNode,
 } from 'graphql';
-import { FieldWeight, TypeWeightObject } from '../@types/buildTypeWeights';
+import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 
 // TODO: handle variables and arguments
 // ! this is not functional
@@ -48,7 +48,7 @@ const getArgObj = (args: ArgumentNode[]): { [index: string]: any } => {
 export function fieldNode(
     node: FieldNode,
     typeWeights: TypeWeightObject,
-    variables: any | undefined,
+    variables: Variables,
     parentName: string
 ): number {
     let complexity = 0;
@@ -73,6 +73,8 @@ export function fieldNode(
             // if the feild weight is a number, add the number to the total complexity
             complexity += fieldWeight;
         } else if (node.arguments) {
+            // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type
+            // missing from the typeWeight object. If left unhandled an error is thrown
             // otherwise the the feild weight is a list, invoke the function with variables
             // TODO: calculate the complexity for lists with arguments and varibales
             // ! this is not functional
@@ -86,7 +88,7 @@ export function fieldNode(
 export function selectionNode(
     node: SelectionNode,
     typeWeights: TypeWeightObject,
-    variables: any | undefined,
+    variables: Variables,
     parentName: string
 ): number {
     let complexity = 0;
@@ -103,7 +105,7 @@ export function selectionNode(
 export function selectionSetNode(
     node: SelectionSetNode,
     typeWeights: TypeWeightObject,
-    variables: any | undefined,
+    variables: Variables,
     parentName: string
 ): number {
     let complexity = 0;
@@ -119,7 +121,7 @@ export function selectionSetNode(
 export function definitionNode(
     node: DefinitionNode,
     typeWeights: TypeWeightObject,
-    variables: any | undefined
+    variables: Variables
 ): number {
     let complexity = 0;
     // check the kind property against the set of definiton nodes that are possible
@@ -145,7 +147,7 @@ export function definitionNode(
 export function documentNode(
     node: DocumentNode,
     typeWeights: TypeWeightObject,
-    variables: any | undefined
+    variables: Variables
 ): number {
     let complexity = 0;
     // iterate through 'definitions' array on the document node
