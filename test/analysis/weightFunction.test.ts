@@ -52,8 +52,8 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         xtest('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ reviews(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
-            expect(getQueryTypeComplexity(queryAST, { items: 7, first: 4 }, typeWeights)).toBe(9);
-            expect(getQueryTypeComplexity(queryAST, { first: 4, items: 7 }, typeWeights)).toBe(9);
+            expect(getQueryTypeComplexity(queryAST, { items: 7, first: 4 }, typeWeights)).toBe(8);
+            expect(getQueryTypeComplexity(queryAST, { first: 4, items: 7 }, typeWeights)).toBe(8);
         });
     });
 
@@ -74,7 +74,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         xtest('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
-            expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(9);
+            expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(8);
         });
     });
 
@@ -84,13 +84,13 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         });
         const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
         const queryAST: DocumentNode = parse(query);
-        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(5);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(10);
     });
 
     test('variable names matching limiting keywords do not interfere with scalar argument values', () => {
         const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
         const queryAST: DocumentNode = parse(query);
-        expect(getQueryTypeComplexity(queryAST, { first: 7 }, typeWeights)).toBe(5);
+        expect(getQueryTypeComplexity(queryAST, { first: 7 }, typeWeights)).toBe(4);
     });
 
     xtest('an invalid arg type is provided', () => {
