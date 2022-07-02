@@ -13,6 +13,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         droid(id: ID!): Droid
         human(id: ID!): Human
         scalars: Scalars
+        nonNull: [Droid!]!
     }    
 
     enum Episode {
@@ -100,6 +101,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 const mockWeightFunction = jest.fn();
 const mockHumanFriendsFunction = jest.fn();
 const mockDroidFriendsFunction = jest.fn();
+const nonNullMockWeightFunction = jest.fn();
 
 // this object is created by the schema above for use in all the tests below
 const typeWeights: TypeWeightObject = {
@@ -114,6 +116,7 @@ const typeWeights: TypeWeightObject = {
             droid: 1,
             human: 1,
             scalars: 1,
+            nonNull: nonNullMockWeightFunction,
         },
     },
     episode: {
@@ -293,6 +296,14 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(2);
             expect(mockWeightFunction.mock.calls[1].length).toBe(1);
+        });
+
+        test('with bounded lists including non-null operators', () => {
+            query = `query {nonNull(episode: EMPIRE, first: 3) { stars, commentary } }`;
+            nonNullMockWeightFunction.mockReturnValueOnce(3);
+            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(nonNullMockWeightFunction.mock.calls.length).toBe(1);
+            expect(nonNullMockWeightFunction.mock.calls[0].length).toBe(1);
         });
 
         xdescribe('with nested lists', () => {
