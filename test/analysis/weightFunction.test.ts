@@ -80,7 +80,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         });
     });
 
-    test('the list is defined with non-null operators (!)', () => {
+    xtest('the list is defined with non-null operators (!)', () => {
         const villainsQuery = `query { villains(episode: NEWHOPE, limit: 3) { stars, episode } }`;
         const willainsQueryAST: DocumentNode = parse(villainsQuery);
         expect(getQueryTypeComplexity(willainsQueryAST, {}, typeWeights)).toBe(4);
