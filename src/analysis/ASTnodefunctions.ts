@@ -6,7 +6,6 @@ import {
     DefinitionNode,
     Kind,
     SelectionNode,
-    ArgumentNode,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 
@@ -37,31 +36,48 @@ export function fieldNode(
     parentName: string
 ): number {
     let complexity = 0;
-    // check if the field name is in the type weight object.
+
     if (node.name.value.toLocaleLowerCase() in typeWeights) {
-        // if it is, than the field is an object type, add itss type weight to the total
-        complexity += typeWeights[node.name.value].weight;
+        // field is an object type with possible selections
+        const { weight } = typeWeights[node.name.value];
+        let selectionsCost = 0;
+
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
-            complexity += selectionSetNode(
+            selectionsCost += selectionSetNode(
                 node.selectionSet,
                 typeWeights,
                 variables,
                 node.name.value
             );
         }
+        complexity = selectionsCost === 0 ? weight : selectionsCost * weight;
     } else {
-        // otherwise the field is a scalar or a list.
+        // field is a scalar or a list.
         const fieldWeight: FieldWeight = typeWeights[parentName].fields[node.name.value];
+
         if (typeof fieldWeight === 'number') {
-            // if the field weight is a number, add the number to the total complexity
+            // field is a scalar
             complexity += fieldWeight;
-        } else if (node.arguments) {
-            // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type
-            // missing from the typeWeight object. If left unhandled an error is thrown
-            // otherwise the the feild weight is a list, invoke the function with variables
-            // TODO: calculate the complexity for lists with arguments and varibales
-            complexity += fieldWeight([...node.arguments], variables[node.name.value]);
+        } else {
+            // field is a list
+            let selectionsCost = 0;
+            let weight = 0;
+            // call the function to handle selection set node with selectionSet property if it is not undefined
+            if (node.selectionSet) {
+                selectionsCost += selectionSetNode(
+                    node.selectionSet,
+                    typeWeights,
+                    variables,
+                    node.name.value
+                );
+            }
+            if (node.arguments) {
+                // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type missing from the typeWeight object. If left unhandled an error is thrown
+                weight += fieldWeight([...node.arguments], variables[node.name.value]);
+            }
+
+            complexity = selectionsCost === 0 ? weight : selectionsCost * weight;
         }
     }
     return complexity;
@@ -74,16 +90,10 @@ export function selectionNode(
     parentName: string
 ): number {
     let complexity = 0;
-    let calculatedCost = 0;
     // check the kind property against the set of selection nodes that are possible
     if (node.kind === Kind.FIELD) {
         // call the function that handle field nodes
-        calculatedCost += fieldNode(node, typeWeights, variables, parentName);
-
-        if (calculatedCost !== 0) {
-            complexity += 1;
-            complexity *= calculatedCost;
-        }
+        complexity += fieldNode(node, typeWeights, variables, parentName);
     }
     // TODO: add checks for Kind.FRAGMENT_SPREAD and Kind.INLINE_FRAGMENT here
     return complexity;

@@ -280,22 +280,22 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        test('with lists determined by arguments and variables', () => {
+        xtest('with lists determined by arguments and variables', () => {
             query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(1);
-            expect(mockWeightFunction.mock.calls[0].length).toBe(1);
+            expect(mockWeightFunction.mock.calls[0].length).toBe(2); // calling  with arguments and variables
 
             variables = { first: 4 };
             mockWeightFunction.mockReturnValueOnce(4);
             query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(2);
-            expect(mockWeightFunction.mock.calls[1].length).toBe(1);
+            expect(mockWeightFunction.mock.calls[1].length).toBe(2); // calling  with arguments and variables
         });
 
-        xdescribe('with nested lists', () => {
+        describe('with nested lists', () => {
             test('and simple nesting', () => {
                 query = `
                 query { 
@@ -314,7 +314,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
             });
 
-            test('and inner scalar lists', () => {
+            xtest('and inner scalar lists', () => {
                 query = `
                 query { 
                     human(id: 1) { 
