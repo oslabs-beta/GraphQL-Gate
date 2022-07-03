@@ -58,7 +58,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
     });
 
     describe('a default value is not provided in the schema', () => {
-        test('and a value is not provied with the query', () => {
+        xtest('and a value is not provied with the query', () => {
             const query = `query { heroes(episode: NEWHOPE) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             // FIXME: Update expected result if unbounded lists are suppored

@@ -280,7 +280,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        test('with lists determined by arguments and variables', () => {
+        xtest('with lists determined by arguments and variables', () => {
             query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
@@ -295,7 +295,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(mockWeightFunction.mock.calls[1].length).toBe(2); // calling  with arguments and variables
         });
 
-        describe('with nested lists', () => {
+        xdescribe('with nested lists', () => {
             test('and simple nesting', () => {
                 query = `
                 query { 
