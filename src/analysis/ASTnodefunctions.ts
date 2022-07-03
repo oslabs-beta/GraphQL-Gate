@@ -6,6 +6,7 @@ import {
     DefinitionNode,
     Kind,
     SelectionNode,
+    isConstValueNode,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 
@@ -38,11 +39,13 @@ export function fieldNode(
     let complexity = 0;
 
     if (node.name.value.toLocaleLowerCase() in typeWeights) {
+        console.log(`${node.name.value} is an object type`);
         // field is an object type with possible selections
         const { weight } = typeWeights[node.name.value];
         let selectionsCost = 0;
 
         // call the function to handle selection set node with selectionSet property if it is not undefined
+        console.log(`selections set`, node.selectionSet);
         if (node.selectionSet) {
             selectionsCost += selectionSetNode(
                 node.selectionSet,
@@ -51,15 +54,20 @@ export function fieldNode(
                 node.name.value
             );
         }
-        complexity = selectionsCost === 0 ? weight : selectionsCost * weight;
+        console.log(`selections cost`, selectionsCost);
+        console.log(`weight`, weight);
+        complexity = selectionsCost <= 1 ? selectionsCost + weight : selectionsCost * weight;
     } else {
         // field is a scalar or a list.
         const fieldWeight: FieldWeight = typeWeights[parentName].fields[node.name.value];
 
         if (typeof fieldWeight === 'number') {
+            console.log(`${node.name.value} is an scalar type`);
+            console.log(`field weight`, fieldWeight);
             // field is a scalar
             complexity += fieldWeight;
         } else {
+            console.log(`${node.name.value} is a list`);
             // field is a list
             let selectionsCost = 0;
             let weight = 0;
@@ -76,10 +84,12 @@ export function fieldNode(
                 // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type missing from the typeWeight object. If left unhandled an error is thrown
                 weight += fieldWeight([...node.arguments], variables[node.name.value]);
             }
-
-            complexity = selectionsCost === 0 ? weight : selectionsCost * weight;
+            console.log(`selections cost`, selectionsCost);
+            console.log(`weight`, weight);
+            complexity = selectionsCost <= 1 ? selectionsCost + weight : selectionsCost * weight;
         }
     }
+    console.log(`total complexity for ${node.name.value} is ${complexity}`);
     return complexity;
 }
 
@@ -127,14 +137,17 @@ export function definitionNode(
         if (node.operation.toLocaleLowerCase() in typeWeights) {
             // if it is, it is an object type, add it's type weight to the total
             complexity += typeWeights[node.operation].weight;
+            console.log(`the weight of ${node.operation} is ${complexity}`);
             // call the function to handle selection set node with selectionSet property if it is not undefined
-            if (node.selectionSet)
+            if (node.selectionSet) {
                 complexity += selectionSetNode(
                     node.selectionSet,
                     typeWeights,
                     variables,
                     node.operation
                 );
+            }
+            console.log(`compexity of ${node.operation} is ${complexity}`);
         }
     }
     // TODO: add checks for Kind.FRAGMENT_DEFINITION here (there are other type definition nodes that i think we can ignore. see ast.d.ts in 'graphql')
