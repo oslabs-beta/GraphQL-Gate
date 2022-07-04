@@ -36,40 +36,44 @@ export function fieldNode(
     variables: Variables,
     parentName: string
 ): number {
+    // total complexity of this field
     let complexity = 0;
+    // the weight that this field resolves too
+    let weight;
+    // if the field is a list, the 'weightFunction' will determine the weight that this field will resolve to
+    let weightFunction;
 
+    // 'typeName' is the name of the Schema Type that this field resolves to
     const typeName =
         node.name.value in typeWeights
             ? node.name.value
             : typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
 
-    if (typeName) {
-        // field is an object or list with possible selections
-        let { weight } = typeWeights[typeName];
-        let selectionsCost = 0;
-        // let multiplier = 0; //*
+    if (typeWeights[parentName].fields[node.name.value]?.weight)
+        weightFunction = typeWeights[parentName].fields[node.name.value].weight;
 
-        let weightFunction;
-        if (typeWeights[parentName].fields[node.name.value]?.weight)
-            weightFunction = typeWeights[parentName].fields[node.name.value].weight;
+    if (typeName) {
+        // field resolves to an object or a list with possible selections
+        let selectionsCost = 0;
 
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
             selectionsCost += selectionSetNode(node.selectionSet, typeWeights, variables, typeName);
         }
 
-        // call the function to handle selection set node with selectionSet property if it is not undefined
+        // if there are arguments, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
         if (node.arguments?.length && typeof weightFunction === 'function') {
-            // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type missing from the typeWeight object. If left unhandled an error is thrown
             weight = weightFunction([...node.arguments], variables[node.name.value]);
+        } else {
+            weight = typeWeights[typeName].weight;
         }
 
         // Bug: this will behave oddly with custom type weights other than 1 and 0
         complexity =
             selectionsCost <= 1 || weight <= 1 ? weight + selectionsCost : weight * selectionsCost;
     } else {
-        // field is a scalar
-        let weight;
+        // field is a scalar and 'weightFunction' is a number
+        weight = weightFunction;
         if (typeWeights[parentName].fields[node.name.value].weight)
             weight = typeWeights[parentName].fields[node.name.value].weight;
         if (typeof weight === 'number') {
