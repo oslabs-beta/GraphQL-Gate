@@ -3,7 +3,7 @@ export interface Field {
     weight?: FieldWeight;
 }
 export interface Fields {
-    [index: string]: number | List;
+    [index: string]: Field;
 }
 export type WeightFunction = (args: ArgumentNode[], variables) => number;
 export type FieldWeight = number | WeightFunction;

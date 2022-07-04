@@ -4,6 +4,7 @@ import {
     GraphQLFieldMap,
     GraphQLNamedType,
     GraphQLObjectType,
+    GraphQLInterfaceType,
     GraphQLOutputType,
     isCompositeType,
     isEnumType,
@@ -19,7 +20,7 @@ import {
 import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
-import { TypeWeightConfig, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
+import { TypeWeightConfig, TypeWeightObject, Variables, Type } from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
@@ -38,7 +39,102 @@ export const defaultTypeWeightsConfig: TypeWeightConfig = {
 };
 
 // FIXME: What about Interface defaults
+function parseObjectFields(
+    type: GraphQLObjectType | GraphQLInterfaceType,
+    typeWeightObject: TypeWeightObject,
+    typeWeights: TypeWeightConfig
+): Type {
+    const result: Type = {
+        fields: {},
+        weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
+    };
+    const fields = type.getFields();
 
+    Object.keys(fields).forEach((field: string) => {
+        const fieldType: GraphQLOutputType = fields[field].type;
+
+        if (
+            isScalarType(fieldType) ||
+            (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
+        ) {
+            result.fields[field] = {
+                weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+            };
+        } else if (
+            isInterfaceType(fieldType) ||
+            isUnionType(fieldType) ||
+            isEnumType(fieldType) ||
+            isObjectType(fieldType)
+        ) {
+            result.fields[field] = {
+                resolveTo: fieldType.name.toLocaleLowerCase(),
+            };
+        } else if (isListType(fieldType)) {
+            const listType = fieldType.ofType;
+            if (
+                (listType.toString() === 'Int' ||
+                    listType.toString() === 'String' ||
+                    listType.toString() === 'Id') &&
+                typeWeights.scalar === DEFAULT_SCALAR_WEIGHT
+            ) {
+                result.fields[field] = {
+                    weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                };
+            } else if (isEnumType(listType) && typeWeights.scalar === DEFAULT_SCALAR_WEIGHT) {
+                result.fields[field] = {
+                    resolveTo: listType.toString().toLocaleLowerCase(),
+                };
+            } else {
+                fields[field].args.forEach((arg: GraphQLArgument) => {
+                    // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
+                    // should be dependent on both the weight of the resolved type and the limiting argument.
+                    // FIXME: Can nonnull wrap list types?
+                    if (KEYWORDS.includes(arg.name)) {
+                        // Get the type that comprises the list
+                        result.fields[field] = {
+                            resolveTo: listType.toString().toLocaleLowerCase(),
+                            weight: (args: ArgumentNode[], variables: Variables): number => {
+                                const limitArg: ArgumentNode | undefined = args.find(
+                                    (cur) => cur.name.value === arg.name
+                                );
+                                if (limitArg) {
+                                    const node: ValueNode = limitArg.value;
+
+                                    if (Kind.INT === node.kind) {
+                                        const multiplier = Number(node.value || arg.defaultValue);
+                                        const weight = isCompositeType(listType)
+                                            ? typeWeightObject[listType.name.toLowerCase()].weight
+                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                                        return weight * multiplier;
+                                    }
+
+                                    if (Kind.VARIABLE === node.kind) {
+                                        const multiplier = Number(variables[node.name.value]);
+                                        const weight = isCompositeType(listType)
+                                            ? typeWeightObject[listType.name.toLowerCase()].weight
+                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                                        return weight * multiplier;
+                                    }
+                                }
+
+                                // FIXME: The list is unbounded. Return the object weight for
+                                throw new Error(
+                                    `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                                );
+                            },
+                        };
+                    }
+                });
+            }
+        } else {
+            // ? what else can get through here
+        }
+    });
+
+    return result;
+}
 /**
  * Parses the Query type in the provided schema object and outputs a new TypeWeightObject
  * @param schema
@@ -70,51 +166,65 @@ function parseQueryType(
         const resolveType: GraphQLOutputType = queryFields[field].type;
         // check if any of our keywords 'first', 'last', 'limit' exist in the arg list
         if (isListType(resolveType)) {
-            queryFields[field].args.forEach((arg: GraphQLArgument) => {
-                // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
-                // should be dependent on both the weight of the resolved type and the limiting argument.
-                // FIXME: Can nonnull wrap list types?
-                // BUG: Lists need to be accounted for in all types not just queries
-                // * If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
-                if (KEYWORDS.includes(arg.name)) {
-                    // Get the type that comprises the list
-                    const listType = resolveType.ofType;
-                    result.query.fields[field] = {
-                        resolveTo: listType.toString().toLocaleLowerCase(),
-                        weight: (args: ArgumentNode[], variables: Variables): number => {
-                            const limitArg: ArgumentNode | undefined = args.find(
-                                (cur) => cur.name.value === arg.name
-                            );
-                            if (limitArg) {
-                                const node: ValueNode = limitArg.value;
+            const listType = resolveType.ofType;
+            if (
+                (listType.toString() === 'Int' ||
+                    listType.toString() === 'String' ||
+                    listType.toString() === 'Id') &&
+                typeWeights.scalar === DEFAULT_SCALAR_WEIGHT
+            ) {
+                result.query.fields[field] = {
+                    weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                };
+            } else if (isEnumType(listType) && typeWeights.scalar === DEFAULT_SCALAR_WEIGHT) {
+                result.query.fields[field] = {
+                    resolveTo: listType.toString().toLocaleLowerCase(),
+                };
+            } else {
+                queryFields[field].args.forEach((arg: GraphQLArgument) => {
+                    // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
+                    // should be dependent on both the weight of the resolved type and the limiting argument.
+                    // FIXME: Can nonnull wrap list types?
 
-                                if (Kind.INT === node.kind) {
-                                    const multiplier = Number(node.value || arg.defaultValue);
-                                    const weight = isCompositeType(listType)
-                                        ? result[listType.name.toLowerCase()].weight
-                                        : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+                    if (KEYWORDS.includes(arg.name)) {
+                        // Get the type that comprises the list
+                        result.query.fields[field] = {
+                            resolveTo: listType.toString().toLocaleLowerCase(),
+                            weight: (args: ArgumentNode[], variables: Variables): number => {
+                                const limitArg: ArgumentNode | undefined = args.find(
+                                    (cur) => cur.name.value === arg.name
+                                );
+                                if (limitArg) {
+                                    const node: ValueNode = limitArg.value;
 
-                                    return weight * multiplier;
+                                    if (Kind.INT === node.kind) {
+                                        const multiplier = Number(node.value || arg.defaultValue);
+                                        const weight = isCompositeType(listType)
+                                            ? result[listType.name.toLowerCase()].weight
+                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                                        return weight * multiplier;
+                                    }
+
+                                    if (Kind.VARIABLE === node.kind) {
+                                        const multiplier = Number(variables[node.name.value]);
+                                        const weight = isCompositeType(listType)
+                                            ? result[listType.name.toLowerCase()].weight
+                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                                        return weight * multiplier;
+                                    }
                                 }
 
-                                if (Kind.VARIABLE === node.kind) {
-                                    const multiplier = Number(variables[node.name.value]);
-                                    const weight = isCompositeType(listType)
-                                        ? result[listType.name.toLowerCase()].weight
-                                        : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
-                                    return weight * multiplier;
-                                }
-                            }
-
-                            // FIXME: The list is unbounded. Return the object weight for
-                            throw new Error(
-                                `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
-                            );
-                        },
-                    };
-                }
-            });
+                                // FIXME: The list is unbounded. Return the object weight for
+                                throw new Error(
+                                    `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                                );
+                            },
+                        };
+                    }
+                });
+            }
         } else if (isScalarType(resolveType)) {
             // if the field is a scalar or an enum set weight accordingly. It is not a list in this case
             result.query.fields[field] = {
@@ -135,7 +245,6 @@ function parseQueryType(
  * Parses all types in the provided schema object excempt for Query, Mutation
  * and built in types that begin with '__' and outputs a new TypeWeightObject
  * @param schema
- * @param typeWeightObject
  * @param typeWeights
  * @returns
  */
@@ -144,7 +253,6 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
 
     const result: TypeWeightObject = {};
 
-    // ? lists
     // Handle Object, Interface, Enum and Union types
     Object.keys(typeMap).forEach((type) => {
         const typeName: string = type.toLowerCase();
@@ -154,90 +262,7 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
         if (type !== 'Query' && type !== 'Mutation' && !type.startsWith('__')) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type and it's associated fields to the result
-                result[typeName] = {
-                    fields: {},
-                    weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
-                };
-
-                const fields = currentType.getFields();
-
-                Object.keys(fields).forEach((field: string) => {
-                    const fieldType: GraphQLOutputType = fields[field].type;
-
-                    //! Only scalars are considered here any other types should be references from the top level of the type weight object.
-                    if (
-                        isScalarType(fieldType) ||
-                        (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
-                    ) {
-                        result[typeName].fields[field] = {
-                            weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
-                        };
-                    } else if (
-                        // isObjectType(fieldType) ||
-                        isInterfaceType(fieldType) ||
-                        isUnionType(fieldType) ||
-                        isEnumType(fieldType)
-                    ) {
-                        result[typeName].fields[field] = {
-                            resolveTo: fieldType.name.toLocaleLowerCase(),
-                        };
-                    } else if (isListType(fieldType)) {
-                        fields[field].args.forEach((arg: GraphQLArgument) => {
-                            // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
-                            // should be dependent on both the weight of the resolved type and the limiting argument.
-                            // FIXME: Can nonnull wrap list types?
-                            // BUG: Lists need to be accounted for in all types not just queries
-                            // * If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
-                            if (KEYWORDS.includes(arg.name)) {
-                                // Get the type that comprises the list
-                                const listType = fieldType.ofType;
-                                result.query.fields[field] = {
-                                    resolveTo: listType.toString().toLocaleLowerCase(),
-                                    weight: (
-                                        args: ArgumentNode[],
-                                        variables: Variables
-                                    ): number => {
-                                        const limitArg: ArgumentNode | undefined = args.find(
-                                            (cur) => cur.name.value === arg.name
-                                        );
-                                        if (limitArg) {
-                                            const node: ValueNode = limitArg.value;
-
-                                            if (Kind.INT === node.kind) {
-                                                const multiplier = Number(
-                                                    node.value || arg.defaultValue
-                                                );
-                                                const weight = isCompositeType(listType)
-                                                    ? result[listType.name.toLowerCase()].weight
-                                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
-                                                return weight * multiplier;
-                                            }
-
-                                            if (Kind.VARIABLE === node.kind) {
-                                                const multiplier = Number(
-                                                    variables[node.name.value]
-                                                );
-                                                const weight = isCompositeType(listType)
-                                                    ? result[listType.name.toLowerCase()].weight
-                                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
-                                                return weight * multiplier;
-                                            }
-                                        }
-
-                                        // FIXME: The list is unbounded. Return the object weight for
-                                        throw new Error(
-                                            `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
-                                        );
-                                    },
-                                };
-                            }
-                        });
-                    } else {
-                        // ? what else can get through here
-                    }
-                });
+                result[typeName] = parseObjectFields(currentType, result, typeWeights);
             } else if (isEnumType(currentType)) {
                 result[typeName] = {
                     fields: {},
@@ -256,6 +281,12 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
 
     return result;
 }
+
+/**
+ *
+ *
+ *
+ */
 
 /**
  * The default typeWeightsConfig object is based off of Shopifys implementation of query

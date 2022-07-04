@@ -115,7 +115,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: { weight: 0 },
-                        movie: { resolveTo: 'movie' },
+                        film: { resolveTo: 'movie' },
                     },
                 },
                 movie: {
@@ -337,7 +337,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     query: {
                         weight: 1,
                         fields: {
-                            episodes: { weight: 0 },
+                            episodes: { resolveTo: 'episode' },
                             heroes: { weight: 0 },
                             villains: { weight: 0 },
                         },
@@ -371,11 +371,11 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                                 weight: expect.any(Function),
                             },
                             heroes: {
-                                resolveTo: 'Int',
+                                resolveTo: 'int',
                                 weight: expect.any(Function),
                             },
                             villains: {
-                                resolveTo: 'String',
+                                resolveTo: 'string',
                                 weight: expect.any(Function),
                             },
                         },
