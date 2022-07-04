@@ -107,22 +107,22 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 query: {
                     weight: 1,
                     fields: {
-                        movie: { resolvesTo: 'movie' },
-                        user: { resolvesTo: 'user' },
+                        movie: { resolveTo: 'movie' },
+                        user: { resolveTo: 'user' },
                     },
                 },
                 user: {
                     weight: 1,
                     fields: {
                         name: { weight: 0 },
-                        movie: { resolvesTo: 'movie' },
+                        movie: { resolveTo: 'movie' },
                     },
                 },
                 movie: {
                     weight: 1,
                     fields: {
                         name: { weight: 0 },
-                        director: { resolvesTo: 'user' },
+                        director: { resolveTo: 'user' },
                     },
                 },
             });
