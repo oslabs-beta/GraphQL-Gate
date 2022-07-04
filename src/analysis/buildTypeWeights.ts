@@ -19,7 +19,7 @@ import {
 import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
-import { TypeWeightConfig, TypeWeightObject } from '../@types/buildTypeWeights';
+import { TypeWeightConfig, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
@@ -78,48 +78,51 @@ function parseQueryType(
             if (KEYWORDS.includes(arg.name) && isListType(resolveType)) {
                 // Get the type that comprises the list
                 const listType = resolveType.ofType;
+                console.log('list type', listType);
                 // TODO: If the weight of the resolveType is 0 the weight can be set to 0 rather than a function.
-                // if (result[listType].weight === 0) result.query.fields[field] = 0;
+                result.query.fields[field] = {
+                    resolveType: listType.name,
+                    weight: (args: ArgumentNode[], variables: Variables): number => {
+                        const limitArg: ArgumentNode | undefined = args.find(
+                            (cur) => cur.name.value === arg.name
+                        );
+                        if (limitArg) {
+                            const node: ValueNode = limitArg.value;
 
-                // In order to handle variable arguments, we may need to accept a second parameter so that the complexity aglorithm
-                // can pass in the variables as well.
-                result.query.fields[field] = (args: ArgumentNode[], variables): number => {
-                    const limitArg: ArgumentNode | undefined = args.find(
-                        (cur) => cur.name.value === arg.name
-                    );
-                    if (limitArg) {
-                        const node: ValueNode = limitArg.value;
+                            if (Kind.INT === node.kind) {
+                                const multiplier = Number(node.value || arg.defaultValue);
+                                const weight = isCompositeType(listType)
+                                    ? result[listType.name.toLowerCase()].weight
+                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
 
-                        if (Kind.INT === node.kind) {
-                            const multiplier = Number(node.value || arg.defaultValue);
-                            const weight = isCompositeType(listType)
-                                ? result[listType.name.toLowerCase()].weight
-                                : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+                                return weight * multiplier;
+                            }
 
-                            return weight * multiplier;
+                            if (Kind.VARIABLE === node.kind) {
+                                const multiplier = Number(variables[node.name.value]);
+                                const weight = isCompositeType(listType)
+                                    ? result[listType.name.toLowerCase()].weight
+                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+
+                                return weight * multiplier;
+                            }
                         }
 
-                        if (Kind.VARIABLE === node.kind) {
-                            const multiplier = Number(variables[node.name.value]);
-                            const weight = isCompositeType(listType)
-                                ? result[listType.name.toLowerCase()].weight
-                                : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
-                            return weight * multiplier;
-                        }
-                    }
-
-                    // FIXME: The list is unbounded. Return the object weight for
-                    throw new Error(
-                        `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
-                    );
+                        // FIXME: The list is unbounded. Return the object weight for
+                        throw new Error(
+                            `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                        );
+                    },
                 };
             }
         });
 
         // if the field is a scalar or an enum set weight accordingly. It is not a list in this case
         if (isScalarType(resolveType) || isEnumType(resolveType)) {
-            result.query.fields[field] = typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
+            result.query.fields[field] = {
+                resolvesTo: null,
+                weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+            };
         }
     });
     return result;
@@ -158,13 +161,24 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
                 Object.keys(fields).forEach((field: string) => {
                     const fieldType: GraphQLOutputType = fields[field].type;
 
-                    // Only scalars are considered here any other types should be references from the top level of the type weight object.
+                    //! Only scalars are considered here any other types should be references from the top level of the type weight object.
                     if (
                         isScalarType(fieldType) ||
                         (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
                     ) {
-                        result[typeName].fields[field] =
-                            typeWeights.scalar || DEFAULT_SCALAR_WEIGHT;
+                        result[typeName].fields[field] = {
+                            resolvesTo: null,
+                            weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                        };
+                    } else if (
+                        // isObjectType(fieldType) ||
+                        isInterfaceType(fieldType) ||
+                        isUnionType(fieldType)
+                    ) {
+                        result[typeName].fields[field] = {
+                            resolvesTo: fieldType.resolveType,
+                            weight: null,
+                        };
                     }
                 });
             } else if (isEnumType(currentType)) {
