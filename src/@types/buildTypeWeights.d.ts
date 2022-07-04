@@ -1,6 +1,6 @@
 export interface Field {
-    resolveTo: string;
-    weight: FieldWeight;
+    resolveTo?: string;
+    weight?: FieldWeight;
 }
 export interface Fields {
     [index: string]: number | List;
