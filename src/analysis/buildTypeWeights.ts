@@ -54,6 +54,7 @@ function parseObjectFields(
 ): Type {
     const result: Type = {
         fields: {},
+        // FIXME: assigning the weight will get busy when we add mutations/subscriptions. is there a better way ?
         weight:
             type.name === 'Query'
                 ? typeWeights.query || DEFAULT_QUERY_WEIGHT
@@ -61,7 +62,9 @@ function parseObjectFields(
     };
     const fields = type.getFields();
 
+    // Iterate through the fields and add the required data to the result
     Object.keys(fields).forEach((field: string) => {
+        // The GraphQL type that this field represents
         const fieldType: GraphQLOutputType = fields[field].type;
 
         if (
@@ -81,6 +84,7 @@ function parseObjectFields(
                 resolveTo: fieldType.name.toLocaleLowerCase(),
             };
         } else if (isListType(fieldType)) {
+            // 'listType' is the GraphQL type that the list resolves to
             const listType = fieldType.ofType;
             if (
                 (listType.toString() === 'Int' ||
@@ -100,8 +104,8 @@ function parseObjectFields(
                 };
             } else {
                 fields[field].args.forEach((arg: GraphQLArgument) => {
-                    // If query has an argument matching one of the limiting keywords and resolves to a list then the weight of the query
-                    // should be dependent on both the weight of the resolved type and the limiting argument.
+                    // If field has an argument matching one of the limiting keywords and resolves to a list
+                    // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
                     // FIXME: Can nonnull wrap list types?
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
@@ -113,27 +117,20 @@ function parseObjectFields(
                                 );
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
-
+                                    let multiplier;
+                                    const weight = isCompositeType(listType)
+                                        ? typeWeightObject[listType.name.toLowerCase()].weight
+                                        : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
                                     if (Kind.INT === node.kind) {
-                                        const multiplier = Number(node.value || arg.defaultValue);
-                                        const weight = isCompositeType(listType)
-                                            ? typeWeightObject[listType.name.toLowerCase()].weight
-                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
+                                        multiplier = Number(node.value || arg.defaultValue);
                                         return weight * multiplier;
                                     }
-
                                     if (Kind.VARIABLE === node.kind) {
-                                        const multiplier = Number(variables[node.name.value]);
-                                        const weight = isCompositeType(listType)
-                                            ? typeWeightObject[listType.name.toLowerCase()].weight
-                                            : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
-
+                                        multiplier = Number(variables[node.name.value]);
                                         return weight * multiplier;
                                     }
+                                    // FIXME: The list is unbounded. Return the object weight for
                                 }
-
-                                // FIXME: The list is unbounded. Return the object weight for
                                 throw new Error(
                                     `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
                                 );
