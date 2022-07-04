@@ -129,8 +129,9 @@ function parseObjectFields(
                                         multiplier = Number(variables[node.name.value]);
                                         return weight * multiplier;
                                     }
-                                    // FIXME: The list is unbounded. Return the object weight for
+                                    // ? what else can get through here
                                 }
+                                // FIXME: The list is unbounded. Return the object weight for
                                 throw new Error(
                                     `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
                                 );
