@@ -561,6 +561,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
             expectedOutput.user.weight = 2;
             expectedOutput.movie.weight = 2;
+            // expectedOutput.query.weight = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
