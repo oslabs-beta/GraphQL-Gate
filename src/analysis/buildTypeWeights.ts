@@ -92,7 +92,7 @@ function parseObjectFields(
                     listType.toString() === 'ID' ||
                     listType.toString() === 'Boolean' ||
                     listType.toString() === 'Float') &&
-                typeWeights.scalar === DEFAULT_SCALAR_WEIGHT
+                typeWeights.scalar === 0 // list won't add up if weight is zero
             ) {
                 result.fields[field] = {
                     resolveTo: listType.toString().toLocaleLowerCase(),
