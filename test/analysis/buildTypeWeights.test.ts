@@ -338,8 +338,11 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         weight: 1,
                         fields: {
                             episodes: { resolveTo: 'episode' },
-                            heroes: { weight: 0 },
-                            villains: { weight: 0 },
+                            heroes: {
+                                resolveTo: 'int',
+                                weight: 0,
+                            },
+                            villains: { resolveTo: 'string', weight: 0 },
                         },
                     },
                     episode: {

@@ -38,54 +38,42 @@ export function fieldNode(
 ): number {
     let complexity = 0;
 
-    if (node.name.value.toLocaleLowerCase() in typeWeights) {
-        // field is an object type with possible selections
-        const { weight } = typeWeights[node.name.value];
+    const typeName =
+        node.name.value in typeWeights
+            ? node.name.value
+            : typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
+
+    if (typeName) {
+        // field is an object or list with possible selections
+        let { weight } = typeWeights[typeName];
         let selectionsCost = 0;
+        // let multiplier = 0; //*
+
+        let weightFunction;
+        if (typeWeights[parentName].fields[node.name.value]?.weight)
+            weightFunction = typeWeights[parentName].fields[node.name.value].weight;
 
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
-            selectionsCost += selectionSetNode(
-                node.selectionSet,
-                typeWeights,
-                variables,
-                node.name.value
-            );
+            selectionsCost += selectionSetNode(node.selectionSet, typeWeights, variables, typeName);
         }
-        // FIXME this will behave oddly with custom type weights other than 1 and 0
-        // Bug this is also a bug
-        complexity =
-            selectionsCost <= 1 || weight <= 1 ? selectionsCost + weight : selectionsCost * weight;
-    } else {
-        // field is a scalar or a list.
-        const fieldWeight: FieldWeight = typeWeights[parentName].fields[node.name.value];
 
-        if (typeof fieldWeight === 'number') {
-            // field is a scalar
-            complexity += fieldWeight;
-        } else {
-            // field is a list
-            let selectionsCost = 0;
-            let weight = 0;
-            // call the function to handle selection set node with selectionSet property if it is not undefined
-            if (node.selectionSet) {
-                selectionsCost += selectionSetNode(
-                    node.selectionSet,
-                    typeWeights,
-                    variables,
-                    node.name.value
-                );
-            }
-            if (node.arguments) {
-                // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type missing from the typeWeight object. If left unhandled an error is thrown
-                weight += fieldWeight([...node.arguments], variables[node.name.value]);
-            }
-            // FIXME this will behave oddly with custom type weights other than 1 and 0
-            // Bug this is also a bug
-            complexity =
-                selectionsCost <= 1 || weight <= 1
-                    ? selectionsCost + weight
-                    : selectionsCost * weight;
+        // call the function to handle selection set node with selectionSet property if it is not undefined
+        if (node.arguments?.length && typeof weightFunction === 'function') {
+            // BUG: This code is reached when fieldWeight is undefined, which could result from an invalid query or this type missing from the typeWeight object. If left unhandled an error is thrown
+            weight = weightFunction([...node.arguments], variables[node.name.value]);
+        }
+
+        // Bug: this will behave oddly with custom type weights other than 1 and 0
+        complexity =
+            selectionsCost <= 1 || weight <= 1 ? weight + selectionsCost : weight * selectionsCost;
+    } else {
+        // field is a scalar
+        let weight;
+        if (typeWeights[parentName].fields[node.name.value].weight)
+            weight = typeWeights[parentName].fields[node.name.value].weight;
+        if (typeof weight === 'number') {
+            complexity += weight;
         }
     }
     return complexity;

@@ -107,13 +107,29 @@ const typeWeights: TypeWeightObject = {
         // object type
         weight: 1,
         fields: {
-            reviews: mockWeightFunction,
-            hero: 1,
-            search: jest.fn(), // FIXME: Unbounded list result
-            character: 1,
-            droid: 1,
-            human: 1,
-            scalars: 1,
+            reviews: {
+                resolveTo: 'review',
+                weight: mockWeightFunction,
+            },
+            hero: {
+                resolveTo: 'character',
+            },
+            search: {
+                resolveTo: 'searchresult',
+                weight: jest.fn(), // FIXME: Unbounded list result
+            },
+            character: {
+                resolveTo: 'character',
+            },
+            droid: {
+                resolveTo: 'droid',
+            },
+            human: {
+                resolveTo: 'human',
+            },
+            scalars: {
+                resolveTo: 'scalars',
+            },
         },
     },
     episode: {
@@ -125,40 +141,56 @@ const typeWeights: TypeWeightObject = {
         // interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            // FIXME: add the function definition for the 'friends' field which returns a list
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            friends: {
+                resolveTo: 'character',
+                weight: mockHumanFriendsFunction,
+            },
+            scalarList: {
+                resolveTo: 'scalars',
+                weight: 0,
+            },
         },
     },
     human: {
         // implements an interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            homePlanet: 0,
-            appearsIn: 0,
-            friends: mockHumanFriendsFunction,
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            homePlanet: { weight: 0 },
+            friends: {
+                resolveTo: 'character',
+                weight: mockHumanFriendsFunction,
+            },
         },
     },
     droid: {
         // implements an interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            appearsIn: 0,
-            friends: mockDroidFriendsFunction,
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            primaryFunction: { weight: 0 },
+            friends: {
+                resolveTo: 'character',
+                weight: mockDroidFriendsFunction,
+            },
         },
     },
     review: {
         weight: 1,
         fields: {
-            stars: 0,
-            commentary: 0,
+            episode: { resolveTo: 'episode' },
+            stars: { weight: 0 },
+            commentary: { weight: 0 },
         },
     },
-    searchResult: {
+    searchresult: {
         // union type
         weight: 1,
         fields: {},
@@ -166,17 +198,19 @@ const typeWeights: TypeWeightObject = {
     scalars: {
         weight: 1, // object weight is 1, all scalar feilds have weight 0
         fields: {
-            num: 0,
-            id: 0,
-            float: 0,
-            bool: 0,
-            string: 0,
+            num: { weight: 0 },
+            id: { weight: 0 },
+            float: { weight: 0 },
+            bool: { weight: 0 },
+            string: { weight: 0 },
+            test: { resolveTo: 'test' },
         },
     },
     test: {
         weight: 1,
         fields: {
-            name: 0,
+            name: { weight: 0 },
+            scalars: { resolveTo: 'scalars' },
         },
     },
 };
@@ -280,7 +314,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        xtest('with lists determined by arguments and variables', () => {
+        test('with lists determined by arguments and variables', () => {
             query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
@@ -295,7 +329,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(mockWeightFunction.mock.calls[1].length).toBe(2); // calling  with arguments and variables
         });
 
-        xdescribe('with nested lists', () => {
+        describe('with nested lists', () => {
             test('and simple nesting', () => {
                 query = `
                 query { 

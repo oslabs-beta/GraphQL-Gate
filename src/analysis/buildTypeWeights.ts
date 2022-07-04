@@ -85,10 +85,13 @@ function parseObjectFields(
             if (
                 (listType.toString() === 'Int' ||
                     listType.toString() === 'String' ||
-                    listType.toString() === 'Id') &&
+                    listType.toString() === 'ID' ||
+                    listType.toString() === 'Boolean' ||
+                    listType.toString() === 'Float') &&
                 typeWeights.scalar === DEFAULT_SCALAR_WEIGHT
             ) {
                 result.fields[field] = {
+                    resolveTo: listType.toString().toLocaleLowerCase(),
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
             } else if (isEnumType(listType) && typeWeights.scalar === DEFAULT_SCALAR_WEIGHT) {
