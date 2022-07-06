@@ -101,6 +101,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 const mockWeightFunction = jest.fn();
 const mockHumanFriendsFunction = jest.fn();
 const mockDroidFriendsFunction = jest.fn();
+const mockCharacterFriendsFunction = jest.fn();
 const nonNullMockWeightFunction = jest.fn();
 
 // this object is created by the schema above for use in all the tests below
@@ -130,7 +131,7 @@ const typeWeights: TypeWeightObject = {
         fields: {
             id: 0,
             name: 0,
-            // FIXME: add the function definition for the 'friends' field which returns a list
+            friends: mockCharacterFriendsFunction,
         },
     },
     human: {
@@ -248,9 +249,14 @@ describe('Test getQueryTypeComplexity function', () => {
               fragment comparisonFields on Character {
                 name
                 appearsIn
+                friends(first: 3) {
+                    name
+                }
               }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
+            mockCharacterFriendsFunction.mockReturnValue(3);
+            // Query 1 + 2*(character 1 + appearsIn/episode 1 + 3 * friends/character 1)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11);
         });
 
         xtest('with inline fragments', () => {
@@ -260,13 +266,18 @@ describe('Test getQueryTypeComplexity function', () => {
                     name
                     ... on Droid {
                         primaryFunction
+                        friends(first: 3) {
+                            name
+                        }
                     }
                     ... on Human {
                         homeplanet
                     }
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1)
+            mockDroidFriendsFunction.mockReturnValueOnce(3);
+            // Query 1 + hero/character 1 + 3 * friends/character 1)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
         });
 
         /**
