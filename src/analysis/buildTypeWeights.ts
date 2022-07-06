@@ -95,7 +95,6 @@ function parseObjectFields(
                 typeWeights.scalar === 0 // list won't compound if weight is zero
             ) {
                 result.fields[field] = {
-                    resolveTo: listType.toString().toLocaleLowerCase(),
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
             } else if (isEnumType(listType) && typeWeights.scalar === 0) {
