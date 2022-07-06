@@ -59,11 +59,7 @@ export function fieldNode(
         }
         // if there are arguments and this is a list, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
         if (node.arguments && typeof weightFunction === 'function') {
-            calculatedWeight += weightFunction(
-                [...node.arguments],
-                variables[node.name.value],
-                selectionsCost
-            );
+            calculatedWeight += weightFunction([...node.arguments], variables, selectionsCost);
         } else {
             calculatedWeight += typeWeights[resolvedTypeName].weight + selectionsCost;
         }

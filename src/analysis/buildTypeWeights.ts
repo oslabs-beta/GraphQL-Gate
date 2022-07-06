@@ -3,7 +3,9 @@ import {
     GraphQLArgument,
     GraphQLNamedType,
     GraphQLObjectType,
+    GraphQLScalarType,
     GraphQLInterfaceType,
+    GraphQLList,
     GraphQLOutputType,
     isCompositeType,
     isEnumType,
@@ -19,10 +21,20 @@ import {
 import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
-import { TypeWeightConfig, TypeWeightObject, Variables, Type } from '../@types/buildTypeWeights';
+import {
+    TypeWeightConfig,
+    TypeWeightObject,
+    Variables,
+    Type,
+    Field,
+} from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
-
+type ListType =
+    | GraphQLScalarType<unknown, unknown>
+    | GraphQLObjectType<any, any>
+    | GraphQLList<GraphQLOutputType>
+    | GraphQLOutputType;
 // These variables exist to provide a default value for typescript when accessing a weight
 // since all props are optioal in TypeWeightConfig
 const DEFAULT_MUTATION_WEIGHT = 10;
@@ -66,7 +78,6 @@ function parseObjectFields(
     Object.keys(fields).forEach((field: string) => {
         // The GraphQL type that this field represents
         const fieldType: GraphQLOutputType = fields[field].type;
-
         if (
             isScalarType(fieldType) ||
             (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
@@ -119,21 +130,27 @@ function parseObjectFields(
                                 const limitArg: ArgumentNode | undefined = args.find(
                                     (cur) => cur.name.value === arg.name
                                 );
+                                const weight = isCompositeType(listType)
+                                    ? typeWeightObject[listType.name.toLowerCase()].weight
+                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
                                     let multiplier = 1;
-                                    const weight = isCompositeType(listType)
-                                        ? typeWeightObject[listType.name.toLowerCase()].weight
-                                        : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
                                     if (Kind.INT === node.kind) {
                                         multiplier = Number(node.value || arg.defaultValue);
                                     }
                                     if (Kind.VARIABLE === node.kind) {
-                                        multiplier = Number(variables[node.name.value]);
+                                        multiplier = Number(
+                                            variables[node.name.value] || arg.defaultValue
+                                        );
                                     }
                                     return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
                                 }
+                                if (arg.defaultValue) {
+                                    return Number(arg.defaultValue) * (selectionsCost + weight);
+                                }
+
                                 // FIXME: The list is unbounded. Return the object weight for
                                 throw new Error(
                                     `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`

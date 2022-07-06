@@ -31,7 +31,6 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             EMPIRE
             JEDI
         }`);
-
     // building the typeWeights object here since we're testing the weight function created in
     // the typeWeights object
     const typeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema);
