@@ -147,6 +147,7 @@ function parseObjectFields(
                                     return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
                                 }
+                                // if there is no argument provided with the query, check the schema for a default
                                 if (arg.defaultValue) {
                                     return Number(arg.defaultValue) * (selectionsCost + weight);
                                 }
