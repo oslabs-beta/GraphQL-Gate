@@ -92,13 +92,14 @@ function parseObjectFields(
                     listType.toString() === 'ID' ||
                     listType.toString() === 'Boolean' ||
                     listType.toString() === 'Float') &&
-                typeWeights.scalar === 0 // list won't add up if weight is zero
+                typeWeights.scalar === 0 // list won't compound if weight is zero
             ) {
                 result.fields[field] = {
                     resolveTo: listType.toString().toLocaleLowerCase(),
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
-            } else if (isEnumType(listType) && typeWeights.scalar === DEFAULT_SCALAR_WEIGHT) {
+            } else if (isEnumType(listType) && typeWeights.scalar === 0) {
+                // list won't compound if weight of enum is zero
                 result.fields[field] = {
                     resolveTo: listType.toString().toLocaleLowerCase(),
                 };
@@ -121,18 +122,17 @@ function parseObjectFields(
                                 );
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
-                                    let multiplier;
+                                    let multiplier = 1;
                                     const weight = isCompositeType(listType)
                                         ? typeWeightObject[listType.name.toLowerCase()].weight
                                         : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
                                     if (Kind.INT === node.kind) {
                                         multiplier = Number(node.value || arg.defaultValue);
-                                        return multiplier * (selectionsCost + weight);
                                     }
                                     if (Kind.VARIABLE === node.kind) {
                                         multiplier = Number(variables[node.name.value]);
-                                        return multiplier * (selectionsCost + weight);
                                     }
+                                    return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
                                 }
                                 // FIXME: The list is unbounded. Return the object weight for
