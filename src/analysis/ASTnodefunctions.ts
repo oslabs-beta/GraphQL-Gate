@@ -9,7 +9,6 @@ import {
     isConstValueNode,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
-
 /**
  * The AST node functions call each other following the nested structure below
  * Each function handles a specific GraphQL AST node type
@@ -36,46 +35,42 @@ export function fieldNode(
     variables: Variables,
     parentName: string
 ): number {
-    // total complexity of this field
     let complexity = 0;
-    // the weight that this field resolves too
-    let weight;
-    // if the field is a list, the 'weightFunction' will determine the weight that this field will resolve to
-    let weightFunction;
-
-    // 'typeName' is the name of the Schema Type that this field resolves to
-    const typeName =
+    // 'resolvedTypeName' is the name of the Schema Type that this field resolves to
+    const resolvedTypeName =
         node.name.value in typeWeights
             ? node.name.value
             : typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
 
-    if (typeWeights[parentName].fields[node.name.value]?.weight)
-        weightFunction = typeWeights[parentName].fields[node.name.value].weight;
-
-    if (typeName) {
+    if (resolvedTypeName) {
         // field resolves to an object or a list with possible selections
         let selectionsCost = 0;
+        let calculatedWeight = 0;
+        const weightFunction = typeWeights[parentName]?.fields[node.name.value]?.weight;
 
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
-            selectionsCost += selectionSetNode(node.selectionSet, typeWeights, variables, typeName);
+            selectionsCost += selectionSetNode(
+                node.selectionSet,
+                typeWeights,
+                variables,
+                resolvedTypeName
+            );
         }
-
         // if there are arguments, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
-        if (node.arguments?.length && typeof weightFunction === 'function') {
-            weight = weightFunction([...node.arguments], variables[node.name.value]);
+        if (node.arguments && typeof weightFunction === 'function') {
+            calculatedWeight += weightFunction(
+                [...node.arguments],
+                variables[node.name.value],
+                selectionsCost
+            );
         } else {
-            weight = typeWeights[typeName].weight;
+            calculatedWeight += typeWeights[resolvedTypeName].weight + selectionsCost;
         }
-
-        // Bug: this will behave oddly with custom type weights other than 1 and 0
-        complexity =
-            selectionsCost <= 1 || weight <= 1 ? weight + selectionsCost : weight * selectionsCost;
+        complexity += calculatedWeight;
     } else {
-        // field is a scalar and 'weightFunction' is a number
-        weight = weightFunction;
-        if (typeWeights[parentName].fields[node.name.value].weight)
-            weight = typeWeights[parentName].fields[node.name.value].weight;
+        // field is a scalar and 'weight' is a number
+        const { weight } = typeWeights[parentName].fields[node.name.value];
         if (typeof weight === 'number') {
             complexity += weight;
         }
@@ -98,7 +93,6 @@ export function selectionNode(
     // TODO: add checks for Kind.FRAGMENT_SPREAD and Kind.INLINE_FRAGMENT here
     return complexity;
 }
-
 export function selectionSetNode(
     node: SelectionSetNode,
     typeWeights: TypeWeightObject,

@@ -111,7 +111,11 @@ function parseObjectFields(
                         // Get the type that comprises the list
                         result.fields[field] = {
                             resolveTo: listType.toString().toLocaleLowerCase(),
-                            weight: (args: ArgumentNode[], variables: Variables): number => {
+                            weight: (
+                                args: ArgumentNode[],
+                                variables: Variables,
+                                selectionsCost: number
+                            ): number => {
                                 const limitArg: ArgumentNode | undefined = args.find(
                                     (cur) => cur.name.value === arg.name
                                 );
@@ -123,11 +127,11 @@ function parseObjectFields(
                                         : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
                                     if (Kind.INT === node.kind) {
                                         multiplier = Number(node.value || arg.defaultValue);
-                                        return weight * multiplier;
+                                        return multiplier * (selectionsCost + weight);
                                     }
                                     if (Kind.VARIABLE === node.kind) {
                                         multiplier = Number(variables[node.name.value]);
-                                        return weight * multiplier;
+                                        return multiplier * (selectionsCost + weight);
                                     }
                                     // ? what else can get through here
                                 }
