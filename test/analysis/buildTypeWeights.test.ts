@@ -470,7 +470,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     primaryFunction: String
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                // ? does the 'searchresult' need to be able to reference the human or droid or vice versa in the complexity analysis
                 searchresult: {
                     weight: 1,
                     fields: {},

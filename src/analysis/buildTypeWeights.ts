@@ -102,14 +102,8 @@ function parseObjectFields(
         } else if (isListType(fieldType)) {
             // 'listType' is the GraphQL type that the list resolves to
             const listType = fieldType.ofType;
-            if (
-                (listType.toString() === 'Int' ||
-                    listType.toString() === 'String' ||
-                    listType.toString() === 'ID' ||
-                    listType.toString() === 'Boolean' ||
-                    listType.toString() === 'Float') &&
-                typeWeights.scalar === 0 // list won't compound if weight is zero
-            ) {
+            if (isScalarType(listType) && typeWeights.scalar === 0) {
+                // list won't compound if weight is zero
                 result.fields[field] = {
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };

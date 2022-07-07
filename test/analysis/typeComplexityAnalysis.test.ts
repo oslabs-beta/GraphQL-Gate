@@ -148,11 +148,9 @@ const typeWeights: TypeWeightObject = {
                 resolveTo: 'character',
                 weight: mockHumanFriendsFunction,
             },
-            // scalarList: {
-            //     // ****
-            //     resolveTo: 'int',
-            //     weight: 0,
-            // },
+            scalarList: {
+                weight: 0,
+            },
         },
     },
     human: {
@@ -338,38 +336,18 @@ describe('Test getQueryTypeComplexity function', () => {
 
         describe('with nested lists', () => {
             test('and simple nesting', () => {
-                query = `
-                query { 
-                    human(id: 1) { 
-                        name, 
-                        friends(first: 5) { 
-                            name, 
-                            friends(first: 3){
-                                name 
-                            } 
-                        } 
-                    }
-                }`;
+                query = `query { human(id: 1) { name, friends(first: 5) { name, friends(first: 3){ name }}}} `;
                 mockHumanFriendsFunction.mockReturnValueOnce(3).mockReturnValueOnce(20);
                 expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
             });
 
-            // ? look into this
-            xtest('and inner scalar lists', () => {
+            test('and inner scalar lists', () => {
                 query = `
-                query { 
-                    human(id: 1) { 
-                        name, 
-                        friends(first: 5) { 
-                            name, 
-                            scalarList(first: 3)
-                        } 
-                    }
-                }`;
+                query { human(id: 1) { name, friends(first: 5) { name, scalarList(first: 3)} }}`;
                 mockHumanFriendsFunction.mockReturnValueOnce(5);
                 expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
-                expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
             });
         });
 
