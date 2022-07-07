@@ -196,12 +196,14 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
                     weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
                 };
             } else if (isUnionType(currentType)) {
+                // FIXME: will need information on fields inorder calculate comlpextiy
                 result[typeName] = {
                     fields: {},
                     weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
                 };
             } else {
                 // ? what else can get through here
+                // ? inputTypes?
             }
         }
     });
