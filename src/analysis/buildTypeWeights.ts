@@ -169,29 +169,6 @@ function parseObjectFields(
 }
 
 /**
- * Parses the Query type in the provided schema object and outputs a new TypeWeightObject
- * @param schema
- * @param typeWeightObject
- * @param typeWeights
- * @returns
- */
-function parseQueryType(
-    schema: GraphQLSchema,
-    typeWeightObject: TypeWeightObject,
-    typeWeights: TypeWeightConfig
-): TypeWeightObject {
-    // Get any Query fields (these are the queries that the API exposes)
-    const queryType: Maybe<GraphQLObjectType> = schema.getQueryType();
-    if (!queryType) return typeWeightObject;
-
-    const result: TypeWeightObject = { ...typeWeightObject };
-
-    result.query = parseObjectFields(queryType, typeWeightObject, typeWeights);
-
-    return result;
-}
-
-/**
  * Parses all types in the provided schema object excempt for Query, Mutation
  * and built in types that begin with '__' and outputs a new TypeWeightObject
  * @param schema
@@ -209,7 +186,7 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
         const currentType: GraphQLNamedType = typeMap[type];
 
         // Get all types that aren't Query or Mutation or a built in type that starts with '__'
-        if (type !== 'Query' && type !== 'Mutation' && !type.startsWith('__')) {
+        if (!type.startsWith('__')) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type and it's associated fields to the result
                 result[typeName] = parseObjectFields(currentType, result, typeWeights);
@@ -263,8 +240,7 @@ function buildTypeWeightsFromSchema(
         }
     });
 
-    const objectTypeWeights = parseTypes(schema, typeWeights);
-    return parseQueryType(schema, objectTypeWeights, typeWeights);
+    return parseTypes(schema, typeWeights);
 }
 
 export default buildTypeWeightsFromSchema;
