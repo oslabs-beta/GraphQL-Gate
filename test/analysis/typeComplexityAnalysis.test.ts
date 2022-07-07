@@ -314,13 +314,7 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         test('with lists determined by arguments and variables', () => {
-            query = `query {
-                reviews(episode: EMPIRE, first: 3) 
-                    { 
-                        stars, 
-                        commentary 
-                } 
-            }`;
+            query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(1);
