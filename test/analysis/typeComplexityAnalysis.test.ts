@@ -350,8 +350,8 @@ describe('Test getQueryTypeComplexity function', () => {
                         } 
                     }
                 }`;
-                mockHumanFriendsFunction.mockReturnValueOnce(3).mockReturnValueOnce(15);
-                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+                mockHumanFriendsFunction.mockReturnValueOnce(3).mockReturnValueOnce(20);
+                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
             });
 

@@ -64,14 +64,19 @@ function parseObjectFields(
     typeWeightObject: TypeWeightObject,
     typeWeights: TypeWeightConfig
 ): Type {
-    const result: Type = {
-        fields: {},
-        // FIXME: assigning the weight will get busy when we add mutations/subscriptions. is there a better way ?
-        weight:
-            type.name === 'Query'
-                ? typeWeights.query || DEFAULT_QUERY_WEIGHT
-                : typeWeights.object || DEFAULT_OBJECT_WEIGHT,
-    };
+    let result: Type;
+    switch (type.name) {
+        case 'Query':
+            result = { weight: typeWeights.query || DEFAULT_QUERY_WEIGHT, fields: {} };
+            break;
+        case 'Mutation':
+            result = { weight: typeWeights.mutation || DEFAULT_MUTATION_WEIGHT, fields: {} };
+            break;
+        default:
+            result = { weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT, fields: {} };
+            break;
+    }
+
     const fields = type.getFields();
 
     // Iterate through the fields and add the required data to the result
