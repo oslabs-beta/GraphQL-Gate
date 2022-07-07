@@ -25,6 +25,11 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             episode: Episode
             stars: Int!
             commentary: String
+            scalarList(last: Int): [Int]
+            objectList(first: Int): [Object]
+        }
+        type Object {
+            hi: String
         }
         enum Episode {
             NEWHOPE
@@ -86,10 +91,45 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(10);
     });
 
+    test('a custom object weight was set to 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            object: 0,
+        });
+        const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
+        const queryAST: DocumentNode = parse(query);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(4); // 1 query and 4 enums
+    });
+    test('a custom scalar weight was set to greater than 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            scalar: 2,
+        });
+        const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
+        const queryAST: DocumentNode = parse(query);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(16);
+    });
+
     test('variable names matching limiting keywords do not interfere with scalar argument values', () => {
         const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
         const queryAST: DocumentNode = parse(query);
         expect(getQueryTypeComplexity(queryAST, { first: 7 }, typeWeights)).toBe(4);
+    });
+
+    test('nested queries with lists', () => {
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, objectList(first: 3) {hi}}} `;
+        expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(9); // 1 Query + 2 review + (2 *  3 objects)
+    });
+
+    test('queries with inner scalar lists', () => {
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, scalarList(last: 3) }}`;
+        expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(3); // 1 Query + 2 reviews
+    });
+
+    test('queries with inner scalar lists and custom scalar weight greater than 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            scalar: 2,
+        });
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, scalarList(last: 3) }}`;
+        expect(getQueryTypeComplexity(parse(query), {}, customTypeWeights)).toBe(19); // 1 Query + 2 reviews + 2 * (2 stars + (3 * 2 scalarList)
     });
 
     xtest('an invalid arg type is provided', () => {
