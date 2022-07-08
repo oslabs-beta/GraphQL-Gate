@@ -23,18 +23,14 @@ import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
 import {
     TypeWeightConfig,
+    TypeWeightSet,
     TypeWeightObject,
     Variables,
     Type,
-    Field,
 } from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
-type ListType =
-    | GraphQLScalarType<unknown, unknown>
-    | GraphQLObjectType<any, any>
-    | GraphQLList<GraphQLOutputType>
-    | GraphQLOutputType;
+
 // These variables exist to provide a default value for typescript when accessing a weight
 // since all props are optioal in TypeWeightConfig
 const DEFAULT_MUTATION_WEIGHT = 10;
@@ -42,11 +38,12 @@ const DEFAULT_OBJECT_WEIGHT = 1;
 const DEFAULT_SCALAR_WEIGHT = 0;
 const DEFAULT_CONNECTION_WEIGHT = 2;
 const DEFAULT_QUERY_WEIGHT = 1;
-export const defaultTypeWeightsConfig: TypeWeightConfig = {
+export const defaultTypeWeightsConfig: TypeWeightSet = {
     mutation: DEFAULT_MUTATION_WEIGHT,
     object: DEFAULT_OBJECT_WEIGHT,
     scalar: DEFAULT_SCALAR_WEIGHT,
     connection: DEFAULT_CONNECTION_WEIGHT,
+    query: DEFAULT_QUERY_WEIGHT,
 };
 
 // FIXME: What about Interface defaults
@@ -56,24 +53,24 @@ export const defaultTypeWeightsConfig: TypeWeightConfig = {
  *
  * @param {(GraphQLObjectType | GraphQLInterfaceType)} type
  * @param {TypeWeightObject} typeWeightObject
- * @param {TypeWeightConfig} typeWeights
+ * @param {TypeWeightSet} typeWeights
  * @return {*}  {Type}
  */
 function parseObjectFields(
     type: GraphQLObjectType | GraphQLInterfaceType,
     typeWeightObject: TypeWeightObject,
-    typeWeights: TypeWeightConfig
+    typeWeights: TypeWeightSet
 ): Type {
     let result: Type;
     switch (type.name) {
         case 'Query':
-            result = { weight: typeWeights.query || DEFAULT_QUERY_WEIGHT, fields: {} };
+            result = { weight: typeWeights.query, fields: {} };
             break;
         case 'Mutation':
-            result = { weight: typeWeights.mutation || DEFAULT_MUTATION_WEIGHT, fields: {} };
+            result = { weight: typeWeights.mutation, fields: {} };
             break;
         default:
-            result = { weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT, fields: {} };
+            result = { weight: typeWeights.object, fields: {} };
             break;
     }
 
@@ -88,7 +85,7 @@ function parseObjectFields(
             (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
         ) {
             result.fields[field] = {
-                weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                weight: typeWeights.scalar,
             };
         } else if (
             isInterfaceType(fieldType) ||
@@ -105,7 +102,7 @@ function parseObjectFields(
             if (isScalarType(listType) && typeWeights.scalar === 0) {
                 // list won't compound if weight is zero
                 result.fields[field] = {
-                    weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                    weight: typeWeights.scalar,
                 };
             } else if (isEnumType(listType) && typeWeights.scalar === 0) {
                 // list won't compound if weight of enum is zero
@@ -131,7 +128,7 @@ function parseObjectFields(
                                 );
                                 const weight = isCompositeType(listType)
                                     ? typeWeightObject[listType.name.toLowerCase()].weight
-                                    : typeWeights.scalar || DEFAULT_SCALAR_WEIGHT; // Note this includes enums
+                                    : typeWeights.scalar; // Note this includes enums
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
                                     let multiplier = 1;
@@ -175,7 +172,7 @@ function parseObjectFields(
  * @param typeWeights
  * @returns
  */
-function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeWeightObject {
+function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeightObject {
     const typeMap: ObjMap<GraphQLNamedType> = schema.getTypeMap();
 
     const result: TypeWeightObject = {};
@@ -193,13 +190,13 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightConfig): TypeW
             } else if (isEnumType(currentType)) {
                 result[typeName] = {
                     fields: {},
-                    weight: typeWeights.scalar || DEFAULT_SCALAR_WEIGHT,
+                    weight: typeWeights.scalar,
                 };
             } else if (isUnionType(currentType)) {
                 // FIXME: will need information on fields inorder calculate comlpextiy
                 result[typeName] = {
                     fields: {},
-                    weight: typeWeights.object || DEFAULT_OBJECT_WEIGHT,
+                    weight: typeWeights.object,
                 };
             } else {
                 // ? what else can get through here
@@ -230,7 +227,7 @@ function buildTypeWeightsFromSchema(
     if (!schema) throw new Error('Missing Argument: schema is required');
 
     //  Merge the provided type weights with the default to account for missing values
-    const typeWeights: TypeWeightConfig = {
+    const typeWeights: TypeWeightSet = {
         ...defaultTypeWeightsConfig,
         ...typeWeightsConfig,
     };

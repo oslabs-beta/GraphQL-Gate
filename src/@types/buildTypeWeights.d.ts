@@ -21,6 +21,13 @@ export interface TypeWeightConfig {
     scalar?: number;
     connection?: number;
 }
+export interface TypeWeightSet {
+    mutation: number;
+    query: number;
+    object: number;
+    scalar: number;
+    connection: number;
+}
 type Variables = {
     [index: string]: readonly unknown;
 };
