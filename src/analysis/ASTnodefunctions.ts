@@ -39,14 +39,14 @@ export function fieldNode(
     // 'resolvedTypeName' is the name of the Schema Type that this field resolves to
     const resolvedTypeName =
         node.name.value in typeWeights
-            ? node.name.value.toLocaleLowerCase()
+            ? node.name.value
             : typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
 
     if (resolvedTypeName) {
         // field resolves to an object or a list with possible selections
         let selectionsCost = 0;
         let calculatedWeight = 0;
-        const weightFunction = typeWeights[parentName]?.fields[resolvedTypeName]?.weight;
+        const weightFunction = typeWeights[parentName]?.fields[node.name.value]?.weight;
 
         // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
@@ -117,13 +117,14 @@ export function definitionNode(
         if (node.operation.toLocaleLowerCase() in typeWeights) {
             // if it is, it is an object type, add it's type weight to the total
             complexity += typeWeights[node.operation].weight;
+            // console.log(`the weight of ${node.operation} is ${complexity}`);
             // call the function to handle selection set node with selectionSet property if it is not undefined
             if (node.selectionSet) {
                 complexity += selectionSetNode(
                     node.selectionSet,
                     typeWeights,
                     variables,
-                    node.operation.toLocaleLowerCase()
+                    node.operation
                 );
             }
         }
