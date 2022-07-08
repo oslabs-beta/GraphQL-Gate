@@ -18,7 +18,9 @@ import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLim
  */
 class SlidingWindowCounter implements RateLimiter {
     private windowSize: number;
+
     private capacity: number;
+
     private client: Redis;
 
     /**
