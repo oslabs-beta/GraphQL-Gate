@@ -513,15 +513,23 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     human: {
                         weight: 1,
                         fields: {
-                            homePlanet: 0,
-                            age: 0,
-                            isHero: 0,
+                            homePlanet: {
+                                weight: 0,
+                            },
+                            age: {
+                                weight: 0,
+                            },
+                            isHero: {
+                                weight: 0,
+                            },
                         },
                     },
                     droid: {
                         weight: 1,
                         fields: {
-                            primaryFunction: 0,
+                            primaryFunction: {
+                                weight: 0,
+                            },
                         },
                     },
                 });
@@ -542,15 +550,26 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     planet: {
                         weight: 1,
                         fields: {
-                            droids: expect.any(Function),
-                            heroDroids: expect.any(Function),
-                            villainDroids: expect.any(Function),
+                            droids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            heroDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            villainDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
                     droid: {
                         weight: 1,
                         fields: {
-                            primaryFunction: 0,
+                            primaryFunction: {
+                                weight: 0,
+                            },
                         },
                     },
                     episode: {
