@@ -235,7 +235,9 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
-        xtest('with fragments', () => {
+        // TODO: Test fragment with variable
+        // TODO: Test fragment with object
+        test('with fragments', () => {
             query = `
             query {
                 leftComparison: hero(episode: EMPIRE) {
@@ -255,8 +257,8 @@ describe('Test getQueryTypeComplexity function', () => {
               }
             }`;
             mockCharacterFriendsFunction.mockReturnValue(3);
-            // Query 1 + 2*(character 1 + appearsIn/episode 1 + 3 * friends/character 1)
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11);
+            // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
         });
 
         xtest('with inline fragments', () => {
