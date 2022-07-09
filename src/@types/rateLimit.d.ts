@@ -23,6 +23,12 @@ export interface RedisBucket {
     timestamp: number;
 }
 
+export interface RedisWindow {
+    currentTokens: number;
+    previousTokens: number;
+    fixedWindowStart: number;
+}
+
 export type RateLimiterSelection =
     | 'TOKEN_BUCKET'
     | 'LEAKY_BUCKET'
