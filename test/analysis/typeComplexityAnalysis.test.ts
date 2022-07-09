@@ -276,30 +276,73 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
-        // TODO: Test fragment with variable
-        // TODO: Test fragment with object
-        test('with fragments', () => {
-            query = `
-            query {
-                leftComparison: hero(episode: EMPIRE) {
-                  ...comparisonFields
+        xdescribe('with fragments', () => {
+            test('that have a complexity of zero', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
                 }
-                rightComparison: hero(episode: JEDI) {
-                  ...comparisonFields
-                }
-              }
-              
-              fragment comparisonFields on Character {
-                name
-                appearsIn
-                friends(first: 3) {
+                
+                fragment comparisonFields on Character {
                     name
+                    appearsIn
+                }`;
+                // Query 1 + 2*(appearsIn/episode 0 + name/string 0)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+            });
+
+            test('that contain an object and a non-zero complexity', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
                 }
-              }
-            }`;
-            mockCharacterFriendsFunction.mockReturnValue(3);
-            // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: 3) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValue(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+            });
+
+            test('that use a variable', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: $first) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValue(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+            });
         });
 
         xtest('with inline fragments', () => {
