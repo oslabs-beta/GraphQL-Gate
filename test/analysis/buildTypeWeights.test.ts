@@ -4,8 +4,13 @@ import { GraphQLSchema } from 'graphql/type/schema';
 import buildTypeWeightsFromSchema from '../../src/analysis/buildTypeWeights';
 
 // these types allow the tests to overwite properties on the typeWeightObject
+
+export interface TestField {
+    resolveTo?: string;
+    weight?: number;
+}
 interface TestFields {
-    [index: string]: number;
+    [index: string]: TestField;
 }
 
 interface TestType {
@@ -34,8 +39,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 query: {
                     weight: 1,
                     fields: {
-                        name: 0,
-                        email: 0,
+                        name: { weight: 0 },
+                        email: { weight: 0 },
                     },
                 },
             });
@@ -60,20 +65,23 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        movie: { resolveTo: 'movie' },
+                        user: { resolveTo: 'user' },
+                    },
                 },
                 user: {
                     weight: 1,
                     fields: {
-                        name: 0,
-                        email: 0,
+                        name: { weight: 0 },
+                        email: { weight: 0 },
                     },
                 },
                 movie: {
                     weight: 1,
                     fields: {
-                        name: 0,
-                        director: 0,
+                        name: { weight: 0 },
+                        director: { weight: 0 },
                     },
                 },
             });
@@ -98,18 +106,23 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        movie: { resolveTo: 'movie' },
+                        user: { resolveTo: 'user' },
+                    },
                 },
                 user: {
                     weight: 1,
                     fields: {
-                        name: 0,
+                        name: { weight: 0 },
+                        film: { resolveTo: 'movie' },
                     },
                 },
                 movie: {
                     weight: 1,
                     fields: {
-                        name: 0,
+                        name: { weight: 0 },
+                        director: { resolveTo: 'user' },
                     },
                 },
             });
@@ -130,11 +143,11 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 test: {
                     weight: 1,
                     fields: {
-                        num: 0,
-                        id: 0,
-                        float: 0,
-                        bool: 0,
-                        string: 0,
+                        num: { weight: 0 },
+                        id: { weight: 0 },
+                        float: { weight: 0 },
+                        bool: { weight: 0 },
+                        string: { weight: 0 },
                     },
                 },
             });
@@ -152,13 +165,15 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        character: { resolveTo: 'character' },
+                    },
                 },
                 character: {
                     weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
+                        id: { weight: 0 },
+                        name: { weight: 0 },
                     },
                 },
             });
@@ -181,13 +196,15 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        hero: { resolveTo: 'character' },
+                    },
                 },
                 character: {
                     weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
+                        id: { weight: 0 },
+                        name: { weight: 0 },
                     },
                 },
                 episode: {
@@ -220,16 +237,26 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     query: {
                         weight: 1,
                         fields: {
-                            reviews: expect.any(Function),
-                            heroes: expect.any(Function),
-                            villains: expect.any(Function),
+                            reviews: {
+                                resolveTo: 'review',
+                                weight: expect.any(Function),
+                            },
+                            heroes: {
+                                resolveTo: 'review',
+                                weight: expect.any(Function),
+                            },
+                            villains: {
+                                resolveTo: 'review',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
                     review: {
                         weight: 1,
                         fields: {
-                            stars: 0,
-                            commentary: 0,
+                            stars: { weight: 0 },
+                            commentary: { weight: 0 },
+                            episode: { resolveTo: 'episode' },
                         },
                     },
                     episode: {
@@ -239,7 +266,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            xtest('are not on the Query type', () => {
+            test('are not on the Query type', () => {
                 schema = buildSchema(`
                     type Query {
                         reviews(episode: Episode!, first: Int): [Movie]
@@ -264,22 +291,26 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     query: {
                         weight: 1,
                         fields: {
-                            reviews: expect.any(Function),
+                            reviews: {
+                                resolveTo: 'movie',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
                     movie: {
                         weight: 1,
                         fields: {
-                            stars: 0,
-                            commentary: 0,
-                            heroes: expect.any(Function),
-                            villains: expect.any(Function),
+                            stars: { weight: 0 },
+                            commentary: { weight: 0 },
+                            episode: { resolveTo: 'episode' },
+                            heroes: { resolveTo: 'character', weight: expect.any(Function) },
+                            villains: { resolveTo: 'character', weight: expect.any(Function) },
                         },
                     },
                     character: {
                         weight: 1,
                         fields: {
-                            name: 0,
+                            name: { weight: 0 },
                         },
                     },
                     episode: {
@@ -289,7 +320,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            xtest('the list resolves to an enum or scalar', () => {
+            test('the list resolves to an enum or scalar', () => {
                 schema = buildSchema(`
                     type Query {
                         episodes(first: Int): [Episode]
@@ -306,9 +337,9 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     query: {
                         weight: 1,
                         fields: {
-                            episodes: 0,
-                            heroes: 0,
-                            villains: 0,
+                            episodes: { resolveTo: 'episode' },
+                            heroes: { weight: 0 },
+                            villains: { weight: 0 },
                         },
                     },
                     episode: {
@@ -318,7 +349,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            xtest('the list resolves to an enum or scalar and a custom scalar weight was configured', () => {
+            test('the list resolves to an enum or scalar and a custom scalar weight was configured', () => {
                 schema = buildSchema(`
                     type Query {
                         episodes(first: Int): [Episode]
@@ -335,13 +366,22 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     query: {
                         weight: 1,
                         fields: {
-                            episodes: 11,
-                            heroes: 11,
-                            villains: 11,
+                            episodes: {
+                                resolveTo: 'episode',
+                                weight: expect.any(Function),
+                            },
+                            heroes: {
+                                resolveTo: 'int',
+                                weight: expect.any(Function),
+                            },
+                            villains: {
+                                resolveTo: 'string',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
                     episode: {
-                        weight: 0,
+                        weight: 11,
                         fields: {},
                     },
                 });
@@ -363,7 +403,13 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 human: {
                     weight: 1,
                     fields: {
-                        friends: expect.any(Function),
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        hamePlanet: { weight: 0 },
+                        friends: {
+                            resolvesTo: 'human',
+                            weight: expect.any(Function),
+                        },
                     },
                 },
             });
@@ -391,24 +437,24 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 character: {
                     weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
+                        id: { weight: 0 },
+                        name: { weight: 0 },
                     },
                 },
                 human: {
                     weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
-                        homePlanet: 0,
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        homePlanet: { weight: 0 },
                     },
                 },
                 droid: {
                     weight: 1,
                     fields: {
-                        id: 0,
-                        name: 0,
-                        primaryFunction: 0,
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        primaryFunction: { weight: 0 },
                     },
                 },
             });
@@ -431,13 +477,13 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 human: {
                     weight: 1,
                     fields: {
-                        homePlanet: 0,
+                        homePlanet: { weight: 0 },
                     },
                 },
                 droid: {
                     weight: 1,
                     fields: {
-                        primaryFunction: 0,
+                        primaryFunction: { weight: 0 },
                     },
                 },
             });
@@ -467,15 +513,23 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     human: {
                         weight: 1,
                         fields: {
-                            homePlanet: 0,
-                            age: 0,
-                            isHero: 0,
+                            homePlanet: {
+                                weight: 0,
+                            },
+                            age: {
+                                weight: 0,
+                            },
+                            isHero: {
+                                weight: 0,
+                            },
                         },
                     },
                     droid: {
                         weight: 1,
                         fields: {
-                            primaryFunction: 0,
+                            primaryFunction: {
+                                weight: 0,
+                            },
                         },
                     },
                 });
@@ -496,15 +550,26 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     planet: {
                         weight: 1,
                         fields: {
-                            droids: expect.any(Function),
-                            heroDroids: expect.any(Function),
-                            villainDroids: expect.any(Function),
+                            droids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            heroDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            villainDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
                     droid: {
                         weight: 1,
                         fields: {
-                            primaryFunction: 0,
+                            primaryFunction: {
+                                weight: 0,
+                            },
                         },
                     },
                     episode: {
@@ -547,18 +612,23 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expectedOutput = {
                 query: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        movie: { resolveTo: 'movie' },
+                        user: { resolveTo: 'user' },
+                    },
                 },
                 user: {
                     weight: 1,
                     fields: {
-                        name: 0,
+                        name: { weight: 0 },
+                        film: { resolveTo: 'movie' },
                     },
                 },
                 movie: {
                     weight: 1,
                     fields: {
-                        name: 0,
+                        name: { weight: 0 },
+                        director: { resolveTo: 'user' },
                     },
                 },
             };
@@ -581,6 +651,19 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
             expectedOutput.user.weight = 2;
             expectedOutput.movie.weight = 2;
+            // expectedOutput.query.weight = 2;
+
+            expect(typeWeightObject).toEqual(expectedOutput);
+        });
+
+        test('object parameter set to 0', () => {
+            const typeWeightObject = buildTypeWeightsFromSchema(schema, {
+                object: 0,
+            });
+
+            expectedOutput.user.weight = 0;
+            expectedOutput.movie.weight = 0;
+            // expectedOutput.query.weight = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
@@ -590,8 +673,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 scalar: 2,
             });
 
-            expectedOutput.user.fields.name = 2;
-            expectedOutput.movie.fields.name = 2;
+            expectedOutput.user.fields.name.weight = 2;
+            expectedOutput.movie.fields.name.weight = 2;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });

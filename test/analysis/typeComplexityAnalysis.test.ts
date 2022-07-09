@@ -65,7 +65,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
     type Test {
         name: String,
-        variable: Scalars
+        scalars: Scalars
     }
 
  *   
@@ -110,14 +110,33 @@ const typeWeights: TypeWeightObject = {
         // object type
         weight: 1,
         fields: {
-            reviews: mockWeightFunction,
-            hero: 1,
-            search: jest.fn(), // FIXME: Unbounded list result
-            character: 1,
-            droid: 1,
-            human: 1,
-            scalars: 1,
-            nonNull: nonNullMockWeightFunction,
+            reviews: {
+                resolveTo: 'review',
+                weight: mockWeightFunction,
+            },
+            hero: {
+                resolveTo: 'character',
+            },
+            search: {
+                resolveTo: 'searchresult',
+                weight: jest.fn(), // FIXME: Unbounded list result
+            },
+            character: {
+                resolveTo: 'character',
+            },
+            droid: {
+                resolveTo: 'droid',
+            },
+            human: {
+                resolveTo: 'human',
+            },
+            scalars: {
+                resolveTo: 'scalars',
+            },
+            nonNull: {
+                resolveTo: 'droid',
+                weight: nonNullMockWeightFunction,
+            },
         },
     },
     episode: {
@@ -129,40 +148,55 @@ const typeWeights: TypeWeightObject = {
         // interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            friends: mockCharacterFriendsFunction,
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            friends: {
+                resolveTo: 'character',
+                weight: mockHumanFriendsFunction,
+            },
+            scalarList: {
+                weight: 0,
+            },
         },
     },
     human: {
         // implements an interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            homePlanet: 0,
-            appearsIn: 0,
-            friends: mockHumanFriendsFunction,
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            homePlanet: { weight: 0 },
+            friends: {
+                resolveTo: 'character',
+                weight: mockHumanFriendsFunction,
+            },
         },
     },
     droid: {
         // implements an interface
         weight: 1,
         fields: {
-            id: 0,
-            name: 0,
-            appearsIn: 0,
-            friends: mockDroidFriendsFunction,
+            id: { weight: 0 },
+            name: { weight: 0 },
+            appearsIn: { resolveTo: 'episode' },
+            primaryFunction: { weight: 0 },
+            friends: {
+                resolveTo: 'character',
+                weight: mockDroidFriendsFunction,
+            },
         },
     },
     review: {
         weight: 1,
         fields: {
-            stars: 0,
-            commentary: 0,
+            episode: { resolveTo: 'episode' },
+            stars: { weight: 0 },
+            commentary: { weight: 0 },
         },
     },
-    searchResult: {
+    searchresult: {
         // union type
         weight: 1,
         fields: {},
@@ -170,17 +204,19 @@ const typeWeights: TypeWeightObject = {
     scalars: {
         weight: 1, // object weight is 1, all scalar feilds have weight 0
         fields: {
-            num: 0,
-            id: 0,
-            float: 0,
-            bool: 0,
-            string: 0,
+            num: { weight: 0 },
+            id: { weight: 0 },
+            float: { weight: 0 },
+            bool: { weight: 0 },
+            string: { weight: 0 },
+            test: { resolveTo: 'test' },
         },
     },
     test: {
         weight: 1,
         fields: {
-            name: 0,
+            name: { weight: 0 },
+            scalars: { resolveTo: 'scalars' },
         },
     },
 };
@@ -196,6 +232,11 @@ describe('Test getQueryTypeComplexity function', () => {
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
             query = `query { scalars { num } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+        });
+
+        xtest('with one with capital first letter for field', () => {
+            query = `query { Scalars { num } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
@@ -301,59 +342,38 @@ describe('Test getQueryTypeComplexity function', () => {
             mockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(1);
-            expect(mockWeightFunction.mock.calls[0].length).toBe(1);
+            expect(mockWeightFunction.mock.calls[0].length).toBe(3); // calling  with arguments and variables
 
             variables = { first: 4 };
             mockWeightFunction.mockReturnValueOnce(4);
             query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(2);
-            expect(mockWeightFunction.mock.calls[1].length).toBe(1);
+            expect(mockWeightFunction.mock.calls[1].length).toBe(3); // calling  with arguments and variables
         });
 
         test('with bounded lists including non-null operators', () => {
-            query = `query {nonNull(episode: EMPIRE, first: 3) { stars, commentary } }`;
+            query = `query {nonNull(episode: EMPIRE, first: 3) { name, id } }`;
             nonNullMockWeightFunction.mockReturnValueOnce(3);
             expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
             expect(nonNullMockWeightFunction.mock.calls.length).toBe(1);
-            expect(nonNullMockWeightFunction.mock.calls[0].length).toBe(1);
+            expect(nonNullMockWeightFunction.mock.calls[0].length).toBe(3);
         });
 
-        xdescribe('with nested lists', () => {
+        describe('with nested lists', () => {
             test('and simple nesting', () => {
-                query = `
-                query { 
-                    human(id: 1) { 
-                        name, 
-                        friends(first: 5) { 
-                            name, 
-                            friends(first: 3){ 
-                                name 
-                            } 
-                        } 
-                    }
-                }`;
-                mockHumanFriendsFunction.mockReturnValueOnce(5).mockReturnValueOnce(3);
-                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+                query = `query { human(id: 1) { name, friends(first: 5) { name, friends(first: 3){ name }}}} `;
+                mockHumanFriendsFunction.mockReturnValueOnce(3).mockReturnValueOnce(20);
+                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
             });
 
             test('and inner scalar lists', () => {
                 query = `
-                query { 
-                    human(id: 1) { 
-                        name, 
-                        friends(first: 5) { 
-                            name, 
-                            scalarList(first: 3){ 
-                                name 
-                            } 
-                        } 
-                    }
-                }`;
+                query { human(id: 1) { name, friends(first: 5) { name, scalarList(first: 3)} }}`;
                 mockHumanFriendsFunction.mockReturnValueOnce(5);
                 expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
-                expect(mockHumanFriendsFunction.mock.calls.length).toBe(2);
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
             });
         });
 
