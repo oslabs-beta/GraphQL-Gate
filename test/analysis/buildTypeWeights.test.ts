@@ -656,6 +656,18 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(typeWeightObject).toEqual(expectedOutput);
         });
 
+        test('object parameter set to 0', () => {
+            const typeWeightObject = buildTypeWeightsFromSchema(schema, {
+                object: 0,
+            });
+
+            expectedOutput.user.weight = 0;
+            expectedOutput.movie.weight = 0;
+            // expectedOutput.query.weight = 2;
+
+            expect(typeWeightObject).toEqual(expectedOutput);
+        });
+
         test('scalar parameter', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 scalar: 2,

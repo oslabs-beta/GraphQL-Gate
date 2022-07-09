@@ -234,6 +234,11 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
+        xtest('with one with capital first letter for field', () => {
+            query = `query { Scalars { num } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+        });
+
         test('with two or more fields', () => {
             query = `query { scalars { num } test { name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1

@@ -113,7 +113,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         });
         const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
         const queryAST: DocumentNode = parse(query);
-        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(4); // 1 query and 4 enums
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(1); // 1 query
     });
     test('a custom scalar weight was set to greater than 0', () => {
         const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
