@@ -9,12 +9,12 @@ import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLim
  * takeup in each.
  *
  * Whenever a user makes a request the following steps are performed:
- *  1. Fixed minute windows are defined along with redis caches if previously undefined.
- *  2. Rolling minute windows are defined or updated based on the timestamp of the new request.
+ *  1. Fixed windows are defined along with redis caches if previously undefined.
+ *  2. Rolling windows are defined or updated based on the timestamp of the new request.
  *  3. Counter of the current fixed window is updated with the new request's token usage.
  *  4. If a new minute interval is reached, the averaging formula is run to prevent fixed window's flaw
  *     of flooded requests around window borders
- *    (ex. 10 token capacity: 1m59s 10 reqs 2m2s 10 reqs)
+ *    (ex. 1m windows, 10 token capacity: 1m59s 10 reqs 2m2s 10 reqs)
  */
 class SlidingWindowCounter implements RateLimiter {
     private windowSize: number;
@@ -24,7 +24,7 @@ class SlidingWindowCounter implements RateLimiter {
     private client: Redis;
 
     /**
-     * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
+     * Create a new instance of a SlidingWindowCounter rate limiter that can be connected to any database store
      * @param windowSize size of each window in milliseconds (fixed and rolling)
      * @param capacity max capacity of tokens allowed per fixed window
      * @param client redis client where rate limiter will cache information
