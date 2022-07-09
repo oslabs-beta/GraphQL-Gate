@@ -1,6 +1,6 @@
 import { DocumentNode } from 'graphql';
 import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
-import { documentNode } from './ASTnodefunctions';
+import ASTParser from './ASTnodefunctions';
 
 /**
  * Calculate the complexity for the query by recursivly traversing through the query AST,
@@ -18,7 +18,8 @@ function getQueryTypeComplexity(
     typeWeights: TypeWeightObject
 ): number {
     let complexity = 0;
-    complexity += documentNode(queryAST, typeWeights, variables);
+    const parser = new ASTParser();
+    complexity += parser.documentNode(queryAST, typeWeights, variables);
     return complexity;
 }
 
