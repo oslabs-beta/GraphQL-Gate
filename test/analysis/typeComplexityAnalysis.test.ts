@@ -157,7 +157,7 @@ const typeWeights: TypeWeightObject = {
             appearsIn: { resolveTo: 'episode' },
             friends: {
                 resolveTo: 'character',
-                weight: mockHumanFriendsFunction,
+                weight: mockCharacterFriendsFunction,
             },
             scalarList: {
                 weight: 0,
@@ -349,10 +349,7 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        xdescribe('with inline fragments', () => {
-            // FIXME: Does SearchResult resolve to Character since Human and
-            // Droid implement Character? What do we see during type weight parsing
-            // FIXME: Are unions of Objects and (Scalars or Scalars and Scalars possible)
+        describe('with inline fragments', () => {
             describe('on union types', () => {
                 test('that have a complexity of zero', () => {
                     query = `
@@ -388,6 +385,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    mockHumanFriendsFunction.mockReturnValueOnce(3);
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
                 });
 
@@ -429,7 +427,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
                     // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
@@ -471,6 +469,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    mockHumanFriendsFunction.mockReturnValueOnce(3);
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
                 });
 
@@ -491,8 +490,8 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     mockCharacterFriendsFunction.mockReturnValue(3);
-                    variables = { first: 3 };
                     // Query 1 + 1 hero + 3 friends/character
+                    mockHumanFriendsFunction.mockReturnValueOnce(3);
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
                 });
 
@@ -512,7 +511,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockDroidFriendsFunction.mockReturnValue(3);
                     variables = { first: 3 };
                     // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
