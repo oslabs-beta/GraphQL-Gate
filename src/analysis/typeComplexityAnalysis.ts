@@ -18,8 +18,8 @@ function getQueryTypeComplexity(
     typeWeights: TypeWeightObject
 ): number {
     let complexity = 0;
-    const parser = new ASTParser();
-    complexity += parser.documentNode(queryAST, typeWeights, variables);
+    const parser = new ASTParser(typeWeights, variables);
+    complexity += parser.documentNode(queryAST);
     return complexity;
 }
 

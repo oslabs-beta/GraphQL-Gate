@@ -280,7 +280,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
-        xdescribe('with fragments', () => {
+        describe('with fragments', () => {
             test('that have a complexity of zero', () => {
                 query = `
                 query {

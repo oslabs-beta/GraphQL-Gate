@@ -28,50 +28,50 @@ import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
  */
 
 class ASTParser {
+    typeWeights: TypeWeightObject;
+
+    variables: Variables;
+
     fragmentCache: { [index: string]: number };
 
-    constructor() {
+    constructor(typeWeights: TypeWeightObject, variables: Variables) {
+        this.typeWeights = typeWeights;
+        this.variables = variables;
         this.fragmentCache = {};
     }
 
-    fieldNode(
-        node: FieldNode,
-        typeWeights: TypeWeightObject,
-        variables: Variables,
-        parentName: string
-    ): number {
+    fieldNode(node: FieldNode, parentName: string): number {
         let complexity = 0;
         // 'resolvedTypeName' is the name of the Schema Type that this field resolves to
         const resolvedTypeName =
-            node.name.value in typeWeights
+            node.name.value in this.typeWeights
                 ? node.name.value
-                : typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
+                : this.typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
 
         if (resolvedTypeName) {
             // field resolves to an object or a list with possible selections
             let selectionsCost = 0;
             let calculatedWeight = 0;
-            const weightFunction = typeWeights[parentName]?.fields[node.name.value]?.weight;
+            const weightFunction = this.typeWeights[parentName]?.fields[node.name.value]?.weight;
 
             // call the function to handle selection set node with selectionSet property if it is not undefined
             if (node.selectionSet) {
-                selectionsCost += this.selectionSetNode(
-                    node.selectionSet,
-                    typeWeights,
-                    variables,
-                    resolvedTypeName
-                );
+                selectionsCost += this.selectionSetNode(node.selectionSet, resolvedTypeName);
             }
             // if there are arguments and this is a list, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
             if (node.arguments && typeof weightFunction === 'function') {
-                calculatedWeight += weightFunction([...node.arguments], variables, selectionsCost);
+                calculatedWeight += weightFunction(
+                    [...node.arguments],
+                    this.variables,
+                    selectionsCost
+                );
             } else {
-                calculatedWeight += typeWeights[resolvedTypeName].weight + selectionsCost;
+                calculatedWeight += this.typeWeights[resolvedTypeName].weight + selectionsCost;
             }
             complexity += calculatedWeight;
         } else {
             // field is a scalar and 'weight' is a number
-            const { weight } = typeWeights[parentName].fields[node.name.value];
+            const { weight } = this.typeWeights[parentName].fields[node.name.value];
             if (typeof weight === 'number') {
                 complexity += weight;
             }
@@ -79,17 +79,12 @@ class ASTParser {
         return complexity;
     }
 
-    selectionNode(
-        node: SelectionNode,
-        typeWeights: TypeWeightObject,
-        variables: Variables,
-        parentName: string
-    ): number {
+    selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
         // check the kind property against the set of selection nodes that are possible
         if (node.kind === Kind.FIELD) {
             // call the function that handle field nodes
-            complexity += this.fieldNode(node, typeWeights, variables, parentName);
+            complexity += this.fieldNode(node, parentName);
         } else if (node.kind === Kind.FRAGMENT_SPREAD) {
             complexity += this.fragmentCache[node.name.value];
             // This is a leaf
@@ -99,53 +94,29 @@ class ASTParser {
         return complexity;
     }
 
-    selectionSetNode(
-        node: SelectionSetNode,
-        typeWeights: TypeWeightObject,
-        variables: Variables,
-        parentName: string
-    ): number {
+    selectionSetNode(node: SelectionSetNode, parentName: string): number {
         let complexity = 0;
         // iterate shrough the 'selections' array on the seletion set node
         for (let i = 0; i < node.selections.length; i += 1) {
             // call the function to handle seletion nodes
             // pass the current parent through because selection sets act only as intermediaries
-            complexity += this.selectionNode(
-                node.selections[i],
-                typeWeights,
-                variables,
-                parentName
-            );
+            complexity += this.selectionNode(node.selections[i], parentName);
         }
         return complexity;
     }
 
-    definitionNode(
-        node: DefinitionNode,
-        typeWeights: TypeWeightObject,
-        variables: Variables
-    ): number {
-        // TODO: this is initialized with every call. Can we initialize per request
-        // This needs to be cleared at the end of each request
-        // Can we setup a callback or listener?
-        const fragments: { [index: string]: number } = {};
-
+    definitionNode(node: DefinitionNode): number {
         let complexity = 0;
         // check the kind property against the set of definiton nodes that are possible
         if (node.kind === Kind.OPERATION_DEFINITION) {
             // check if the operation is in the type weights object.
-            if (node.operation.toLocaleLowerCase() in typeWeights) {
+            if (node.operation.toLocaleLowerCase() in this.typeWeights) {
                 // if it is, it is an object type, add it's type weight to the total
-                complexity += typeWeights[node.operation].weight;
+                complexity += this.typeWeights[node.operation].weight;
                 // console.log(`the weight of ${node.operation} is ${complexity}`);
                 // call the function to handle selection set node with selectionSet property if it is not undefined
                 if (node.selectionSet) {
-                    complexity += this.selectionSetNode(
-                        node.selectionSet,
-                        typeWeights,
-                        variables,
-                        node.operation
-                    );
+                    complexity += this.selectionSetNode(node.selectionSet, node.operation);
                 }
             }
         } else if (node.kind === Kind.FRAGMENT_DEFINITION) {
@@ -173,8 +144,6 @@ class ASTParser {
 
             const fragmentComplexity = this.selectionSetNode(
                 node.selectionSet,
-                typeWeights,
-                variables,
                 namedType.toLowerCase()
             );
             this.fragmentCache[fragmentName] = fragmentComplexity;
@@ -184,7 +153,7 @@ class ASTParser {
         return complexity;
     }
 
-    documentNode(node: DocumentNode, typeWeights: TypeWeightObject, variables: Variables): number {
+    documentNode(node: DocumentNode): number {
         let complexity = 0;
         // iterate through 'definitions' array on the document node
         // FIXME: create a copy to preserve original AST order if needed elsewhere
@@ -194,7 +163,7 @@ class ASTParser {
         for (let i = 0; i < sortedDefinitions.length; i += 1) {
             // call the function to handle the various types of definition nodes
             // FIXME: Need to parse fragment definitions first so that remaining complexity has access to query complexities
-            complexity += this.definitionNode(sortedDefinitions[i], typeWeights, variables);
+            complexity += this.definitionNode(sortedDefinitions[i]);
         }
         return complexity;
     }
