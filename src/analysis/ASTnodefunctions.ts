@@ -69,58 +69,67 @@ class ASTParser {
     }
 
     fieldNode(node: FieldNode, parentName: string): number {
-        let complexity = 0;
-        const parentType = this.typeWeights[parentName];
-        if (!parentType) {
-            throw new Error(
-                `ERROR: ASTParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
-            );
-        }
-        let typeName: string | undefined;
-        let typeWeight: FieldWeight | undefined;
-
-        if (node.name.value in this.typeWeights) {
-            // node is an object type n the typeWeight root
-            typeName = node.name.value;
-            typeWeight = this.typeWeights[typeName].weight;
-            complexity += this.calculateCost(node, parentName, typeName, typeWeight);
-        } else if (parentType.fields[node.name.value].resolveTo) {
-            // field resolves to another type in type weights or a list
-            typeName = parentType.fields[node.name.value].resolveTo;
-            typeWeight = parentType.fields[node.name.value].weight;
-            // if this is a list typeWeight is a weight function
-            // otherwise the weight would be null as the weight is defined on the typeWeights root
-            if (typeName && typeWeight) {
-                // Type is a list and has a weight function
-                complexity += this.calculateCost(node, parentName, typeName, typeWeight);
-            } else if (typeName) {
-                // resolve type exists at root of typeWeight object and is not a list
-                typeWeight = this.typeWeights[typeName].weight;
-                complexity += this.calculateCost(node, parentName, typeName, typeWeight);
-            } else {
+        try {
+            let complexity = 0;
+            const parentType = this.typeWeights[parentName];
+            if (!parentType) {
                 throw new Error(
-                    `ERROR: ASTParser Failed to obtain resolved type name or weight for node: ${parentName}.${node.name.value}`
+                    `ERROR: ASTParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
                 );
             }
-        } else {
-            // field is a scalar
-            typeName = node.name.value;
-            if (typeName) {
-                typeWeight = parentType.fields[typeName].weight;
-                if (typeof typeWeight === 'number') {
-                    complexity += typeWeight;
+            let typeName: string | undefined;
+            let typeWeight: FieldWeight | undefined;
+
+            if (node.name.value in this.typeWeights) {
+                // node is an object type n the typeWeight root
+                typeName = node.name.value;
+                typeWeight = this.typeWeights[typeName].weight;
+                complexity += this.calculateCost(node, parentName, typeName, typeWeight);
+            } else if (parentType.fields[node.name.value].resolveTo) {
+                // field resolves to another type in type weights or a list
+                typeName = parentType.fields[node.name.value].resolveTo;
+                typeWeight = parentType.fields[node.name.value].weight;
+                // if this is a list typeWeight is a weight function
+                // otherwise the weight would be null as the weight is defined on the typeWeights root
+                if (typeName && typeWeight) {
+                    // Type is a list and has a weight function
+                    complexity += this.calculateCost(node, parentName, typeName, typeWeight);
+                } else if (typeName) {
+                    // resolve type exists at root of typeWeight object and is not a list
+                    typeWeight = this.typeWeights[typeName].weight;
+                    complexity += this.calculateCost(node, parentName, typeName, typeWeight);
                 } else {
                     throw new Error(
-                        `ERROR: ASTParser Failed to obtain type weight for ${parentName}.${node.name.value}`
+                        `ERROR: ASTParser Failed to obtain resolved type name or weight for node: ${parentName}.${node.name.value}`
                     );
                 }
             } else {
-                throw new Error(
-                    `ERROR: ASTParser Failed to obtain type name for ${parentName}.${node.name.value}`
-                );
+                // field is a scalar
+                typeName = node.name.value;
+                if (typeName) {
+                    typeWeight = parentType.fields[typeName].weight;
+                    if (typeof typeWeight === 'number') {
+                        complexity += typeWeight;
+                    } else {
+                        throw new Error(
+                            `ERROR: ASTParser Failed to obtain type weight for ${parentName}.${node.name.value}`
+                        );
+                    }
+                } else {
+                    throw new Error(
+                        `ERROR: ASTParser Failed to obtain type name for ${parentName}.${node.name.value}`
+                    );
+                }
             }
+            return complexity;
+        } catch (err) {
+            throw new Error(
+                `ERROR: ASTParser.fieldNode Uncaught error handling ${parentName}.${
+                    node.name.value
+                }\n
+                ${err instanceof Error && err.stack}`
+            );
         }
-        return complexity;
     }
 
     selectionNode(node: SelectionNode, parentName: string): number {

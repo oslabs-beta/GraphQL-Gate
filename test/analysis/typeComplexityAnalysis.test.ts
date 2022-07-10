@@ -444,6 +444,10 @@ describe('Test getQueryTypeComplexity function', () => {
                                 },
                             },
                         },
+                        character: {
+                            weight: 1,
+                            fields: {},
+                        },
                         human: {
                             weight: 1,
                             fields: {
