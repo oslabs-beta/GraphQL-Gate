@@ -134,26 +134,14 @@ class ASTParser {
             // This is a leaf
             // need to parse fragment definition at root and get the result here
         } else if (node.kind === Kind.INLINE_FRAGMENT) {
-            // export interface InlineFragmentNode {
-            //     readonly kind: Kind.INLINE_FRAGMENT;
-            //     readonly loc?: Location;
-            //     readonly typeCondition?: NamedTypeNode;
-            //     readonly directives?: ReadonlyArray<DirectiveNode>;
-            //     readonly selectionSet: SelectionSetNode;
-            // }
-
-            // FIXME: When would typeConditoin not be present?
             const { typeCondition } = node;
-            if (!typeCondition) {
-                throw new Error(
-                    'ERROR: ASTParser.selectionNode: Inline Fragment missing type condition'
-                );
-            }
+
             // named type is the type from which inner fields should be take
-            complexity += this.selectionSetNode(
-                node.selectionSet,
-                typeCondition.name.value.toLowerCase()
-            );
+            // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
+            const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
+
+            // TODO: Handle directives like @include
+            complexity += this.selectionSetNode(node.selectionSet, namedType);
         } else {
             // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
