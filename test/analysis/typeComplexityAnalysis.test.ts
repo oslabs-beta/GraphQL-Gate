@@ -7,6 +7,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
  * 
     type Query {
         hero(episode: Episode): Character
+        heroUnion(episode: Episode): SearchResult
         reviews(episode: Episode!, first: Int): [Review]
         search(text: String): [SearchResult]
         character(id: ID!): Character
@@ -116,6 +117,9 @@ const typeWeights: TypeWeightObject = {
             },
             hero: {
                 resolveTo: 'character',
+            },
+            heroUnion: {
+                resolveTo: 'SearchResult',
             },
             search: {
                 resolveTo: 'searchresult',
@@ -345,25 +349,175 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        xtest('with inline fragments', () => {
-            query = `
-            query {
-                hero(episode: EMPIRE) {
-                    name
-                    ... on Droid {
-                        primaryFunction
-                        friends(first: 3) {
-                            name
-                        }
-                    }
-                    ... on Human {
-                        homeplanet
-                    }
-                }
-            }`;
-            mockDroidFriendsFunction.mockReturnValueOnce(3);
-            // Query 1 + hero/character 1 + 3 * friends/character 1)
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+        xdescribe('with inline fragments', () => {
+            // FIXME: Does SearchResult resolve to Character since Human and
+            // Droid implement Character? What do we see during type weight parsing
+            // FIXME: Are unions of Objects and (Scalars or Scalars and Scalars possible)
+            describe('on union types', () => {
+                test('that have a complexity of zero', () => {
+                    query = `
+                        query {
+                            heroUnion(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2);
+                });
+
+                test('that have differing complexities', () => {
+                    query = `
+                        query {
+                            heroUnion(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that contain an object and a non-zero complexity', () => {
+                    query = `
+                        query {
+                            heroUnion(episode: EMPIRE) {
+                                name
+                                friends(first: 3) {
+                                    name
+                                }
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + 3 friends/character
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that use a variable', () => {
+                    query = `
+                        query {
+                            heroUnion(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: $first) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+            });
+
+            describe('on interface types', () => {
+                test('that have a complexity of zero', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2);
+                });
+
+                test('that have differing complexities', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that contain an object and a non-zero complexity', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                friends(first: 3) {
+                                    name
+                                }
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + 3 friends/character
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that use a variable', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: $first) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+            });
         });
 
         /**
@@ -438,7 +592,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 search results
         });
 
-        // todo: directives @skip, @include and custom directives
+        // TODO: directives @skip, @include and custom directives
     });
 
     xdescribe('Calculates the correct type complexity for mutations', () => {});
