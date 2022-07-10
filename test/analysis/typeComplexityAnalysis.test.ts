@@ -119,7 +119,7 @@ const typeWeights: TypeWeightObject = {
                 resolveTo: 'character',
             },
             heroUnion: {
-                resolveTo: 'SearchResult',
+                resolveTo: 'searchresult',
             },
             search: {
                 resolveTo: 'searchresult',
