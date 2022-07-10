@@ -106,7 +106,7 @@ class ASTParser {
             // field is a scalar
             typeName = node.name.value;
             if (typeName) {
-                typeWeight = this.typeWeights[parentName].fields[typeName].weight;
+                typeWeight = parentType.fields[typeName].weight;
                 if (typeof typeWeight === 'number') {
                     complexity += typeWeight;
                 } else {
