@@ -6,7 +6,7 @@ import {
     Kind,
     SelectionNode,
 } from 'graphql';
-import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
+import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 /**
  * The AST node functions call each other following the nested structure below
  * Each function handles a specific GraphQL AST node type
@@ -40,40 +40,83 @@ class ASTParser {
         this.fragmentCache = {};
     }
 
+    private calculateCost(
+        node: FieldNode,
+        parentName: string,
+        typeName: string,
+        typeWeight: FieldWeight
+    ) {
+        let complexity = 0;
+        // field resolves to an object or a list with possible selections
+        let selectionsCost = 0;
+        let calculatedWeight = 0;
+
+        // call the function to handle selection set node with selectionSet property if it is not undefined
+        if (node.selectionSet) {
+            selectionsCost += this.selectionSetNode(node.selectionSet, typeName);
+        }
+        // if there are arguments and this is a list, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
+        if (node.arguments && typeof typeWeight === 'function') {
+            // FIXME: May never happen but what if weight is a function and arguments don't exist
+            calculatedWeight += typeWeight([...node.arguments], this.variables, selectionsCost);
+        } else {
+            calculatedWeight += this.typeWeights[typeName].weight + selectionsCost;
+        }
+        complexity += calculatedWeight;
+
+        return complexity;
+    }
+
     fieldNode(node: FieldNode, parentName: string): number {
         let complexity = 0;
-        // 'resolvedTypeName' is the name of the Schema Type that this field resolves to
-        const resolvedTypeName =
-            node.name.value in this.typeWeights
-                ? node.name.value
-                : this.typeWeights[parentName].fields[node.name.value]?.resolveTo || null;
+        const parentType = this.typeWeights[parentName];
+        if (!parentType) {
+            throw new Error(
+                `ERROR: ASTParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
+            );
+        }
+        let typeName: string | undefined;
+        let typeWeight: FieldWeight | undefined;
 
-        if (resolvedTypeName) {
-            // field resolves to an object or a list with possible selections
-            let selectionsCost = 0;
-            let calculatedWeight = 0;
-            const weightFunction = this.typeWeights[parentName]?.fields[node.name.value]?.weight;
-
-            // call the function to handle selection set node with selectionSet property if it is not undefined
-            if (node.selectionSet) {
-                selectionsCost += this.selectionSetNode(node.selectionSet, resolvedTypeName);
-            }
-            // if there are arguments and this is a list, call the 'weightFunction' to get the weight of this field. otherwise the weight is static and can be accessed through the typeWeights object
-            if (node.arguments && typeof weightFunction === 'function') {
-                calculatedWeight += weightFunction(
-                    [...node.arguments],
-                    this.variables,
-                    selectionsCost
-                );
+        if (node.name.value in this.typeWeights) {
+            // node is an object type n the typeWeight root
+            typeName = node.name.value;
+            typeWeight = this.typeWeights[typeName].weight;
+            complexity += this.calculateCost(node, parentName, typeName, typeWeight);
+        } else if (parentType.fields[node.name.value].resolveTo) {
+            // field resolves to another type in type weights or a list
+            typeName = parentType.fields[node.name.value].resolveTo;
+            typeWeight = parentType.fields[node.name.value].weight;
+            // if this is a list typeWeight is a weight function
+            // otherwise the weight would be null as the weight is defined on the typeWeights root
+            if (typeName && typeWeight) {
+                // Type is a list and has a weight function
+                complexity += this.calculateCost(node, parentName, typeName, typeWeight);
+            } else if (typeName) {
+                // resolve type exists at root of typeWeight object and is not a list
+                typeWeight = this.typeWeights[typeName].weight;
+                complexity += this.calculateCost(node, parentName, typeName, typeWeight);
             } else {
-                calculatedWeight += this.typeWeights[resolvedTypeName].weight + selectionsCost;
+                throw new Error(
+                    `ERROR: ASTParser Failed to obtain resolved type name or weight for node: ${parentName}.${node.name.value}`
+                );
             }
-            complexity += calculatedWeight;
         } else {
-            // field is a scalar and 'weight' is a number
-            const { weight } = this.typeWeights[parentName].fields[node.name.value];
-            if (typeof weight === 'number') {
-                complexity += weight;
+            // field is a scalar
+            typeName = node.name.value;
+            if (typeName) {
+                typeWeight = this.typeWeights[parentName].fields[typeName].weight;
+                if (typeof typeWeight === 'number') {
+                    complexity += typeWeight;
+                } else {
+                    throw new Error(
+                        `ERROR: ASTParser Failed to obtain type weight for ${parentName}.${node.name.value}`
+                    );
+                }
+            } else {
+                throw new Error(
+                    `ERROR: ASTParser Else Failed to obtain type name for ${parentName}.${node.name.value}`
+                );
             }
         }
         return complexity;
@@ -84,13 +127,17 @@ class ASTParser {
         // check the kind property against the set of selection nodes that are possible
         if (node.kind === Kind.FIELD) {
             // call the function that handle field nodes
-            complexity += this.fieldNode(node, parentName);
+            complexity += this.fieldNode(node, parentName.toLowerCase());
         } else if (node.kind === Kind.FRAGMENT_SPREAD) {
             complexity += this.fragmentCache[node.name.value];
             // This is a leaf
             // need to parse fragment definition at root and get the result here
+        } else if (node.kind === Kind.INLINE_FRAGMENT) {
+            throw new Error('ERROR: ASTParser.selectionNode: INLINE_FRAGMENTS not supported');
+        } else {
+            // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
+            throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
-        // TODO: add checks for Kind.FRAGMENT_SPREAD and Kind.INLINE_FRAGMENT here
         return complexity;
     }
 
@@ -121,35 +168,27 @@ class ASTParser {
             }
         } else if (node.kind === Kind.FRAGMENT_DEFINITION) {
             // Fragments can only be defined on the root type.
-            // Parse the complexity of this fragment and store it for use when analyzing other
-            // nodes. Only need to parse fragment complexity once
-            // When analyzing the complexity of a query using a fragment the complexity of the
-            // fragment should be added to the selection cost for the query.
-
-            // interface FragmentDefinitionNode {
-            //     readonly kind: Kind.FRAGMENT_DEFINITION;
-            //     readonly loc?: Location;
-            //     readonly name: NameNode;
-            //     /** @deprecated variableDefinitions will be removed in v17.0.0 */
-            //     readonly variableDefinitions?: ReadonlyArray<VariableDefinitionNode>;
-            //     readonly typeCondition: NamedTypeNode;
-            //     readonly directives?: ReadonlyArray<DirectiveNode>;
-            //     readonly selectionSet: SelectionSetNode;
-            // }
-            // TODO: Handle variables or at least add tests for fragments containing variables
+            // Parse the complexity of this fragment once and store it for use when analyzing other
+            // nodes. The complexity of a fragment can be added to the selection cost for the query.
             const namedType = node.typeCondition.name.value;
-            // Duplicate fragment names are now allowed by the GrapQL spec and an error is thrown if used.
+            // Duplicate fragment names are not allowed by the GraphQL spec and an error is thrown if used.
             const fragmentName = node.name.value;
+
             if (this.fragmentCache[fragmentName]) return this.fragmentCache[fragmentName];
 
             const fragmentComplexity = this.selectionSetNode(
                 node.selectionSet,
                 namedType.toLowerCase()
             );
+
             this.fragmentCache[fragmentName] = fragmentComplexity;
-            return complexity; // 0. Don't count complexity here. Only when fragment is used.
+            return complexity; // Don't count complexity here. Only when fragment is used.
+        } else {
+            // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
+            // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
+            // TypeSystemExtensionNode(Schema, Type);
+            throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
         }
-        // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
         return complexity;
     }
 
