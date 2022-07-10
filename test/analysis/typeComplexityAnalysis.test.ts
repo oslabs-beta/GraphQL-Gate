@@ -99,133 +99,145 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
     to character, human and droid
 */
 
-const mockWeightFunction = jest.fn();
-const mockHumanFriendsFunction = jest.fn();
-const mockDroidFriendsFunction = jest.fn();
-const mockCharacterFriendsFunction = jest.fn();
-const nonNullMockWeightFunction = jest.fn();
+// Mocks typed with <result, arg array>
+let mockWeightFunction: jest.Mock<number, []>;
+let mockHumanFriendsFunction: jest.Mock<number, []>;
+let mockDroidFriendsFunction: jest.Mock<number, []>;
+let mockCharacterFriendsFunction: jest.Mock<number, []>;
+let nonNullMockWeightFunction: jest.Mock<number, []>;
 
 // this object is created by the schema above for use in all the tests below
-const typeWeights: TypeWeightObject = {
-    query: {
-        // object type
-        weight: 1,
-        fields: {
-            reviews: {
-                resolveTo: 'review',
-                weight: mockWeightFunction,
-            },
-            hero: {
-                resolveTo: 'character',
-            },
-            heroUnion: {
-                resolveTo: 'searchresult',
-            },
-            search: {
-                resolveTo: 'searchresult',
-                weight: jest.fn(), // FIXME: Unbounded list result
-            },
-            character: {
-                resolveTo: 'character',
-            },
-            droid: {
-                resolveTo: 'droid',
-            },
-            human: {
-                resolveTo: 'human',
-            },
-            scalars: {
-                resolveTo: 'scalars',
-            },
-            nonNull: {
-                resolveTo: 'droid',
-                weight: nonNullMockWeightFunction,
-            },
-        },
-    },
-    episode: {
-        // enum
-        weight: 0,
-        fields: {},
-    },
-    character: {
-        // interface
-        weight: 1,
-        fields: {
-            id: { weight: 0 },
-            name: { weight: 0 },
-            appearsIn: { resolveTo: 'episode' },
-            friends: {
-                resolveTo: 'character',
-                weight: mockCharacterFriendsFunction,
-            },
-            scalarList: {
-                weight: 0,
-            },
-        },
-    },
-    human: {
-        // implements an interface
-        weight: 1,
-        fields: {
-            id: { weight: 0 },
-            name: { weight: 0 },
-            appearsIn: { resolveTo: 'episode' },
-            homePlanet: { weight: 0 },
-            friends: {
-                resolveTo: 'character',
-                weight: mockHumanFriendsFunction,
-            },
-        },
-    },
-    droid: {
-        // implements an interface
-        weight: 1,
-        fields: {
-            id: { weight: 0 },
-            name: { weight: 0 },
-            appearsIn: { resolveTo: 'episode' },
-            primaryFunction: { weight: 0 },
-            friends: {
-                resolveTo: 'character',
-                weight: mockDroidFriendsFunction,
-            },
-        },
-    },
-    review: {
-        weight: 1,
-        fields: {
-            episode: { resolveTo: 'episode' },
-            stars: { weight: 0 },
-            commentary: { weight: 0 },
-        },
-    },
-    searchresult: {
-        // union type
-        weight: 1,
-        fields: {},
-    },
-    scalars: {
-        weight: 1, // object weight is 1, all scalar feilds have weight 0
-        fields: {
-            num: { weight: 0 },
-            id: { weight: 0 },
-            float: { weight: 0 },
-            bool: { weight: 0 },
-            string: { weight: 0 },
-            test: { resolveTo: 'test' },
-        },
-    },
-    test: {
-        weight: 1,
-        fields: {
-            name: { weight: 0 },
-            scalars: { resolveTo: 'scalars' },
-        },
-    },
-};
+let typeWeights: TypeWeightObject;
 
 describe('Test getQueryTypeComplexity function', () => {
+    beforeEach(() => {
+        // Reset mocks before each test to avoid errors when running tests in parallel
+        mockWeightFunction = jest.fn();
+        mockHumanFriendsFunction = jest.fn();
+        mockDroidFriendsFunction = jest.fn();
+        mockCharacterFriendsFunction = jest.fn();
+        nonNullMockWeightFunction = jest.fn();
+
+        typeWeights = {
+            query: {
+                // object type
+                weight: 1,
+                fields: {
+                    reviews: {
+                        resolveTo: 'review',
+                        weight: mockWeightFunction,
+                    },
+                    hero: {
+                        resolveTo: 'character',
+                    },
+                    heroUnion: {
+                        resolveTo: 'searchresult',
+                    },
+                    search: {
+                        resolveTo: 'searchresult',
+                        weight: jest.fn(), // FIXME: Unbounded list result
+                    },
+                    character: {
+                        resolveTo: 'character',
+                    },
+                    droid: {
+                        resolveTo: 'droid',
+                    },
+                    human: {
+                        resolveTo: 'human',
+                    },
+                    scalars: {
+                        resolveTo: 'scalars',
+                    },
+                    nonNull: {
+                        resolveTo: 'droid',
+                        weight: nonNullMockWeightFunction,
+                    },
+                },
+            },
+            episode: {
+                // enum
+                weight: 0,
+                fields: {},
+            },
+            character: {
+                // interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockCharacterFriendsFunction,
+                    },
+                    scalarList: {
+                        weight: 0,
+                    },
+                },
+            },
+            human: {
+                // implements an interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    homePlanet: { weight: 0 },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockHumanFriendsFunction,
+                    },
+                },
+            },
+            droid: {
+                // implements an interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    primaryFunction: { weight: 0 },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockDroidFriendsFunction,
+                    },
+                },
+            },
+            review: {
+                weight: 1,
+                fields: {
+                    episode: { resolveTo: 'episode' },
+                    stars: { weight: 0 },
+                    commentary: { weight: 0 },
+                },
+            },
+            searchresult: {
+                // union type
+                weight: 1,
+                fields: {},
+            },
+            scalars: {
+                weight: 1, // object weight is 1, all scalar feilds have weight 0
+                fields: {
+                    num: { weight: 0 },
+                    id: { weight: 0 },
+                    float: { weight: 0 },
+                    bool: { weight: 0 },
+                    string: { weight: 0 },
+                    test: { resolveTo: 'test' },
+                },
+            },
+            test: {
+                weight: 1,
+                fields: {
+                    name: { weight: 0 },
+                    scalars: { resolveTo: 'scalars' },
+                },
+            },
+        };
+    });
+
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -318,7 +330,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         name
                     }
                 }`;
-                mockCharacterFriendsFunction.mockReturnValue(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 variables = { first: 3 };
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
                 expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
@@ -342,7 +354,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         name
                     }
                 }`;
-                mockCharacterFriendsFunction.mockReturnValue(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 variables = { first: 3 };
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
                 expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
@@ -405,7 +417,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
                     // Query 1 + 1 hero + 3 friends/character
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
@@ -489,7 +501,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + 3 friends/character
                     mockHumanFriendsFunction.mockReturnValueOnce(3);
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
@@ -511,7 +523,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    mockDroidFriendsFunction.mockReturnValue(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
                     // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
