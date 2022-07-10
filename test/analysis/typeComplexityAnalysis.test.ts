@@ -761,7 +761,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     mockHumanFriendsFunction.mockReturnValueOnce(2);
                     // Query 1 + 1 hero + ...Character 3 + ...Human 2 = 7
-                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(5);
+                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(7);
                 });
             });
         });
