@@ -25,8 +25,9 @@ export interface RedisBucket {
 
 export interface RedisWindow {
     currentTokens: number;
-    previousTokens: number;
-    fixedWindowStart: number;
+    // null if limiter is currently on the initial fixed window
+    previousTokens: number | null;
+    fixedWindowStart?: number;
 }
 
 export type RateLimiterSelection =

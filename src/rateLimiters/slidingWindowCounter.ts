@@ -25,9 +25,9 @@ class SlidingWindowCounter implements RateLimiter {
 
     /**
      * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
-     * @param windowSize size of each window in milliseconds (fixed and rolling)
-     * @param capacity max capacity of tokens allowed per fixed window
-     * @param client redis client where rate limiter will cache information
+     * @param windowSize - size of each window in milliseconds (fixed and rolling)
+     * @param capacity - max capacity of tokens allowed per fixed window
+     * @param client - redis client where rate limiter will cache information
      */
     constructor(windowSize: number, capacity: number, client: Redis) {
         this.windowSize = windowSize;
@@ -38,7 +38,29 @@ class SlidingWindowCounter implements RateLimiter {
     }
 
     /**
+     * @function processRequest - current timestamp and number of tokens required for
+     * the request to go through are passed in. We first check if a window exists in the redis
+     * cache.
      *
+     * If not, then fixedWindowStart is set as the current timestamp, and currentTokens
+     * is checked against capacity. If we have enough capacity for the request, we return
+     * success as true and tokens as how many tokens remain in the current fixed window.
+     *
+     * If a window does exist in the cache, we first check if the timestamp is greater than
+     * the fixedWindowStart + windowSize.
+     *
+     * If it isn't then we check the number of tokens in the arguments as well as in the cache
+     * against the capacity and return success or failure from there while updating the cache.
+     *
+     * If the timestamp is over the windowSize beyond the fixedWindowStart, then we update fixedWindowStart
+     * to be fixedWindowStart + windowSize (to create a new fixed window) and
+     * make previousTokens = currentTokens, and currentTokens equal to the number of tokens in args, if
+     * not over capacity.
+     *
+     * Once previousTokens is not null, we then run functionality using the rolling window to compute
+     * the formula this entire limiting algorithm is distinguished by:
+     *
+     * currentTokens + previousTokens * overlap % of rolling window over previous fixed window
      *
      * @param {string} uuid - unique identifer used to throttle requests
      * @param {number} timestamp - time the request was recieved
