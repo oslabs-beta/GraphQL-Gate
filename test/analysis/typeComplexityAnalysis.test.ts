@@ -414,7 +414,7 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        describe('with inline fragments', () => {
+        xdescribe('with inline fragments', () => {
             describe('on union types', () => {
                 let unionTypeWeights: TypeWeightObject;
                 beforeAll(() => {
