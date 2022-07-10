@@ -36,6 +36,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         name: String!
         homePlanet: String
         friends(first: Int): [Character]
+        humanFriends(first: Int): [Human]
         appearsIn: [Episode]!
     }
 
@@ -171,6 +172,10 @@ describe('Test getQueryTypeComplexity function', () => {
                         resolveTo: 'character',
                         weight: mockCharacterFriendsFunction,
                     },
+                    humanFriends: {
+                        resolveTo: 'human',
+                        weight: mockHumanFriendsFunction,
+                    },
                     scalarList: {
                         weight: 0,
                     },
@@ -186,6 +191,10 @@ describe('Test getQueryTypeComplexity function', () => {
                     homePlanet: { weight: 0 },
                     friends: {
                         resolveTo: 'character',
+                        weight: mockHumanFriendsFunction,
+                    },
+                    humanFriends: {
+                        resolveTo: 'human',
                         weight: mockHumanFriendsFunction,
                     },
                 },
@@ -697,7 +706,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             hero(episode: EMPIRE) {
                                 ... {
                                     name
-                                    ScalarList(first: 1)
+                                    scalarList(first: 1)
                                     friends(first: 3) {
                                         name
                                     }
