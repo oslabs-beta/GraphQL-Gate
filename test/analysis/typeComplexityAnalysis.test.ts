@@ -359,6 +359,50 @@ describe('Test getQueryTypeComplexity function', () => {
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
                 expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
             });
+
+            test('recalculates fragment complexity for individual queries', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: 3) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + 0 selectionCost)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+            });
         });
 
         xdescribe('with inline fragments', () => {
