@@ -36,6 +36,7 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         name: String!
         homePlanet: String
         friends(first: Int): [Character]
+        humanFriends(first: Int): [Human]
         appearsIn: [Episode]!
     }
 
@@ -186,6 +187,10 @@ describe('Test getQueryTypeComplexity function', () => {
                     homePlanet: { weight: 0 },
                     friends: {
                         resolveTo: 'character',
+                        weight: mockHumanFriendsFunction,
+                    },
+                    humanFriends: {
+                        resolveTo: 'human',
                         weight: mockHumanFriendsFunction,
                     },
                 },
