@@ -405,8 +405,8 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        xdescribe('with inline fragments', () => {
-            describe('on union types', () => {
+        describe('with inline fragments', () => {
+            xdescribe('on union types', () => {
                 test('that have a complexity of zero', () => {
                     query = `
                         query {
