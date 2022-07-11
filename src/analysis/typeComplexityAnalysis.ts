@@ -1,6 +1,6 @@
 import { DocumentNode } from 'graphql';
 import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
-import ASTParser from './ASTParser';
+import ASTParser from './ASTnodefunctions';
 
 /**
  * Calculate the complexity for the query by recursivly traversing through the query AST,
