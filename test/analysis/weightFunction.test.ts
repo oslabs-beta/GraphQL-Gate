@@ -18,8 +18,10 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         type Query {
             reviews(episode: Episode!, first: Int = 5): [Review]
             heroes(episode: Episode!, first: Int): [Review]
-            villains(episode: Episode!, limit: Int! = 3): [Review] 
-            characters(episode: Episode!, limit: Int!): [Review] 
+            villains(episode: Episode!, limit: Int! = 3): [Review]! 
+            characters(episode: Episode!, limit: Int!): [Review!]
+            droids(episode: Episode!, limit: Int!): [Review!]!
+            
         }
         type Review {
             episode: Episode
@@ -80,6 +82,20 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(8);
         });
+    });
+
+    xtest('the list is defined with non-null operators (!)', () => {
+        const villainsQuery = `query { villains(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const willainsQueryAST: DocumentNode = parse(villainsQuery);
+        expect(getQueryTypeComplexity(willainsQueryAST, {}, typeWeights)).toBe(4);
+
+        const charQuery = `query { characters(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const charQueryAST: DocumentNode = parse(charQuery);
+        expect(getQueryTypeComplexity(charQueryAST, {}, typeWeights)).toBe(4);
+
+        const droidsQuery = `droidsQuery { droids(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const droidsQueryAST: DocumentNode = parse(droidsQuery);
+        expect(getQueryTypeComplexity(droidsQueryAST, {}, typeWeights)).toBe(4);
     });
 
     test('a custom object weight was configured', () => {

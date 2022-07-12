@@ -489,6 +489,103 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        xdescribe('Not null operator (!) is used', () => {
+            test('on a scalar, enum or object type', () => {
+                schema = buildSchema(`
+                type Human{
+                    homePlanet: String!
+                    age: Int!
+                    isHero: Boolean!
+                    droids: Droid!
+                    episode: Episode!
+                }
+                type Droid {
+                    primaryFunction: String
+                }
+                enum Episode {
+                    NEWHOPE
+                    EMPIRE
+                    JEDI
+                }
+                `);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            homePlanet: {
+                                weight: 0,
+                            },
+                            age: {
+                                weight: 0,
+                            },
+                            isHero: {
+                                weight: 0,
+                            },
+                            droids: {
+                                resolveTo: 'droid',
+                            },
+                            episode: {
+                                resolveTo: 'episode',
+                            },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            primaryFunction: {
+                                weight: 0,
+                            },
+                        },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
+                    },
+                });
+            });
+
+            test('on list types', () => {
+                schema = buildSchema(`
+                type Planet{
+                    droids(first: Int!): [Droid]!
+                    heroDroids(first: Int!): [Droid!]
+                    villainDroids(first: Int!):[Droid!]!
+                }
+                type Droid {
+                    primaryFunction: String
+                }`);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    planet: {
+                        weight: 1,
+                        fields: {
+                            droids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            heroDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                            villainDroids: {
+                                resolveTo: 'droid',
+                                weight: expect.any(Function),
+                            },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            primaryFunction: {
+                                weight: 0,
+                            },
+                        },
+                    },
+                });
+            });
+        });
+
         // TODO: Tests should be written to account for the additional scenarios possible in a schema
         // Mutation type
         // Input types (a part of mutations?)
