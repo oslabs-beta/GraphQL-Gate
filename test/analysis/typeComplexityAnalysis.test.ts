@@ -512,7 +512,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
-                    mockHumanFriendsFunction.mockReturnValueOnce(3);
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
                         5
                     );
