@@ -522,6 +522,12 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                             isHero: {
                                 weight: 0,
                             },
+                            droids: {
+                                resolveTo: 'droid',
+                            },
+                            episode: {
+                                resolveTo: 'episode',
+                            },
                         },
                     },
                     droid: {
@@ -531,6 +537,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                                 weight: 0,
                             },
                         },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
                     },
                 });
             });
@@ -571,10 +581,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                                 weight: 0,
                             },
                         },
-                    },
-                    episode: {
-                        weight: 0,
-                        fields: {},
                     },
                 });
             });
