@@ -464,26 +464,37 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             schema = buildSchema(`
                 union SearchResult = Human | Droid
                 type Human{
+                    name: String
                     homePlanet: String
+                    search(first: Int!): [SearchResult]
                 }
                 type Droid {
+                    name: String
                     primaryFunction: String
+                    search(first: Int!): [SearchResult]
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
                 searchresult: {
                     weight: 1,
-                    fields: {},
+                    fields: {
+                        name: { weight: 0 },
+                        search: { resolveTo: 'searchresult' },
+                    },
                 },
                 human: {
                     weight: 1,
                     fields: {
+                        name: { weight: 0 },
                         homePlanet: { weight: 0 },
+                        search: { resolveTo: 'searchresult' },
                     },
                 },
                 droid: {
                     weight: 1,
                     fields: {
+                        name: { weight: 0 },
                         primaryFunction: { weight: 0 },
+                        search: { resolveTo: 'searchresult' },
                     },
                 },
             });
