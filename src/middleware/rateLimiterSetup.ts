@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterOptions, RateLimiterSelection } from '../../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
 /**

@@ -1,5 +1,5 @@
 import * as ioredis from 'ioredis';
-import { RedisBucket } from '../../src/@types/rateLimit';
+import { RedisBucket } from '../../@types/rateLimit';
 import TokenBucket from '../../src/rateLimiters/tokenBucket';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -154,7 +154,7 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test("blocks requests exceeding the user's current allotment of tokens", async () => {
-            // Test > capacity tokens reqeusted
+            // Test > capacity tokens requested
             expect((await limiter.processRequest(user1, timestamp, CAPACITY + 1)).success).toBe(
                 false
             );

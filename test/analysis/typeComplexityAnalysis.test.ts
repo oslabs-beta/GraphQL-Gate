@@ -1,6 +1,6 @@
 import { parse } from 'graphql';
 import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
-import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
+import { TypeWeightObject, Variables } from '../../@types/buildTypeWeights';
 
 /** 
  * Here is the schema that creates the followning 'typeWeightsObject' used for the tests

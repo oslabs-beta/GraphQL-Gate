@@ -19,7 +19,7 @@ import {
 import { Maybe } from 'graphql/jsutils/Maybe';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
-import { TypeWeightConfig, TypeWeightObject } from '../@types/buildTypeWeights';
+import { TypeWeightConfig, TypeWeightObject } from '../../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
