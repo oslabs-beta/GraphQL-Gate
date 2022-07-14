@@ -27,7 +27,7 @@ import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/express
  * FIXME: How about the specific GraphQLError?
  * @throws ValidationError if GraphQL Schema is invalid.
  */
-export default function expressRateLimiter(
+export default function expressGraphQLRateLimiter(
     schema: GraphQLSchema,
     middlewareConfig: ExpressMiddlewareConfig
 ): RequestHandler {

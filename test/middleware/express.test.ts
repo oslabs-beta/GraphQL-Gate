@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
 import * as ioredis from 'ioredis';
-
-import { expressRateLimiter as expressRateLimitMiddleware } from '../../src/middleware/index';
+import expressGraphQLRateLimiter from '../../src/middleware/index';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');
@@ -69,7 +68,7 @@ const schema: GraphQLSchema = buildSchema(`
 
 xdescribe('Express Middleware tests', () => {
     describe('Middleware is configurable...', () => {
-        describe('...successfully connects to redis using standard connection options', () => {
+        xdescribe('...successfully connects to redis using standard connection options', () => {
             beforeEach(() => {
                 // TODO: Setup mock redis store.
             });
@@ -97,18 +96,19 @@ xdescribe('Express Middleware tests', () => {
             test('... Token Bucket', () => {
                 // FIXME: Is it possible to check which algorithm was chosen beyond error checking?
                 expect(
-                    expressRateLimitMiddleware(
-                        'TOKEN_BUCKET',
-                        { refillRate: 1, bucketSize: 10 },
-                        schema,
-                        { path: '' }
-                    )
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'TOKEN_BUCKET',
+                            options: { refillRate: 1, bucketSize: 10 },
+                        },
+                        redis: { path: '' },
+                    })
                 ).not.toThrow();
             });
 
             xtest('...Leaky Bucket', () => {
                 expect(
-                    expressRateLimitMiddleware(
+                    expressGraphQLRateLimiter(
                         'LEAKY_BUCKET',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
@@ -119,7 +119,7 @@ xdescribe('Express Middleware tests', () => {
 
             xtest('...Fixed Window', () => {
                 expect(
-                    expressRateLimitMiddleware(
+                    expressGraphQLRateLimiter(
                         'FIXED_WINDOW',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
@@ -130,7 +130,7 @@ xdescribe('Express Middleware tests', () => {
 
             xtest('...Sliding Window', () => {
                 expect(
-                    expressRateLimitMiddleware(
+                    expressGraphQLRateLimiter(
                         'SLIDING_WINDOW_LOG',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
@@ -141,7 +141,7 @@ xdescribe('Express Middleware tests', () => {
 
             xtest('...Sliding Window Counter', () => {
                 expect(
-                    expressRateLimitMiddleware(
+                    expressGraphQLRateLimiter(
                         'SLIDING_WINDOW_COUNTER',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         schema,
@@ -155,13 +155,13 @@ xdescribe('Express Middleware tests', () => {
             const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
             expect(
-                expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
+                expressGraphQLRateLimiter('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
             ).toThrowError('ValidationError');
         });
 
         test('Throw an error in unable to connect to redis', () => {
             expect(
-                expressRateLimitMiddleware(
+                expressGraphQLRateLimiter(
                     'TOKEN_BUCKET',
                     { bucketSize: 10, refillRate: 1 },
                     schema,
@@ -184,7 +184,7 @@ xdescribe('Express Middleware tests', () => {
         });
 
         beforeEach(() => {
-            middleware = expressRateLimitMiddleware(
+            middleware = expressGraphQLRateLimiter(
                 'TOKEN_BUCKET',
                 { refillRate: 1, bucketSize: 10 },
                 schema,
