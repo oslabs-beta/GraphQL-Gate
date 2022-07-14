@@ -502,6 +502,9 @@ describe('Test getQueryTypeComplexity function', () => {
                                 name
                                 ... on Droid {
                                     primaryFunction
+                                    friends(first: 1) {
+                                        name
+                                    }
                                 }
                                 ... on Human {
                                     homePlanet
@@ -511,8 +514,9 @@ describe('Test getQueryTypeComplexity function', () => {
                                 }
                             }
                         }`;
-                    // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    // Query 1 + 1 hero + max(Droid 2, Human 3) = 5
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(1);
                     expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
                         5
                     );
@@ -655,6 +659,9 @@ describe('Test getQueryTypeComplexity function', () => {
                                 name
                                 ... on Droid {
                                     primaryFunction
+                                    friends(first: 2) {
+                                        name
+                                    }
                                 }
                                 ... on Human {
                                     homePlanet
@@ -666,6 +673,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
                     mockHumanFriendsFunction.mockReturnValueOnce(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(2);
                     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
                 });
 
