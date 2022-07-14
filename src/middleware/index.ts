@@ -72,19 +72,10 @@ export default function expressRateLimiter(
             console.log('There is no query on the request');
             return next();
         }
-        /**
-         * There are numorous ways to get the ip address off of the request object.
-         * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
-         * - req.ips wwill hold an array of ip addresses in'x-forward-for' header. client is likely at index zero
-         * - req.ip will have the ip address
-         * - req.socket.remoteAddress is an insatnce of net.socket which is used as another method of getting the ip address
-         *
-         * req.ip and req.ips will worx in express but not with other frameworks
-         */
+
         // check for a proxied ip address before using the ip address on request
         const ip: string = req.ips[0] || req.ip;
 
-        // FIXME: this will only work with type complexity
         const queryAST = parse(query);
         // validate the query against the schema. The GraphQL validation function returns an array of errors.
         const validationErrors = validate(schema, queryAST);
@@ -96,8 +87,8 @@ export default function expressRateLimiter(
 
         const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
         try {
-            // process the request and conditinoally respond to client with status code 429 o
-            // r pass the request onto the next middleware function
+            // process the request and conditinoally respond to client with status code 429 or
+            // pass the request onto the next middleware function
             const rateLimiterResponse = await rateLimiter.processRequest(
                 ip,
                 requestTimestamp,
@@ -111,18 +102,20 @@ export default function expressRateLimiter(
                 depth: null,
             };
             if (!rateLimiterResponse.success) {
-                // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
-                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                const timeToWaitInSec =
+                // calculate the time the client should wait to send anouther query by comparing
+                // the differnce between tokens and complexity and multipying by the refill rate
+                const timeToWaitInMs =
                     Math.abs(rateLimiterResponse.tokens - queryComplexity) *
-                    middlewareSetup.rateLimiter.options.refillRate;
+                    middlewareSetup.rateLimiter.options.refillRate *
+                    1000;
                 return res
                     .status(429)
-                    .set('Retry-After', `${timeToWaitInSec * 1000}`)
+                    .set('Retry-After', `${timeToWaitInMs}`)
                     .json(res.locals.graphqlgate);
             }
             return next();
         } catch (err) {
+            // todo: refactor error handling
             return next(err);
         }
     };
