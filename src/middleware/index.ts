@@ -8,6 +8,8 @@ import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
 import { TypeWeightConfig } from '../@types/buildTypeWeights';
+import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
+import TokenBucket from '../rateLimiters/tokenBucket';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema
@@ -15,33 +17,47 @@ import { TypeWeightConfig } from '../@types/buildTypeWeights';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
- * @param {RateLimiterSelection} rateLimiter Specify rate limiting algorithm to be used
- * @param {RateLimiterOptions} options Specify the appropriate options for the selected rateLimiter
  * @param {GraphQLSchema} schema GraphQLSchema object
- * @param {RedisClientOptions} RedisOptions ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
- * @param {TypeWeightConfig} typeWeightConfig Optional type weight configuration for the GraphQL Schema.
- * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
+ * @param {ExpressMiddlewareConfig} middlewareConfig
+ *  - One parameter to configure redis client, typeWeights and rate limiting parameters
+ *      - Ratelimiter is required in the setup of the middleware. Developers must explicitly specify this
+ *      - ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
+ *      - Optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
+ *      - "dark: true" will allow the developer to run the package in "dark mode" to monitor queries and rate limiting data without before implementing rate limitng functionality
+ *      - "enforceBoundedLists: true" will throw an error if any lists in the schema are not limited by slicing arguments
+ *              - ** not implemented **
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
  * FIXME: How about the specific GraphQLError?
  * @throws ValidationError if GraphQL Schema is invalid.
  */
-export function expressRateLimiter(
-    rateLimiterAlgo: RateLimiterSelection,
-    rateLimiterOptions: RateLimiterOptions,
+export default function expressRateLimiter(
     schema: GraphQLSchema,
-    redisClientOptions: RedisOptions,
-    typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig
+    middlewareConfig: ExpressMiddlewareConfig
 ): RequestHandler {
+    /**
+     * Setup the middleware configuration with a passed in and default values
+     */
+    const middlewareSetup: ExpressMiddlewareSet = {
+        rateLimiter: middlewareConfig.rateLimiter,
+        typeWeights: { ...defaultTypeWeightsConfig, ...middlewareConfig.typeWeights },
+        redis: middlewareConfig.redis || {},
+        dark: middlewareConfig.dark || false,
+        enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
+    };
     /**
      * build the type weight object, create the redis client and instantiate the ratelimiter
      * before returning the express middleware that calculates query complexity and throttles the requests
      */
     // TODO: Throw ValidationError if schema is invalid
-    const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
+    const typeWeightObject = buildTypeWeightsFromSchema(schema, middlewareSetup.typeWeights);
     // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis(redisClientOptions); // Default port is 6379 automatically
-    const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
+    const redisClient = new Redis(middlewareSetup.redis); // Default port is 6379 automatically
+    const rateLimiter = setupRateLimiter(
+        middlewareSetup.rateLimiter.type,
+        middlewareSetup.rateLimiter.options,
+        redisClient
+    );
 
     // return the rate limiting middleware
     return async (
@@ -103,5 +119,3 @@ export function expressRateLimiter(
         }
     };
 }
-
-export default expressRateLimiter;
