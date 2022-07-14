@@ -103,16 +103,18 @@ export default function expressRateLimiter(
                 requestTimestamp,
                 queryComplexity
             );
-            if (!rateLimiterResponse.success) {
-                // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
-                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                return res.status(429).json({ graphqlGate: rateLimiterResponse });
-            }
             res.locals.graphqlGate = {
                 timestamp: requestTimestamp,
                 complexity: queryComplexity,
                 tokens: rateLimiterResponse.tokens,
+                success: rateLimiterResponse.success,
+                depth: null,
             };
+            if (!rateLimiterResponse.success) {
+                // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
+                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
+                return res.status(429).json(res.locals.graphqlgate);
+            }
             return next();
         } catch (err) {
             return next(err);
