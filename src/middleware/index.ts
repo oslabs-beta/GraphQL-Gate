@@ -113,7 +113,13 @@ export default function expressRateLimiter(
             if (!rateLimiterResponse.success) {
                 // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
                 // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                return res.status(429).json(res.locals.graphqlgate);
+                const timeToWaitInSec =
+                    Math.abs(rateLimiterResponse.tokens - queryComplexity) *
+                    middlewareSetup.rateLimiter.options.refillRate;
+                return res
+                    .status(429)
+                    .set('Retry-After', `${timeToWaitInSec * 1000}`)
+                    .json(res.locals.graphqlgate);
             }
             return next();
         } catch (err) {
