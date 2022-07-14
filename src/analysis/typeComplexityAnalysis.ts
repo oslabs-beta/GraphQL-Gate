@@ -1,5 +1,5 @@
 import { DocumentNode } from 'graphql';
-import { TypeWeightObject, Variables } from '../../@types/buildTypeWeights';
+import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 import { documentNode } from './ASTnodefunctions';
 
 /**

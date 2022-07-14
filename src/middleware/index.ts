@@ -6,8 +6,8 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
-import { RateLimiterOptions, RateLimiterSelection } from '../../@types/rateLimit';
-import { TypeWeightConfig } from '../../@types/buildTypeWeights';
+import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { TypeWeightConfig } from '../@types/buildTypeWeights';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema

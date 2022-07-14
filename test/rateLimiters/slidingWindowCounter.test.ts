@@ -1,5 +1,5 @@
 import * as ioredis from 'ioredis';
-import { RedisWindow } from '../../@types/rateLimit';
+import { RedisWindow } from '../../src/@types/rateLimit';
 import SlidingWindowCounter from '../../src/rateLimiters/slidingWindowCounter';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
