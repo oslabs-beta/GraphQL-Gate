@@ -91,6 +91,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user4, 10, null, timestamp);
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
+
                 expect(
                     (await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 1)).tokens
                 ).toBe(0); // here, we expect the rolling window to only allow 1 token, b/c
@@ -199,8 +200,8 @@ describe('Test TokenBucket Rate Limiter', () => {
                     (await limiter.processRequest(user2, timestamp + WINDOW_SIZE, 5)).tokens
                 ).toBe(CAPACITY - initRequest);
 
-                // expect current tokens in the window to still be 0
-                expect((await getWindowFromClient(client, user2)).currentTokens).toBe(0);
+                // expect current tokens in the window to still be 6
+                expect((await getWindowFromClient(client, user2)).currentTokens).toBe(6);
             });
 
             // 3 rolling window tests with different proportions (.25, .5, .75)
@@ -276,7 +277,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
             const count = await getWindowFromClient(client, user4);
-            expect(count.currentTokens).toBe(4);
+            expect(count.currentTokens).toBe(0);
             expect(count.previousTokens).toBe(initRequest);
         });
     });
@@ -321,20 +322,19 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('fixed window and current/previous tokens update as expected', async () => {
-            await setTokenCountInClient(client, user1, 0, null, timestamp);
-            // fills first window with 4 tokens
+            // fills first window with 5 tokens
             await limiter.processRequest(user1, timestamp, 5);
-            // fills second window with 5 tokens
+            // fills second window with 4 tokens
             expect(
                 await (
                     await limiter.processRequest(user1, timestamp + WINDOW_SIZE + 1, 4)
                 ).tokens
-            ).toBe(6);
+            ).toBe(2);
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
-            const count = await getWindowFromClient(client, user4);
+            const count = await getWindowFromClient(client, user1);
             // ensures that fixed window is updated when a request goes over
-            expect(count.fixedWindowStart).toBe(timestamp + WINDOW_SIZE);
+            expect(count.fixedWindowStart).toBe(timestamp + WINDOW_SIZE + 1);
             // ensures that previous tokens property updates on fixed window change
             expect(count.previousTokens).toBe(5);
             // ensures that current tokens only represents tokens from current window requests
@@ -348,10 +348,11 @@ describe('Test TokenBucket Rate Limiter', () => {
 
             await newLimiter.processRequest(user1, timestamp, 8);
 
-            // expect that a new window is entered, leaving 9 tokens available after a 1 token request
+            // expect that a new window is entered, leaving 2 tokens available after both requests
+            // 8 * .99 -> 7 (floored) + 1 = 8
             expect(
                 (await newLimiter.processRequest(user1, timestamp + newWindowSize + 1, 1)).tokens
-            ).toBe(9);
+            ).toBe(2);
         });
 
         test('sliding window allows custom capacities', async () => {

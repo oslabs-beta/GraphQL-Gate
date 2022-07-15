@@ -91,14 +91,14 @@ class SlidingWindowCounter implements RateLimiter {
                 fixedWindowStart: timestamp,
             };
 
-            if (tokens > this.capacity) {
+            if (tokens <= this.capacity) {
                 await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-                // tokens property represents how much capacity remains
-                return { success: false, tokens: this.capacity };
+                return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
             }
 
             await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-            return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
+            // tokens property represents how much capacity remains
+            return { success: false, tokens: this.capacity };
         }
 
         // if the cache is populated
@@ -112,45 +112,44 @@ class SlidingWindowCounter implements RateLimiter {
         };
 
         // if request time is in a new window
-        if (timestamp > window.fixedWindowStart + this.windowSize + 1) {
+        if (timestamp >= window.fixedWindowStart + this.windowSize + 1) {
             updatedUserWindow.previousTokens = updatedUserWindow.currentTokens;
             updatedUserWindow.currentTokens = 0;
-            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
+            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize + 1;
         }
 
         // assigned to avoid TS error, this var will never be used as 0
         // var is declared here so that below can be inside a conditional for efficiency's sake
         let rollingWindowProportion = 0;
+        let previousRollingTokens = 0;
 
         if (updatedUserWindow.previousTokens) {
-            // subtract window size by current time less fixed window's start
-            // current time less fixed window start is the amount that rolling window is in current window
-            // to get amount that rolling window is in previous window, we subtract this difference by window size
-            // then we divide this amount by window size to get the proportion of rolling window in previous window
-            // ex. 60000 - (1million+5 - 1million) = 59995 / 60000 = 0.9999
+            // proportion of rolling window present in previous window
             rollingWindowProportion =
                 (this.windowSize - (timestamp - updatedUserWindow.fixedWindowStart)) /
                 this.windowSize;
 
             // remove unecessary decimals, 0.xx is enough
             rollingWindowProportion -= rollingWindowProportion % 0.01;
+
+            // # of tokens present in rolling & previous window
+            previousRollingTokens = Math.floor(
+                updatedUserWindow.previousTokens * rollingWindowProportion
+            );
         }
 
-        // the sliding window counter formula
-        // ex. tokens(1) + currentTokens(2) + previousTokens(4) * RWP(.75) = 6 < capacity(10)
-        // adjusts formula if previousTokens is null
-        const rollingWindowAllowal = updatedUserWindow.previousTokens
-            ? tokens +
-                  updatedUserWindow.currentTokens +
-                  updatedUserWindow.previousTokens * rollingWindowProportion <=
-              this.capacity
-            : tokens + updatedUserWindow.currentTokens <= this.capacity;
+        // # of tokens present in rolling and/or current window
+        // if previous tokens is null, previousRollingTokens will be 0
+        const rollingTokens = updatedUserWindow.currentTokens + previousRollingTokens;
 
         // if request is allowed
-        if (rollingWindowAllowal) {
+        if (tokens + rollingTokens <= this.capacity) {
             updatedUserWindow.currentTokens += tokens;
             await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
-            return { success: true, tokens: this.capacity - updatedUserWindow.currentTokens };
+            return {
+                success: true,
+                tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
+            };
         }
 
         // if request is blocked
