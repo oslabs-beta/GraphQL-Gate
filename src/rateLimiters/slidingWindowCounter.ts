@@ -105,7 +105,7 @@ class SlidingWindowCounter implements RateLimiter {
 
         const window: RedisWindow = await JSON.parse(windowJSON);
 
-        let updatedUserWindow: RedisWindow = {
+        const updatedUserWindow: RedisWindow = {
             currentTokens: window.currentTokens,
             previousTokens: window.previousTokens,
             fixedWindowStart: window.fixedWindowStart,
@@ -120,7 +120,7 @@ class SlidingWindowCounter implements RateLimiter {
 
         // assigned to avoid TS error, this var will never be used as 0
         // var is declared here so that below can be inside a conditional for efficiency's sake
-        let rollingWindowProportion: number = 0;
+        let rollingWindowProportion = 0;
 
         if (updatedUserWindow.previousTokens) {
             // subtract window size by current time less fixed window's start
@@ -133,7 +133,7 @@ class SlidingWindowCounter implements RateLimiter {
                 this.windowSize;
 
             // remove unecessary decimals, 0.xx is enough
-            rollingWindowProportion = rollingWindowProportion - (rollingWindowProportion % 0.01);
+            rollingWindowProportion -= rollingWindowProportion % 0.01;
         }
 
         // the sliding window counter formula
