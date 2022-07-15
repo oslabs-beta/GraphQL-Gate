@@ -86,20 +86,22 @@ xdescribe('Test TokenBucket Rate Limiter', () => {
                 expect(tokenCountPartialToEmpty.currentTokens).toBe(0);
             });
 
-            // Bucket initially empty but enough time elapsed to paritally fill bucket since last request
+            // Window initially full but enough time elapsed to paritally fill window since last request
             test('fixed window is initially full but after new fixed window is initialized request is allowed', async () => {
                 await setTokenCountInClient(client, user4, 10, null, timestamp);
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
                 expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 10)).tokens
-                ).toBe(0);
+                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 1)).tokens
+                ).toBe(0); // here, we expect the rolling window to only allow 1 token, b/c
+                // only 1ms has passed since the previous fixed window
+
                 // `currentTokens` cached is the amount of tokens
                 // currently in the fixed window.
                 // this differs from token bucket, which caches the amount
                 // of tokens still available for use
                 const count = await getWindowFromClient(client, user4);
-                expect(count.currentTokens).toBe(10);
+                expect(count.currentTokens).toBe(1);
             });
 
             // three different tests within, with different rolling window proportions (.25, .5, .75)
