@@ -38,12 +38,37 @@ class SlidingWindowCounter implements RateLimiter {
     }
 
     /**
+     * @function processRequest - Sliding window counter algorithm to allow or block
+     * based on the depth/complexity (in amount of tokens) of incoming requests.
      *
+     * First, checks if a window exists in the redis cache.
+     *
+     * If not, then `fixedWindowStart` is set as the current timestamp, and `currentTokens`
+     * is checked against `capacity`. If enough room exists for the request, returns
+     * success as true and tokens as how many tokens remain in the current fixed window.
+     *
+     * If a window does exist in the cache, we first check if the timestamp is greater than
+     * the fixedWindowStart + windowSize.
+     *
+     * If it isn't then we check the number of tokens in the arguments as well as in the cache
+     * against the capacity and return success or failure from there while updating the cache.
+     *
+     * If the timestamp is over the windowSize beyond the fixedWindowStart, then we update fixedWindowStart
+     * to be fixedWindowStart + windowSize (to create a new fixed window) and
+     * make previousTokens = currentTokens, and currentTokens equal to the number of tokens in args, if
+     * not over capacity.
+     *
+     * Once previousTokens is not null, we then run functionality using the rolling window to compute
+     * the formula this entire limiting algorithm is distinguished by:
+     *
+     * currentTokens + previousTokens * overlap % of rolling window over previous fixed window
      *
      * @param {string} uuid - unique identifer used to throttle requests
      * @param {number} timestamp - time the request was recieved
      * @param {number} [tokens=1]  - complexity of the query for throttling requests
      * @return {*}  {Promise<RateLimiterResponse>}
+     * RateLimiterResponse: {success: boolean, tokens: number}
+     * (tokens represents the remaining available capacity of the window)
      * @memberof SlidingWindowCounter
      */
     async processRequest(
@@ -57,31 +82,80 @@ class SlidingWindowCounter implements RateLimiter {
         // attempt to get the value for the uuid from the redis cache
         const windowJSON = await this.client.get(uuid);
 
-        // // if the response is null, we need to create a window for the user
-        // if (windowJSON === null) {
-        //     // rolling window is 1 minute long
-        //     const rollingWindowEnd = timestamp + 60000;
+        // if the response is null, we need to create a window for the user
+        if (windowJSON === null) {
+            const newUserWindow: RedisWindow = {
+                // current and previous tokens represent how many tokens are in each window
+                currentTokens: tokens <= this.capacity ? tokens : 0,
+                previousTokens: null,
+                fixedWindowStart: timestamp,
+            };
 
-        //     // grabs the actual minute from the timestamp to create fixed window
-        //     const fixedWindowStart = timestamp - (timestamp % 10000);
-        //     const fixedWindowEnd = fixedWindowStart + 60000;
+            if (tokens > this.capacity) {
+                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+                // tokens property represents how much capacity remains
+                return { success: false, tokens: this.capacity };
+            }
 
-        //     const newUserWindow: RedisWindow = {
-        //         // conditionally set tokens depending on how many are requested compared to the capacity
-        //         tokens: tokens > this.capacity ? this.capacity : this.capacity - tokens,
-        //         timestamp,
-        //     };
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+            return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
+        }
 
-        //     // reject the request, not enough tokens could even be in the bucket
-        //     if (tokens > this.capacity) {
-        //         await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-        //         return { success: false, tokens: this.capacity };
-        //     }
-        //     await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-        //     return { success: true, tokens: newUserWindow.tokens };
-        // }
+        // if the cache is populated
 
-        return { success: true, tokens: 0 };
+        const window: RedisWindow = await JSON.parse(windowJSON);
+
+        let updatedUserWindow: RedisWindow = {
+            currentTokens: window.currentTokens,
+            previousTokens: window.previousTokens,
+            fixedWindowStart: window.fixedWindowStart,
+        };
+
+        // if request time is in a new window
+        if (timestamp > window.fixedWindowStart + this.windowSize + 1) {
+            updatedUserWindow.previousTokens = updatedUserWindow.currentTokens;
+            updatedUserWindow.currentTokens = 0;
+            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
+        }
+
+        // assigned to avoid TS error, this var will never be used as 0
+        // var is declared here so that below can be inside a conditional for efficiency's sake
+        let rollingWindowProportion: number = 0;
+
+        if (updatedUserWindow.previousTokens) {
+            // subtract window size by current time less fixed window's start
+            // current time less fixed window start is the amount that rolling window is in current window
+            // to get amount that rolling window is in previous window, we subtract this difference by window size
+            // then we divide this amount by window size to get the proportion of rolling window in previous window
+            // ex. 60000 - (1million+5 - 1million) = 59995 / 60000 = 0.9999
+            rollingWindowProportion =
+                (this.windowSize - (timestamp - updatedUserWindow.fixedWindowStart)) /
+                this.windowSize;
+
+            // remove unecessary decimals, 0.xx is enough
+            rollingWindowProportion = rollingWindowProportion - (rollingWindowProportion % 0.01);
+        }
+
+        // the sliding window counter formula
+        // ex. tokens(1) + currentTokens(2) + previousTokens(4) * RWP(.75) = 6 < capacity(10)
+        // adjusts formula if previousTokens is null
+        const rollingWindowAllowal = updatedUserWindow.previousTokens
+            ? tokens +
+                  updatedUserWindow.currentTokens +
+                  updatedUserWindow.previousTokens * rollingWindowProportion <=
+              this.capacity
+            : tokens + updatedUserWindow.currentTokens <= this.capacity;
+
+        // if request is allowed
+        if (rollingWindowAllowal) {
+            updatedUserWindow.currentTokens += tokens;
+            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+            return { success: true, tokens: this.capacity - updatedUserWindow.currentTokens };
+        }
+
+        // if request is blocked
+        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+        return { success: false, tokens: this.capacity - updatedUserWindow.currentTokens };
     }
 
     /**
