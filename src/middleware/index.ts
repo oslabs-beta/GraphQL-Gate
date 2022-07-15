@@ -19,7 +19,8 @@ import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/express
  *      - Ratelimiter is required in the setup of the middleware. Developers must explicitly specify this
  *      - ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
  *      - Optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
- *      - "dark: true" will allow the developer to run the package in "dark mode" to monitor queries and rate limiting data without before implementing rate limitng functionality
+ *      - "dark: true" will allow the developer to run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality, it allows you
+ *         to see what would happen without intervening
  *      - "enforceBoundedLists: true" will throw an error if any lists in the schema are not limited by slicing arguments
  *              - ** not implemented **
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
@@ -97,7 +98,7 @@ export default function expressGraphQLRateLimiter(
                 success: rateLimiterResponse.success,
                 depth: null,
             };
-            if (!rateLimiterResponse.success) {
+            if (!rateLimiterResponse.success && !middlewareSetup.dark) {
                 // calculate the time the client should wait to send anouther query by comparing
                 // the differnce between tokens and complexity and multipying by the refill rate
                 const timeToWaitInMs =
