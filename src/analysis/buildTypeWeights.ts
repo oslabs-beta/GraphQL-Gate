@@ -27,7 +27,6 @@ import {
     Variables,
     Type,
     Fields,
-    FieldWeight,
     FieldMap,
 } from '../@types/buildTypeWeights';
 
@@ -244,7 +243,7 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
 
         // types is an array mapping each field name to it's respective output type
         const types: FieldMap[] = unionType.getTypes().map((objectType: GraphQLObjectType) => {
-            const fields: GraphQLFieldMap<any, any> = objectType.getFields();
+            const fields: GraphQLFieldMap<unknown, unknown> = objectType.getFields();
 
             const fieldMap: FieldMap = {};
             Object.keys(fields).forEach((field: string) => {
