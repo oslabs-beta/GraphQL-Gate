@@ -460,52 +460,60 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        test('union types', () => {
-            schema = buildSchema(`
-                union SearchResult = Human | Droid
-                type Human{
-                    name: String
-                    homePlanet: String
-                    search(first: Int!): [SearchResult]
-                }
-                type Droid {
-                    name: String
-                    primaryFunction: String
-                    search(first: Int!): [SearchResult]
-                }`);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                searchresult: {
-                    weight: 1,
-                    fields: {
-                        name: { weight: 0 },
-                        search: {
-                            resolveTo: 'searchresult',
-                            weight: expect.any(Function),
+        describe('union types', () => {
+            test('union types', () => {
+                schema = buildSchema(`
+                    union SearchResult = Human | Droid
+                    type Human{
+                        name: String
+                        homePlanet: String
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Droid {
+                        name: String
+                        primaryFunction: String
+                        search(first: Int!): [SearchResult]
+                    }`);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
-                },
-                human: {
-                    weight: 1,
-                    fields: {
-                        name: { weight: 0 },
-                        homePlanet: { weight: 0 },
-                        search: {
-                            resolveTo: 'searchresult',
-                            weight: expect.any(Function),
+                    human: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
-                },
-                droid: {
-                    weight: 1,
-                    fields: {
-                        name: { weight: 0 },
-                        primaryFunction: { weight: 0 },
-                        search: {
-                            resolveTo: 'searchresult',
-                            weight: expect.any(Function),
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            primaryFunction: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
                         },
                     },
-                },
+                });
+            });
+
+            xtest('additional test cases for ...', () => {
+                // TODO: unions with non-null types
+                // unions with lists of non-null types
+                // lists with > 2 levels of nesting (may need to add these for lists on other types as well)
             });
         });
 
