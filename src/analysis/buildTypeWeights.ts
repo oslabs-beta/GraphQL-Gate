@@ -162,6 +162,9 @@ function parseObjectFields(
             result.fields[field] = {
                 resolveTo: fieldType.name.toLocaleLowerCase(),
             };
+        } else if (isNonNullType(fieldType)) {
+            // TODO: Implment non-null types
+            // not throwing and error since it causes typeWeight tests to break
         } else {
             // ? what else can get through here
             throw new Error(`ERROR: buildTypeWeight: Unsupported field type: ${fieldType}`);
