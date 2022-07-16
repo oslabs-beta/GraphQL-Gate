@@ -17,7 +17,6 @@ import {
     ValueNode,
     GraphQLUnionType,
     GraphQLFieldMap,
-    GraphQLField,
 } from 'graphql';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
@@ -28,6 +27,8 @@ import {
     Variables,
     Type,
     Fields,
+    FieldWeight,
+    FieldMap,
 } from '../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
@@ -158,10 +159,6 @@ function parseObjectFields(
             // Users must query union types using inline fragments to resolve field specific to one of the types in the union
             // however, if a type is shared by all types in the union it can be queried outside of the inline fragment
             // any common fields should be added to fields on the union type itself in addition to the comprising types
-            // Get all types in the union
-            // iterate through all types creating a set of type names
-            // add resulting set to fields
-            // FIXME: What happens if two types share a name that resolve to different types => invalid query?
             result.fields[field] = {
                 resolveTo: fieldType.name.toLocaleLowerCase(),
             };
@@ -230,11 +227,8 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
         }
     });
 
-    type FieldMap = { [index: string]: GraphQLOutputType };
-    type CommonFields = { [index: string]: Type };
-
     unions.forEach((unionType: GraphQLUnionType) => {
-        /** Start with the fields for the first object. Store fieldnamd and type
+        /** Start with the fields for the first object. Store fieldname, type, weight and resolve to for later use
          *  reduce by selecting fields common to each type
          *  compare both fieldname and output type accounting for lists and non-nulls
          *      for object
@@ -249,9 +243,17 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
         const types: FieldMap[] = unionType.getTypes().map((objectType: GraphQLObjectType) => {
             const fields: GraphQLFieldMap<any, any> = objectType.getFields();
 
-            const fieldMap: { [index: string]: GraphQLOutputType } = {};
+            const fieldMap: FieldMap = {};
             Object.keys(fields).forEach((field: string) => {
-                fieldMap[field] = fields[field].type;
+                // Get the weight of this field on from parent type on the root typeWeight object.
+                // this only exists for scalars and lists (which resolve to a function);
+                const { weight, resolveTo } = result[objectType.name.toLowerCase()].fields[field];
+
+                fieldMap[field] = {
+                    type: fields[field].type,
+                    weight, // will only be undefined for object types
+                    resolveTo,
+                };
             });
             return fieldMap;
         });
@@ -261,7 +263,7 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
             const commonFields: FieldMap = {};
             Object.keys(prev).forEach((field: string) => {
                 if (fieldMap[field]) {
-                    if (compareTypes(prev[field], fieldMap[field])) {
+                    if (compareTypes(prev[field].type, fieldMap[field].type)) {
                         // they match add the type to the next set
                         commonFields[field] = prev[field];
                     }
@@ -274,48 +276,30 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
         const fieldTypes: Fields = {};
 
         Object.keys(common).forEach((field: string) => {
-            // if a scalar => weight
-            // object => resolveTo
-            // list => // resolveTo + weight(function)
-            const current = common[field];
+            // scalar => weight
+            // list => resolveTo + weight(function)
+            // fields that resolve to objects do not need to appear on the union type
+            const current = common[field].type;
             if (isScalarType(current)) {
                 fieldTypes[field] = {
-                    weight: typeWeights.scalar,
+                    weight: common[field].weight,
                 };
-            }
-            // else if (isObjectType(current)) {
-            //     fieldTypes[field] = {
-            //         resolveTo: current.name,
-            //     };
-            // }
-            else if (isListType(current)) {
-                throw new Error('list types not supported on unions');
+            } else if (isListType(current)) {
                 fieldTypes[field] = {
-                    resolveTo: 'test', // get resolve type problem is recursive data structure (i.e. list of lists)
-                    // weight: TODO: Get the function for resolving
+                    resolveTo: common[field].resolveTo,
+                    weight: common[field].weight,
                 };
             } else if (isNonNullType(current)) {
                 throw new Error('non null types not supported on unions');
                 // TODO: also a recursive data structure
             } else {
-                throw new Error('Unandled union type. Should never get here');
+                throw new Error('Unhandled union type. Should never get here');
             }
         });
         result[unionType.name.toLowerCase()] = {
             fields: fieldTypes,
             weight: typeWeights.object,
         };
-
-        //
-        // objects are not. they exist at the root.
-        // FIXME: Is it worth adding objects as a field?
-        // yes, I think so => refactor fieldNode parser
-        // if it resolves to object then add commonFields set
-        // i think we have this already.
-        // double check the non-null tests
-        // commonFields.add({
-        //     weight,
-        // });
     });
 
     return result;
