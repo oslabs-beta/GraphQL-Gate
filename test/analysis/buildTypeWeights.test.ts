@@ -478,7 +478,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         name: { weight: 0 },
-                        search: { resolveTo: 'searchresult' },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
                     },
                 },
                 human: {
@@ -486,7 +489,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     fields: {
                         name: { weight: 0 },
                         homePlanet: { weight: 0 },
-                        search: { resolveTo: 'searchresult' },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
                     },
                 },
                 droid: {
@@ -494,7 +500,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     fields: {
                         name: { weight: 0 },
                         primaryFunction: { weight: 0 },
-                        search: { resolveTo: 'searchresult' },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
                     },
                 },
             });
