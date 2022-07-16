@@ -286,6 +286,11 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
                 fieldTypes[field] = {
                     weight: common[field].weight,
                 };
+            } else if (isObjectType(current) || isInterfaceType(current) || isUnionType(current)) {
+                fieldTypes[field] = {
+                    resolveTo: common[field].resolveTo,
+                    weight: typeWeights.object,
+                };
             } else if (isListType(current)) {
                 fieldTypes[field] = {
                     resolveTo: common[field].resolveTo,
