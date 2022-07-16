@@ -5,7 +5,6 @@ import {
     DefinitionNode,
     Kind,
     SelectionNode,
-    NamedTypeNode,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 /**
@@ -160,13 +159,30 @@ class ASTParser {
 
     selectionSetNode(node: SelectionSetNode, parentName: string): number {
         let complexity = 0;
+        let maxFragmentComplexity = 0;
         // iterate shrough the 'selections' array on the seletion set node
         for (let i = 0; i < node.selections.length; i += 1) {
             // call the function to handle seletion nodes
             // pass the current parent through because selection sets act only as intermediaries
-            complexity += this.selectionNode(node.selections[i], parentName);
+            const selectionNode = node.selections[i];
+            const selectionCost = this.selectionNode(node.selections[i], parentName);
+
+            // we need to get the largest possible complexity so we save the largest inline fragment
+            // FIXME: Consider the case where 2 typed fragments are applicable
+            // e.g. ...UnionType and ...PartofTheUnion
+            // this case these complexities should be summed in order to be accurate
+            // However an estimation suffice
+            if (selectionNode.kind === Kind.INLINE_FRAGMENT) {
+                if (!selectionNode.typeCondition) {
+                    // complexity is always applicable
+                    complexity += selectionCost;
+                } else if (selectionCost > maxFragmentComplexity)
+                    maxFragmentComplexity = selectionCost;
+            } else {
+                complexity += selectionCost;
+            }
         }
-        return complexity;
+        return complexity + maxFragmentComplexity;
     }
 
     definitionNode(node: DefinitionNode): number {
