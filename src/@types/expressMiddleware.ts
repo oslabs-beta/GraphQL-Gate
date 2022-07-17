@@ -13,6 +13,7 @@ export interface ExpressMiddlewareConfig {
     typeWeights?: TypeWeightConfig;
     dark?: boolean;
     enforceBoundedLists?: boolean;
+    depthLimit?: number;
 }
 
 export interface ExpressMiddlewareSet {
@@ -21,4 +22,5 @@ export interface ExpressMiddlewareSet {
     typeWeights: TypeWeightSet;
     dark: boolean;
     enforceBoundedLists: boolean;
+    depthLimit: number;
 }

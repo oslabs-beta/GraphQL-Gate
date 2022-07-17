@@ -21,8 +21,8 @@ import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/express
  *      - Optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  *      - "dark: true" will allow the developer to run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality, it allows you
  *         to see what would happen without intervening
- *      - "enforceBoundedLists: true" will throw an error if any lists in the schema are not limited by slicing arguments
- *              - ** not implemented **
+ *      - //todo "enforceBoundedLists: true" will throw an error if any lists in the schema are not limited by slicing arguments
+ *      - //todo "depthLimit: number" will block queries with more nesting than the specified depth
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
  * FIXME: How about the specific GraphQLError?
@@ -41,6 +41,7 @@ export default function expressGraphQLRateLimiter(
         redis: middlewareConfig.redis || {},
         dark: middlewareConfig.dark || false,
         enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
+        depthLimit: middlewareConfig.depthLimit || Infinity,
     };
     /**
      * build the type weight object, create the redis client and instantiate the ratelimiter
