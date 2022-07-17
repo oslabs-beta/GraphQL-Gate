@@ -1,5 +1,5 @@
 import { RedisOptions } from 'ioredis';
-import { TypeWeightConfig } from './buildTypeWeights';
+import { TypeWeightConfig, TypeWeightSet } from './buildTypeWeights';
 import { RateLimiterOptions, RateLimiterSelection } from './rateLimit';
 
 interface RateLimitingOptions {
@@ -18,7 +18,7 @@ export interface ExpressMiddlewareConfig {
 export interface ExpressMiddlewareSet {
     rateLimiter: RateLimitingOptions;
     redis: RedisOptions;
-    typeWeights: TypeWeightConfig;
+    typeWeights: TypeWeightSet;
     dark: boolean;
     enforceBoundedLists: boolean;
 }
