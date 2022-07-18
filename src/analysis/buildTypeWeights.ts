@@ -89,7 +89,12 @@ function parseObjectFields(
                 weight: typeWeights.scalar,
                 // resolveTo: fields[field].name.toLowerCase(),
             };
-        } else if (isInterfaceType(fieldType) || isEnumType(fieldType) || isObjectType(fieldType)) {
+        } else if (
+            isInterfaceType(fieldType) ||
+            isEnumType(fieldType) ||
+            isObjectType(fieldType) ||
+            isUnionType(fieldType)
+        ) {
             result.fields[field] = {
                 resolveTo: fieldType.name.toLocaleLowerCase(),
             };
@@ -154,13 +159,6 @@ function parseObjectFields(
                     }
                 });
             }
-        } else if (isUnionType(fieldType)) {
-            // Users must query union types using inline fragments to resolve field specific to one of the types in the union
-            // however, if a type is shared by all types in the union it can be queried outside of the inline fragment
-            // any common fields should be added to fields on the union type itself in addition to the comprising types
-            result.fields[field] = {
-                resolveTo: fieldType.name.toLocaleLowerCase(),
-            };
         } else if (isNonNullType(fieldType)) {
             // TODO: Implment non-null types
             // not throwing and error since it causes typeWeight tests to break
@@ -174,12 +172,14 @@ function parseObjectFields(
 }
 
 /**
- * Recursively compares two types for type equality based on name
+ * Recursively compares two types for type equality based on type name
  * @param a
  * @param b
- * @returns
+ * @returns true if the types are recursively equal.
  */
 function compareTypes(a: GraphQLOutputType, b: GraphQLOutputType): boolean {
+    // Base Case: Object or Scalar => compare type names
+    // Recursive Case(List / NonNull): compare ofType
     return (
         (isObjectType(b) && isObjectType(a) && a.name === b.name) ||
         (isUnionType(b) && isUnionType(a) && a.name === b.name) ||
@@ -190,6 +190,135 @@ function compareTypes(a: GraphQLOutputType, b: GraphQLOutputType): boolean {
     );
 }
 
+/**
+ *
+ * @param unionType union type to be parsed
+ * @param typeWeightObject type weight mapping object that must already contain all of the types in the schema.
+ * @returns object mapping field names for each union type to their respective weights, resolve type names and resolve type object
+ */
+function getFieldsForUnionType(
+    unionType: GraphQLUnionType,
+    typeWeightObject: TypeWeightObject
+): FieldMap[] {
+    return unionType.getTypes().map((objectType: GraphQLObjectType) => {
+        // Get the field data for this type
+        const fields: GraphQLFieldMap<unknown, unknown> = objectType.getFields();
+
+        const fieldMap: FieldMap = {};
+        Object.keys(fields).forEach((field: string) => {
+            // Get the weight of this field on from parent type on the root typeWeight object.
+            // this only exists for scalars and lists (which resolve to a function);
+            const { weight, resolveTo } =
+                typeWeightObject[objectType.name.toLowerCase()].fields[field];
+
+            fieldMap[field] = {
+                type: fields[field].type,
+                weight, // will only be undefined for object types
+                resolveTo,
+            };
+        });
+        return fieldMap;
+    });
+}
+
+/**
+ *
+ * @param typesInUnion
+ * @returns a single field map containg information for fields common to the union
+ */
+function getSharedFieldsFromUnionTypes(typesInUnion: FieldMap[]): FieldMap {
+    return typesInUnion.reduce((prev: FieldMap, fieldMap: FieldMap): FieldMap => {
+        // iterate through the field map checking the types for any common field names
+        const sharedFields: FieldMap = {};
+        Object.keys(prev).forEach((field: string) => {
+            if (fieldMap[field]) {
+                if (compareTypes(prev[field].type, fieldMap[field].type)) {
+                    // they match add the type to the next set
+                    sharedFields[field] = prev[field];
+                }
+            }
+        });
+        return sharedFields;
+    });
+}
+
+/**
+ * Parses the provided union types and returns a type weight object with any fields common to all types
+ * in a union added to the union type
+ * @param unionTypes union types to be parsed.
+ * @param typeWeights object specifying generic type weights.
+ * @param typeWeightObject original type weight object
+ * @returns
+ */
+function parseUnionTypes(
+    unionTypes: GraphQLUnionType[],
+    typeWeights: TypeWeightSet,
+    typeWeightObject: TypeWeightObject
+) {
+    const typeWeightsWithUnions: TypeWeightObject = { ...typeWeightObject };
+
+    unionTypes.forEach((unionType: GraphQLUnionType) => {
+        /**
+         * 1. For each provided union type. We first obtain the fields for each object that
+         *    is part of the union and store these in an object
+         *    When obtaining types, save:
+         *      - field name
+         *      - type object to which the field resolves. This holds any information for recursive types (lists / not null / unions)
+         *      - weight - for easy lookup later
+         *      - resolveTo type - for easy lookup later
+         * 2. We then reduce the array of objects from step 1 a single object only containing fields
+         *    common to each type in the union. To determine field "equality" we compare the field names and
+         *    recursively compare the field types:
+         *  */
+
+        // types is an array mapping each field name to it's respective output type
+        // const typesInUnion = getFieldsForUnionType(unionType, typeWeightObject);
+        const typesInUnion: FieldMap[] = getFieldsForUnionType(unionType, typeWeightObject);
+
+        // reduce the data for all the types in the union
+        const commonFields: FieldMap = getSharedFieldsFromUnionTypes(typesInUnion);
+
+        // transform commonFields into the correct format for the type weight object
+        const fieldTypes: Fields = {};
+
+        Object.keys(commonFields).forEach((field: string) => {
+            /**
+             * The type weight object requires that:
+             *   a. scalars have a weight
+             *   b. lists have a resolveTo and weight property
+             *   c. objects have a resolveTo type.
+             *  */
+
+            const current = commonFields[field].type;
+            if (isScalarType(current)) {
+                fieldTypes[field] = {
+                    weight: commonFields[field].weight,
+                };
+            } else if (isObjectType(current) || isInterfaceType(current) || isUnionType(current)) {
+                fieldTypes[field] = {
+                    resolveTo: commonFields[field].resolveTo,
+                    weight: typeWeights.object,
+                };
+            } else if (isListType(current)) {
+                fieldTypes[field] = {
+                    resolveTo: commonFields[field].resolveTo,
+                    weight: commonFields[field].weight,
+                };
+            } else if (isNonNullType(current)) {
+                throw new Error('non null types not supported on unions');
+                // TODO: also a recursive data structure
+            } else {
+                throw new Error('Unhandled union type. Should never get here');
+            }
+        });
+        typeWeightsWithUnions[unionType.name.toLowerCase()] = {
+            fields: fieldTypes,
+            weight: typeWeights.object,
+        };
+    });
+
+    return typeWeightsWithUnions;
+}
 /**
  * Parses all types in the provided schema object excempt for Query, Mutation
  * and built in types that begin with '__' and outputs a new TypeWeightObject
@@ -221,95 +350,13 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
                 };
             } else if (isUnionType(currentType)) {
                 unions.push(currentType);
-            } else {
-                // FIXME: Scalar types are listed here throw new Error(`ERROR: buildTypeWeight: Unsupported type: ${currentType}`);
-                // ? what else can get through here
-                // ? inputTypes?
+            } else if (!isScalarType(currentType)) {
+                throw new Error(`ERROR: buildTypeWeight: Unsupported type: ${currentType}`);
             }
         }
     });
 
-    unions.forEach((unionType: GraphQLUnionType) => {
-        /** Start with the fields for the first object. Store fieldname, type, weight and resolve to for later use
-         *  reduce by selecting fields common to each type
-         *  compare both fieldname and output type accounting for lists and non-nulls
-         *      for object
-         *          compare name of output type
-         *      for lists
-         *          compare ofType and ofType name if not onother list/non-null
-         *      for non-nulls
-         *          compare oftype and ofTypeName (if not another non-null)
-         *  */
-
-        // types is an array mapping each field name to it's respective output type
-        const types: FieldMap[] = unionType.getTypes().map((objectType: GraphQLObjectType) => {
-            const fields: GraphQLFieldMap<unknown, unknown> = objectType.getFields();
-
-            const fieldMap: FieldMap = {};
-            Object.keys(fields).forEach((field: string) => {
-                // Get the weight of this field on from parent type on the root typeWeight object.
-                // this only exists for scalars and lists (which resolve to a function);
-                const { weight, resolveTo } = result[objectType.name.toLowerCase()].fields[field];
-
-                fieldMap[field] = {
-                    type: fields[field].type,
-                    weight, // will only be undefined for object types
-                    resolveTo,
-                };
-            });
-            return fieldMap;
-        });
-
-        const common: FieldMap = types.reduce((prev: FieldMap, fieldMap: FieldMap): FieldMap => {
-            // iterate through the field map checking the types for any common field names
-            const commonFields: FieldMap = {};
-            Object.keys(prev).forEach((field: string) => {
-                if (fieldMap[field]) {
-                    if (compareTypes(prev[field].type, fieldMap[field].type)) {
-                        // they match add the type to the next set
-                        commonFields[field] = prev[field];
-                    }
-                }
-            });
-            return commonFields;
-        });
-
-        // transform commonFields into the correct format
-        const fieldTypes: Fields = {};
-
-        Object.keys(common).forEach((field: string) => {
-            // scalar => weight
-            // list => resolveTo + weight(function)
-            // fields that resolve to objects do not need to appear on the union type
-            const current = common[field].type;
-            if (isScalarType(current)) {
-                fieldTypes[field] = {
-                    weight: common[field].weight,
-                };
-            } else if (isObjectType(current) || isInterfaceType(current) || isUnionType(current)) {
-                fieldTypes[field] = {
-                    resolveTo: common[field].resolveTo,
-                    weight: typeWeights.object,
-                };
-            } else if (isListType(current)) {
-                fieldTypes[field] = {
-                    resolveTo: common[field].resolveTo,
-                    weight: common[field].weight,
-                };
-            } else if (isNonNullType(current)) {
-                throw new Error('non null types not supported on unions');
-                // TODO: also a recursive data structure
-            } else {
-                throw new Error('Unhandled union type. Should never get here');
-            }
-        });
-        result[unionType.name.toLowerCase()] = {
-            fields: fieldTypes,
-            weight: typeWeights.object,
-        };
-    });
-
-    return result;
+    return parseUnionTypes(unions, typeWeights, result);
 }
 
 /**
