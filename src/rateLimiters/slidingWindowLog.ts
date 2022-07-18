@@ -13,7 +13,7 @@ import { RateLimiter, RateLimiterResponse } from '../@types/rateLimit';
  *  2. Any requests that are older than window size are dropped from the log.
  *  3. The complexity of the current request is added to the complexity of all requests in the log.
  *  4. If the request exceeds the specified capacity it is dropped.
- *  5. Otherwise the request is allowed and ther current request is added to the log.
+ *  5. Otherwise the request is allowed and the current request is added to the end of the log (if it has a complexity > 0).
  */
 class SlidingWindowLog implements RateLimiter {
     private windowSize: number;
