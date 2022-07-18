@@ -214,8 +214,8 @@ class ASTParser {
                 namedType.toLowerCase()
             );
 
+            // Don't count fragment complexity in the node's complexity. Only when fragment is used.
             this.fragmentCache[fragmentName] = fragmentComplexity;
-            return complexity; // Don't count complexity here. Only when fragment is used.
         } else {
             // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
             // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
@@ -227,14 +227,13 @@ class ASTParser {
 
     documentNode(node: DocumentNode): number {
         let complexity = 0;
-        // iterate through 'definitions' array on the document node
-        // FIXME: create a copy to preserve original AST order if needed elsewhere
+        // sort the definitions array by kind so that fragments are always parsed first.
+        // Fragments must be parsed first so that their complexity is available to other nodes.
         const sortedDefinitions = [...node.definitions].sort((a, b) =>
             a.kind.localeCompare(b.kind)
         );
         for (let i = 0; i < sortedDefinitions.length; i += 1) {
             // call the function to handle the various types of definition nodes
-            // FIXME: Need to parse fragment definitions first so that remaining complexity has access to query complexities
             complexity += this.definitionNode(sortedDefinitions[i]);
         }
         return complexity;
