@@ -81,9 +81,7 @@ function parseObjectFields(
         // The GraphQL type that this field represents
         let fieldType: GraphQLOutputType = fields[field].type;
         if (isNonNullType(fieldType)) fieldType = fieldType.ofType;
-        if (
-            isScalarType(fieldType) // ||
-        ) {
+        if (isScalarType(fieldType)) {
             result.fields[field] = {
                 weight: typeWeights.scalar,
             };
@@ -91,7 +89,7 @@ function parseObjectFields(
             isInterfaceType(fieldType) ||
             isUnionType(fieldType) ||
             isEnumType(fieldType) ||
-            isObjectType(fieldType) // ||
+            isObjectType(fieldType)
         ) {
             result.fields[field] = {
                 resolveTo: fieldType.name.toLocaleLowerCase(),
@@ -114,7 +112,6 @@ function parseObjectFields(
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
-                    // FIXME: Can nonnull wrap list types?
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
                         result.fields[field] = {
