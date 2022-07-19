@@ -119,7 +119,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 ]);
 
                 // Check the received response
-                const expectedResponse: RateLimiterResponse = { tokens: 1, success: true };
+                const expectedResponse: RateLimiterResponse = { tokens: 10, success: true };
                 expect(user1Response).toEqual(expectedResponse);
                 expect(user2Response).toEqual(expectedResponse);
                 expect(user3Response).toEqual(expectedResponse);
@@ -147,7 +147,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 // Check the received response
                 expect(user1Response).toEqual({ tokens: CAPACITY - user1Tokens, success: true });
                 expect(user2Response).toEqual({ tokens: CAPACITY - user2Tokens, success: true });
-                expect(user3Response).toEqual({ tokens: CAPACITY - user2Tokens, success: true });
+                expect(user3Response).toEqual({ tokens: CAPACITY - user3Tokens, success: true });
 
                 // Check that redis is correctly updated.
                 [user1Log, user2Log, user3Log] = await Promise.all([
@@ -157,7 +157,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 ]);
                 expect(user1Log).toEqual([{ timestamp, tokens: user1Tokens }]);
                 expect(user2Log).toEqual([{ timestamp, tokens: user2Tokens }]);
-                expect(user3Log).toEqual([{ timestamp, tokens: user2Tokens }]);
+                expect(user3Log).toEqual([{ timestamp, tokens: user3Tokens }]);
             });
             test('and the request complexity is equal to the capacity', async () => {
                 const user1Tokens = CAPACITY;
@@ -182,9 +182,9 @@ describe('SlidingWindowLog Rate Limiter', () => {
                     getLogFromClient(client, user2),
                     getLogFromClient(client, user3),
                 ]);
-                expect(user1Log).toEqual([{ timestamp, tokens: 0 }]);
-                expect(user2Log).toEqual([{ timestamp, tokens: 0 }]);
-                expect(user3Log).toEqual([{ timestamp, tokens: 0 }]);
+                expect(user1Log).toEqual([{ timestamp, tokens: user1Tokens }]);
+                expect(user2Log).toEqual([{ timestamp, tokens: user2Tokens }]);
+                expect(user3Log).toEqual([{ timestamp, tokens: user3Tokens }]);
             });
             test('and the request complexity is greater than the capacity', async () => {
                 const user1Tokens = CAPACITY + 1;
@@ -218,11 +218,11 @@ describe('SlidingWindowLog Rate Limiter', () => {
         describe('the redis log contains active requests in the window when...', () => {
             test('the sum of requests is equal to capacity', async () => {
                 // add 2 requests to the redis store 3, 7
-                const intialLog = [
+                const initialLog = [
                     { timestamp, tokens: 3 },
                     { timestamp: timestamp + 100, tokens: 7 },
                 ];
-                await setLogInClient(client, user1, intialLog);
+                await setLogInClient(client, user1, initialLog);
 
                 timestamp += 100;
                 const response: RateLimiterResponse = await limiter.processRequest(
@@ -231,22 +231,27 @@ describe('SlidingWindowLog Rate Limiter', () => {
                     1
                 );
 
-                expect(response.tokens).toBe(1);
+                expect(response.tokens).toBe(0);
                 expect(response.success).toBe(false);
 
                 const redisLog = await getLogFromClient(client, user1);
-                expect(redisLog).toEqual(intialLog);
+                expect(redisLog).toEqual(initialLog);
             });
             describe('the sum of requests is less than capacity and..', () => {
-                const intialLog = [
-                    { timestamp, tokens: 3 },
-                    { timestamp: timestamp + 100, tokens: 4 },
-                ];
-                const initalTokenSum = 7;
+                let initialLog: RedisLog;
+                let initialTokenSum = 0;
+
+                beforeAll(() => {
+                    initialLog = [
+                        { timestamp, tokens: 3 },
+                        { timestamp: timestamp + 100, tokens: 4 },
+                    ];
+                    initialTokenSum = 7;
+                });
 
                 beforeEach(async () => {
-                    await setLogInClient(client, user1, intialLog);
-                    timestamp += 100;
+                    await setLogInClient(client, user1, initialLog);
+                    timestamp += 200;
                 });
                 test('the current request complexity is small enough to be allowed', async () => {
                     const tokens = 2;
@@ -256,12 +261,12 @@ describe('SlidingWindowLog Rate Limiter', () => {
                         tokens
                     );
 
-                    expect(response.tokens).toBe(CAPACITY - (initalTokenSum + tokens));
+                    expect(response.tokens).toBe(CAPACITY - (initialTokenSum + tokens));
                     expect(response.success).toBe(true);
 
                     const redisLog = await getLogFromClient(client, user1);
 
-                    expect(redisLog).toEqual([...intialLog, { timestamp, tokens }]);
+                    expect(redisLog).toEqual([...initialLog, { timestamp, tokens }]);
                 });
 
                 test('the current request has complexity = remaining capacity', async () => {
@@ -272,12 +277,12 @@ describe('SlidingWindowLog Rate Limiter', () => {
                         tokens
                     );
 
-                    expect(response.tokens).toBe(CAPACITY - (initalTokenSum + tokens));
+                    expect(response.tokens).toBe(CAPACITY - (initialTokenSum + tokens));
                     expect(response.success).toBe(true);
 
                     const redisLog = await getLogFromClient(client, user1);
 
-                    expect(redisLog).toEqual([...intialLog, { timestamp, tokens }]);
+                    expect(redisLog).toEqual([...initialLog, { timestamp, tokens }]);
                 });
                 test('the current request complexity to big to be allowed', async () => {
                     const tokens = 4;
@@ -287,12 +292,12 @@ describe('SlidingWindowLog Rate Limiter', () => {
                         tokens
                     );
 
-                    expect(response.tokens).toBe(initalTokenSum);
+                    expect(response.tokens).toBe(CAPACITY - initialTokenSum);
                     expect(response.success).toBe(false);
 
                     const redisLog = await getLogFromClient(client, user1);
 
-                    expect(redisLog).toEqual(intialLog);
+                    expect(redisLog).toEqual(initialLog);
                 });
                 test('the current request complexity = 0', async () => {
                     const tokens = 0;
@@ -302,29 +307,35 @@ describe('SlidingWindowLog Rate Limiter', () => {
                         tokens
                     );
 
-                    expect(response.tokens).toBe(initalTokenSum);
+                    expect(response.tokens).toBe(CAPACITY - initialTokenSum);
                     expect(response.success).toBe(true);
 
                     const redisLog = await getLogFromClient(client, user1);
 
-                    expect(redisLog).toEqual(intialLog);
+                    expect(redisLog).toEqual(initialLog);
                 });
             });
         });
 
         describe('the redis log contains active and expired requests when...', () => {
             // Current request is sent at timestamp + 1.5 * WINDOW_SIZE (1500)
-            const intialLog = [
-                { timestamp, tokens: 1 }, // expired
-                { timestamp: timestamp + 100, tokens: 2 }, // expired
-                { timestamp: timestamp + 600, tokens: 3 }, // active
-                { timestamp: timestamp + 700, tokens: 4 }, // active
-            ];
-            const activeLog = intialLog.slice(2);
-            const activeTokenSum = 7;
+            let initialLog: RedisLog;
+            let activeLog: RedisLog;
+            let activeTokenSum = 0;
+
+            beforeAll(() => {
+                initialLog = [
+                    { timestamp, tokens: 1 }, // expired
+                    { timestamp: timestamp + 100, tokens: 2 }, // expired
+                    { timestamp: timestamp + 600, tokens: 3 }, // active
+                    { timestamp: timestamp + 700, tokens: 4 }, // active
+                ];
+                activeLog = initialLog.slice(2);
+                activeTokenSum = 7;
+            });
 
             beforeEach(async () => {
-                await setLogInClient(client, user1, intialLog);
+                await setLogInClient(client, user1, initialLog);
                 timestamp += 1500;
             });
 
@@ -340,7 +351,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
 
                 const redisLog = await getLogFromClient(client, user1);
 
-                expect(redisLog).toEqual([activeLog]);
+                expect(redisLog).toEqual(activeLog);
             });
             test('the current request has complexity < capacity', async () => {
                 const tokens = 2;
@@ -381,18 +392,18 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 );
 
                 expect(response.tokens).toBe(CAPACITY - activeTokenSum);
-                expect(response.success).toBe(true);
+                expect(response.success).toBe(false);
 
                 const redisLog = await getLogFromClient(client, user1);
 
-                expect(redisLog).toEqual([activeLog]);
+                expect(redisLog).toEqual(activeLog);
             });
         });
 
         test('the log contains a request on a window boundary', async () => {
-            const intialLog = [{ timestamp, tokens: CAPACITY }];
+            const initialLog = [{ timestamp, tokens: CAPACITY }];
 
-            await setLogInClient(client, user1, intialLog);
+            await setLogInClient(client, user1, initialLog);
 
             // Should not be allowed to perform any requests inside the indow
             const inWindowRequest = await limiter.processRequest(
@@ -406,7 +417,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 timestamp + WINDOW_SIZE,
                 1
             );
-            expect(startNewWindowRequest.success).toBe(false);
+            expect(startNewWindowRequest.success).toBe(true);
         });
     });
 
@@ -505,7 +516,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
             customWindowSuccess = await customCapacitylimiter
                 .processRequest(user1, timestamp + 100, customCapacity)
                 .then((res) => res.success);
-            expect(customSizeSuccess).toBe(true);
+            expect(customWindowSuccess).toBe(true);
         });
     });
 });
