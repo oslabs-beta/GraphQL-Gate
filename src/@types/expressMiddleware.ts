@@ -7,18 +7,26 @@ interface RateLimitingOptions {
     options: RateLimiterOptions;
 }
 
+// extend ioredis configuration options to include an expiry prooperty for rate limiting cache
+interface RedisConfig extends RedisOptions {
+    keyExpiry?: number;
+}
+// extend the redis config type to have keyExpiry set once configured in the middleware
+interface RedisConfigSet extends RedisConfig {
+    keyExpiry: number;
+}
+
 export interface ExpressMiddlewareConfig {
     rateLimiter: RateLimitingOptions;
-    redis?: RedisOptions;
+    redis?: RedisConfig;
     typeWeights?: TypeWeightConfig;
     dark?: boolean;
     enforceBoundedLists?: boolean;
     depthLimit?: number;
 }
 
-export interface ExpressMiddlewareSet {
-    rateLimiter: RateLimitingOptions;
-    redis: RedisOptions;
+export interface ExpressMiddlewareSet extends ExpressMiddlewareConfig {
+    redis: RedisConfigSet;
     typeWeights: TypeWeightSet;
     dark: boolean;
     enforceBoundedLists: boolean;

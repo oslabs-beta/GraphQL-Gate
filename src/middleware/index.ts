@@ -7,22 +7,16 @@ import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
 
-// FIXME: Will the developer be responsible for first parsing the schema from a file?
-// Can consider accepting a string representing a the filepath to a schema
-// FIXME: Should a 429 status be sent by default or do we allow the user to handle blocked requests?
-
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
  * @param {GraphQLSchema} schema GraphQLSchema object
  * @param {ExpressMiddlewareConfig} middlewareConfig
- *  - One parameter to configure redis client, typeWeights and rate limiting parameters
- *      - Ratelimiter is required in the setup of the middleware. Developers must explicitly specify this
- *      - ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
- *      - Optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
- *      - "dark: true" will allow the developer to run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality, it allows you
- *         to see what would happen without intervening
- *      - //todo "enforceBoundedLists: true" will throw an error if any lists in the schema are not limited by slicing arguments
- *      - //todo "depthLimit: number" will block queries with more nesting than the specified depth
+ *      /// "ratelimiter" must be explicitly specified in the setup of the middleware. /n
+ *      /// "redis" connection options (https://ioredis.readthedocs.io/en/stable/API/#new_Redis) and an optional "keyExpiry" property (defaults to 24h)
+ *      /// "typeWeights" optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, query: 1, object: 1, scalar/enum: 0, connection: 2}
+ *      /// "dark: true" will run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality. Defaults to false
+ *      /// "enforceBoundedLists: true" will throw an error if any lists in the schema are not constrained by slicing arguments: Defaults to false
+ *      /// "depthLimit: number" will block queries with deeper nesting than the specified depth. Will not block queries by depth by default
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
  * FIXME: How about the specific GraphQLError?
@@ -34,11 +28,15 @@ export default function expressGraphQLRateLimiter(
 ): RequestHandler {
     /**
      * Setup the middleware configuration with a passed in and default values
+     * - redis "keyExpiry" defaults to 1 day (in ms)
+     * - "typeWeights" defaults to defaultTypeWeightsConfig
+     * - "dark" and "enforceBoundedLists" default to false
+     * - "depthLimit" defaults to Infinity
      */
     const middlewareSetup: ExpressMiddlewareSet = {
         rateLimiter: middlewareConfig.rateLimiter,
         typeWeights: { ...defaultTypeWeightsConfig, ...middlewareConfig.typeWeights },
-        redis: middlewareConfig.redis || {},
+        redis: { keyExpiry: 86400000, ...middlewareConfig.redis },
         dark: middlewareConfig.dark || false,
         enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
         depthLimit: middlewareConfig.depthLimit || Infinity,
@@ -97,19 +95,16 @@ export default function expressGraphQLRateLimiter(
                 complexity: queryComplexity,
                 tokens: rateLimiterResponse.tokens,
                 success: rateLimiterResponse.success,
-                depth: null,
+                depth: null, // FIXME: update this once depth limiting is enabled
             };
             if (!rateLimiterResponse.success && !middlewareSetup.dark) {
-                // calculate the time the client should wait to send anouther query by comparing
-                // the differnce between tokens and complexity and multipying by the refill rate
-                const timeToWaitInMs =
-                    Math.abs(rateLimiterResponse.tokens - queryComplexity) *
-                    middlewareSetup.rateLimiter.options.refillRate *
-                    1000;
-                return res
-                    .status(429)
-                    .set('Retry-After', `${timeToWaitInMs}`)
-                    .json(res.locals.graphqlgate);
+                // TODO: rateLimiter.processRequest response should have a property for retryAfter if the reqest is blocked
+                return (
+                    res
+                        .status(429)
+                        // .set('Retry-After', `${timeToWaitInMs}`) // FIXME: pass correct time into this header
+                        .json(res.locals.graphqlgate)
+                );
             }
             return next();
         } catch (err) {
