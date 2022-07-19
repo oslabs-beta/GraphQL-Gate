@@ -489,7 +489,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        xdescribe('Not null operator (!) is used', () => {
+        describe('Not null operator (!) is used', () => {
             test('on a scalar, enum or object type', () => {
                 schema = buildSchema(`
                 type Human{
@@ -641,7 +641,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         });
 
         // this is only if we choose to have 'query' as its own property (seperate from object types) in the user configuration options
-        xtest('query parameter', () => {
+        test('query parameter', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 query: 2,
             });

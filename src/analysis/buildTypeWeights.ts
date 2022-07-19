@@ -79,10 +79,10 @@ function parseObjectFields(
     // Iterate through the fields and add the required data to the result
     Object.keys(fields).forEach((field: string) => {
         // The GraphQL type that this field represents
-        const fieldType: GraphQLOutputType = fields[field].type;
+        let fieldType: GraphQLOutputType = fields[field].type;
+        if (isNonNullType(fieldType)) fieldType = fieldType.ofType;
         if (
-            isScalarType(fieldType) ||
-            (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
+            isScalarType(fieldType) // ||
         ) {
             result.fields[field] = {
                 weight: typeWeights.scalar,
@@ -91,14 +91,15 @@ function parseObjectFields(
             isInterfaceType(fieldType) ||
             isUnionType(fieldType) ||
             isEnumType(fieldType) ||
-            isObjectType(fieldType)
+            isObjectType(fieldType) // ||
         ) {
             result.fields[field] = {
                 resolveTo: fieldType.name.toLocaleLowerCase(),
             };
         } else if (isListType(fieldType)) {
             // 'listType' is the GraphQL type that the list resolves to
-            const listType = fieldType.ofType;
+            let listType = fieldType.ofType;
+            if (isNonNullType(listType)) listType = listType.ofType;
             if (isScalarType(listType) && typeWeights.scalar === 0) {
                 // list won't compound if weight is zero
                 result.fields[field] = {
