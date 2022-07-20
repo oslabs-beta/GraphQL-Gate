@@ -30,6 +30,8 @@ export interface RedisWindow {
     fixedWindowStart?: number;
 }
 
+export type RedisLog = RedisBucket[];
+
 export type RateLimiterSelection =
     | 'TOKEN_BUCKET'
     | 'LEAKY_BUCKET'
