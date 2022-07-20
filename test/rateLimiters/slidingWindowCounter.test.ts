@@ -552,6 +552,21 @@ describe('Test TokenBucket Rate Limiter', () => {
                 false
             );
         });
+
+        test('updates correctly when > WINDOW_SIZE * 2 has surpassed', async () => {
+            await setTokenCountInClient(client, user1, 1, 0, timestamp);
+
+            // to make sure that previous tokens is not 1
+            const result = await limiter.processRequest(user1, timestamp + WINDOW_SIZE * 2, 1);
+
+            expect(result.tokens).toBe(9);
+
+            const redisData: RedisWindow = await getWindowFromClient(client, user1);
+
+            expect(redisData.currentTokens).toBe(1);
+            expect(redisData.previousTokens).toBe(0);
+            expect(redisData.fixedWindowStart).toBe(timestamp + WINDOW_SIZE * 2);
+        });
     });
 
     describe('SlidingWindowCounter correctly updates Redis cache', () => {
