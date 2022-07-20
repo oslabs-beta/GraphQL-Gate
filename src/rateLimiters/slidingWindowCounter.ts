@@ -113,12 +113,12 @@ class SlidingWindowCounter implements RateLimiter {
 
         // if request time is in a new window
         if (timestamp >= window.fixedWindowStart + this.windowSize) {
-            // calculates how many windows may have been skipped since last request
-            const windowsSkipped = Math.floor(
-                (timestamp - window.fixedWindowStart) / this.windowSize
-            );
             // if more than one window was skipped
-            if (windowsSkipped > 1) {
+            if (timestamp >= window.fixedWindowStart + this.windowSize * 2) {
+                // calculates how many windows may have been skipped since last request
+                const windowsSkipped = Math.floor(
+                    (timestamp - window.fixedWindowStart) / this.windowSize
+                );
                 updatedUserWindow.previousTokens = 0;
                 updatedUserWindow.currentTokens = 0;
                 updatedUserWindow.fixedWindowStart =
@@ -142,7 +142,7 @@ class SlidingWindowCounter implements RateLimiter {
                 this.windowSize;
 
             // remove unecessary decimals, 0.xx is enough
-            rollingWindowProportion -= rollingWindowProportion % 0.01;
+            // rollingWindowProportion -= rollingWindowProportion % 0.01;
 
             // # of tokens present in rolling & previous window
             previousRollingTokens = Math.floor(
