@@ -36,7 +36,10 @@ export default function expressGraphQLRateLimiter(
     const middlewareSetup: ExpressMiddlewareSet = {
         rateLimiter: middlewareConfig.rateLimiter,
         typeWeights: { ...defaultTypeWeightsConfig, ...middlewareConfig.typeWeights },
-        redis: { keyExpiry: 86400000, ...middlewareConfig.redis },
+        redis: {
+            keyExpiry: middlewareConfig.redis?.keyExpiry || 86400000,
+            options: { ...middlewareConfig.redis?.options },
+        },
         dark: middlewareConfig.dark || false,
         enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
         depthLimit: middlewareConfig.depthLimit || Infinity,
@@ -48,7 +51,7 @@ export default function expressGraphQLRateLimiter(
     // TODO: Throw ValidationError if schema is invalid
     const typeWeightObject = buildTypeWeightsFromSchema(schema, middlewareSetup.typeWeights);
     // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis(middlewareSetup.redis); // Default port is 6379 automatically
+    const redisClient = new Redis(middlewareSetup.redis.options); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(
         middlewareSetup.rateLimiter.type,
         middlewareSetup.rateLimiter.options,
