@@ -31,3 +31,12 @@ export interface TypeWeightSet {
 type Variables = {
     [index: string]: readonly unknown;
 };
+
+// Type for use when getting fields for union types
+type FieldMap = {
+    [index: string]: {
+        type: GraphQLOutputType;
+        weight?: FieldWeight;
+        resolveTo?: string;
+    };
+};

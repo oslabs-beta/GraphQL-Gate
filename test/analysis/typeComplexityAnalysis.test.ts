@@ -301,7 +301,7 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
-        xdescribe('with fragments', () => {
+        describe('with fragments', () => {
             test('that have a complexity of zero', () => {
                 query = `
                 query {
@@ -414,10 +414,11 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        xdescribe('with inline fragments', () => {
+        describe('with inline fragments', () => {
             describe('on union types', () => {
                 let unionTypeWeights: TypeWeightObject;
-                beforeAll(() => {
+                let mockHumanCharacterFriendsFunction: jest.Mock<number, []>;
+                beforeEach(() => {
                     // type Query {
                     //     hero(episode: Episode): Character
                     // }
@@ -435,6 +436,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     //     primaryFunction: String
                     //     friends(first: Int): [Character]
                     // }
+                    mockHumanCharacterFriendsFunction = jest.fn();
                     unionTypeWeights = {
                         query: {
                             weight: 1,
@@ -446,7 +448,15 @@ describe('Test getQueryTypeComplexity function', () => {
                         },
                         character: {
                             weight: 1,
-                            fields: {},
+                            fields: {
+                                name: {
+                                    weight: 0,
+                                },
+                                friends: {
+                                    resolveTo: 'character',
+                                    weight: mockCharacterFriendsFunction,
+                                },
+                            },
                         },
                         human: {
                             weight: 1,
@@ -455,7 +465,7 @@ describe('Test getQueryTypeComplexity function', () => {
                                 homePlanet: { weight: 0 },
                                 friends: {
                                     resolveTo: 'character',
-                                    weight: mockCharacterFriendsFunction,
+                                    weight: mockHumanCharacterFriendsFunction,
                                 },
                                 humanFriends: {
                                     resolveTo: 'human',
@@ -515,7 +525,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero + max(Droid 2, Human 3) = 5
-                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    mockHumanCharacterFriendsFunction.mockReturnValueOnce(3);
                     mockDroidFriendsFunction.mockReturnValueOnce(1);
                     expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
                         5
