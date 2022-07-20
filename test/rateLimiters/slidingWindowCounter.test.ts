@@ -28,7 +28,7 @@ async function setTokenCountInClient(
     redisClient: ioredis.Redis,
     uuid: string,
     currentTokens: number,
-    previousTokens: number | null,
+    previousTokens: number,
     fixedWindowStart: number
 ) {
     const value: RedisWindow = { currentTokens, previousTokens, fixedWindowStart };
@@ -78,7 +78,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             // window partially full and no leftover tokens after request
             test('fixed window is partially full and request has no leftover tokens', async () => {
                 const initial = 6;
-                await setTokenCountInClient(client, user2, initial, null, timestamp);
+                await setTokenCountInClient(client, user2, initial, 0, timestamp);
                 expect(
                     (await limiter.processRequest(user2, timestamp, CAPACITY - initial)).tokens
                 ).toBe(0);
@@ -88,7 +88,7 @@ describe('Test TokenBucket Rate Limiter', () => {
 
             // Window initially full but enough time elapsed to paritally fill window since last request
             test('fixed window is initially full but after new fixed window is initialized request is allowed', async () => {
-                await setTokenCountInClient(client, user4, 10, null, timestamp);
+                await setTokenCountInClient(client, user4, 10, 0, timestamp);
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
 
@@ -112,7 +112,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // to set rolling window at 75% of previous fixed window)
 
                 // to set initial fixedWindowStart
-                await setTokenCountInClient(client, user4, 0, null, timestamp);
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
                 await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
@@ -136,7 +136,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // to set rolling window at 50% of previous fixed window)
 
                 // to set initial fixedWindowStart
-                await setTokenCountInClient(client, user4, 0, null, timestamp);
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
                 await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
@@ -160,7 +160,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // to set rolling window at 25% of previous fixed window)
 
                 // to set initial fixedWindowStart
-                await setTokenCountInClient(client, user4, 0, null, timestamp);
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
                 await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
@@ -194,7 +194,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             test('window is partially full but not enough time elapsed to reach new window', async () => {
                 const initRequest = 6;
 
-                await setTokenCountInClient(client, user2, initRequest, null, timestamp);
+                await setTokenCountInClient(client, user2, initRequest, 0, timestamp);
                 // expect remaining tokens to be 4, b/c the 5 token request should be blocked
                 expect(
                     (await limiter.processRequest(user2, timestamp + WINDOW_SIZE, 5)).tokens
@@ -211,7 +211,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // to set rolling window at 75% of previous fixed window)
 
                 // to set initial fixedWindowStart
-                await setTokenCountInClient(client, user4, 0, null, timestamp);
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 const initRequest = 8;
 
@@ -237,7 +237,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             // to set rolling window at 50% of previous fixed window)
 
             // to set initial fixedWindowStart
-            await setTokenCountInClient(client, user4, 0, null, timestamp);
+            await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
             const initRequest = 8;
 
@@ -262,7 +262,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             // to set rolling window at 25% of previous fixed window)
 
             // to set initial fixedWindowStart
-            await setTokenCountInClient(client, user4, 0, null, timestamp);
+            await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
             const initRequest = 8;
 
@@ -309,7 +309,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             // Fill up user 1's window
             const value: RedisWindow = {
                 currentTokens: 10,
-                previousTokens: null,
+                previousTokens: 0,
                 fixedWindowStart: timestamp,
             };
             await client.set(user1, JSON.stringify(value));
@@ -368,7 +368,7 @@ describe('Test TokenBucket Rate Limiter', () => {
             const requested = 6;
             const user3Tokens = 8;
             // Add tokens for user 3 so we have both a user that exists in the store (3) and one that doesn't (2)
-            await setTokenCountInClient(client, user3, user3Tokens, null, timestamp);
+            await setTokenCountInClient(client, user3, user3Tokens, 0, timestamp);
 
             // issue a request for user 1;
             await limiter.processRequest(user1, timestamp, requested);
@@ -402,9 +402,9 @@ describe('Test TokenBucket Rate Limiter', () => {
 
         test('all windows should be able to be reset', async () => {
             const tokens = 5;
-            await setTokenCountInClient(client, user1, tokens, null, timestamp);
-            await setTokenCountInClient(client, user2, tokens, null, timestamp);
-            await setTokenCountInClient(client, user3, tokens, null, timestamp);
+            await setTokenCountInClient(client, user1, tokens, 0, timestamp);
+            await setTokenCountInClient(client, user2, tokens, 0, timestamp);
+            await setTokenCountInClient(client, user3, tokens, 0, timestamp);
 
             limiter.reset();
 
