@@ -104,7 +104,9 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
 
-                const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 1);
+                // rolling window proportion: .99999...
+                // 1 + 10 * .9 = 10 (floored)
+                const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 1);
 
                 // should be allowed because formula is floored
                 expect(result.success).toBe(true);
