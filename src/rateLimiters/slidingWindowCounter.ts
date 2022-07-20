@@ -113,9 +113,21 @@ class SlidingWindowCounter implements RateLimiter {
 
         // if request time is in a new window
         if (timestamp >= window.fixedWindowStart + this.windowSize) {
-            updatedUserWindow.previousTokens = updatedUserWindow.currentTokens;
-            updatedUserWindow.currentTokens = 0;
-            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
+            // calculates how many windows may have been skipped since last request
+            const windowsSkipped = Math.floor(
+                (timestamp - window.fixedWindowStart) / this.windowSize
+            );
+            // if more than one window was skipped
+            if (windowsSkipped > 1) {
+                updatedUserWindow.previousTokens = 0;
+                updatedUserWindow.currentTokens = 0;
+                updatedUserWindow.fixedWindowStart =
+                    window.fixedWindowStart + this.windowSize * windowsSkipped;
+            } else {
+                updatedUserWindow.previousTokens = updatedUserWindow.currentTokens;
+                updatedUserWindow.currentTokens = 0;
+                updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
+            }
         }
 
         // assigned to avoid TS error, this var will never be used as 0
