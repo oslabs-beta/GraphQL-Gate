@@ -108,45 +108,49 @@ xdescribe('Express Middleware tests', () => {
 
             xtest('...Leaky Bucket', () => {
                 expect(
-                    expressGraphQLRateLimiter(
-                        'LEAKY_BUCKET',
-                        { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
-                        schema,
-                        { path: '' }
-                    )
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'LEAKY_BUCKET',
+                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                        },
+                        redis: { path: '' },
+                    })
                 ).not.toThrow();
             });
 
             xtest('...Fixed Window', () => {
                 expect(
-                    expressGraphQLRateLimiter(
-                        'FIXED_WINDOW',
-                        { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
-                        schema,
-                        { path: '' }
-                    )
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'FIXED_WINDOW',
+                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                        },
+                        redis: { path: '' },
+                    })
                 ).not.toThrow();
             });
 
             xtest('...Sliding Window', () => {
                 expect(
-                    expressGraphQLRateLimiter(
-                        'SLIDING_WINDOW_LOG',
-                        { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
-                        schema,
-                        { path: '' }
-                    )
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'SLIDING_WINDOW_LOG',
+                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                        },
+                        redis: { path: '' },
+                    })
                 ).not.toThrow();
             });
 
             xtest('...Sliding Window Counter', () => {
                 expect(
-                    expressGraphQLRateLimiter(
-                        'SLIDING_WINDOW_COUNTER',
-                        { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
-                        schema,
-                        { path: '' }
-                    )
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'SLIDING_WINDOW_LOG',
+                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                        },
+                        redis: { path: '' },
+                    })
                 ).not.toThrow();
             });
         });
@@ -155,18 +159,25 @@ xdescribe('Express Middleware tests', () => {
             const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
             expect(
-                expressGraphQLRateLimiter('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
+                expressGraphQLRateLimiter(invalidSchema, {
+                    rateLimiter: {
+                        type: 'TOKEN_BUCKET',
+                        options: { refillRate: 1, bucketSize: 10 },
+                    },
+                })
             ).toThrowError('ValidationError');
         });
 
         test('Throw an error in unable to connect to redis', () => {
             expect(
-                expressGraphQLRateLimiter(
-                    'TOKEN_BUCKET',
-                    { bucketSize: 10, refillRate: 1 },
-                    schema,
-                    { host: 'localhost', port: 1 }
-                )
+                expressGraphQLRateLimiter(schema, {
+                    rateLimiter: {
+                        type: 'TOKEN_BUCKET',
+                        options: { bucketSize: 10, refillRate: 1 },
+                    },
+
+                    redis: { host: 'localhost', port: 1 },
+                })
             ).toThrow('ECONNREFUSED');
         });
     });
@@ -184,12 +195,12 @@ xdescribe('Express Middleware tests', () => {
         });
 
         beforeEach(() => {
-            middleware = expressGraphQLRateLimiter(
-                'TOKEN_BUCKET',
-                { refillRate: 1, bucketSize: 10 },
-                schema,
-                {}
-            );
+            middleware = expressGraphQLRateLimiter(schema, {
+                rateLimiter: {
+                    type: 'TOKEN_BUCKET',
+                    options: { bucketSize: 10, refillRate: 1 },
+                },
+            });
             mockRequest = {
                 query: {
                     // complexity should be 2 (1 Query + 1 Scalar)
