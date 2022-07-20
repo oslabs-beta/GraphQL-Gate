@@ -104,6 +104,7 @@ describe('Test TokenBucket Rate Limiter', () => {
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
 
+                // adds additional ms so that:
                 // rolling window proportion: .99999...
                 // 1 + 10 * .9 = 10 (floored)
                 const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 1);
@@ -123,7 +124,31 @@ describe('Test TokenBucket Rate Limiter', () => {
                 expect(count.currentTokens).toBe(1);
             });
 
-            // three different tests within, with different rolling window proportions (.25, .5, .75)
+            // five different tests within, with different rolling window proportions (0.01, .25, .5, .75, 1)
+            test('rolling window at 100% allows requests under capacity', async () => {
+                // 100% of rolling window present in previous fixed window
+                // 1*60000 = 60000 (time after initial fixedWindowStart
+                // to set rolling window at 100% of previous fixed window)
+
+                // to set initial fixedWindowStart
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
+
+                // large request at very end of first fixed window
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, 8);
+
+                // 2 + 8 * 1 = 10, right at capacity (request should be allowed)
+                // tokens until capacity: 0 (tokens property returned by processRequest method)
+                const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 2);
+                expect(result.tokens).toBe(0);
+                expect(result.success).toBe(true);
+
+                // currentTokens (in current fixed window): 4
+                // previousTokens (in previous fixed window): 8
+                const count1 = await getWindowFromClient(client, user4);
+                expect(count1.currentTokens).toBe(2);
+                expect(count1.previousTokens).toBe(8);
+            });
+
             test('rolling window at 75% allows requests under capacity', async () => {
                 // 75% of rolling window present in previous fixed window
                 // 1.25*60000 = 75000 (time after initial fixedWindowStart
@@ -133,13 +158,17 @@ describe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
-                await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, 8);
 
                 // 4 + 8 * .75 = 10, right at capacity (request should be allowed)
                 // tokens until capacity: 0 (tokens property returned by processRequest method)
-                expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.25, 4)).tokens
-                ).toBe(0);
+                const result = await limiter.processRequest(
+                    user4,
+                    timestamp + WINDOW_SIZE * 1.25,
+                    4
+                );
+                expect(result.tokens).toBe(0);
+                expect(result.success).toBe(true);
 
                 // currentTokens (in current fixed window): 4
                 // previousTokens (in previous fixed window): 8
@@ -157,13 +186,17 @@ describe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
-                await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, 8);
 
                 // 4 + 8 * .5 = 8, under capacity (request should be allowed)
                 // tokens until capacity: 2 (tokens property returned by processRequest method)
-                expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.5, 4)).tokens
-                ).toBe(2);
+                const result = await limiter.processRequest(
+                    user4,
+                    timestamp + WINDOW_SIZE * 1.5,
+                    4
+                );
+                expect(result.tokens).toBe(2);
+                expect(result.success).toBe(true);
 
                 // currentTokens (in current fixed window): 4
                 // previousTokens (in previous fixed window): 8
@@ -181,19 +214,51 @@ describe('Test TokenBucket Rate Limiter', () => {
                 await setTokenCountInClient(client, user4, 0, 0, timestamp);
 
                 // large request at very end of first fixed window
-                await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 8);
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, 8);
 
                 // 4 + 8 * .25 = 6, under capacity (request should be allowed)
                 // tokens until capacity: 4 (tokens property returned by processRequest method)
-                expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.75, 4)).tokens
-                ).toBe(4);
+                const result = await limiter.processRequest(
+                    user4,
+                    timestamp + WINDOW_SIZE * 1.75,
+                    4
+                );
+                expect(result.tokens).toBe(4);
+                expect(result.success).toBe(true);
 
                 // currentTokens (in current fixed window): 4
                 // previousTokens (in previous fixed window): 8
                 const count = await getWindowFromClient(client, user4);
                 expect(count.currentTokens).toBe(4);
                 expect(count.previousTokens).toBe(8);
+            });
+
+            test('rolling window at 1% allows requests under capacity', async () => {
+                // 1% of rolling window present in previous fixed window
+                // 0.01*60000 = 600 (time after initial fixedWindowStart
+                // to set rolling window at 1% of previous fixed window)
+
+                // to set initial fixedWindowStart
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
+
+                // large request at very end of first fixed window
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, 8);
+
+                // 10 + 8 * .01 = 10, right at capacity (request should be allowed)
+                // tokens until capacity: 0 (tokens property returned by processRequest method)
+                const result = await limiter.processRequest(
+                    user4,
+                    timestamp + WINDOW_SIZE * 1.99,
+                    4
+                );
+                expect(result.tokens).toBe(0);
+                expect(result.success).toBe(true);
+
+                // currentTokens (in current fixed window): 4
+                // previousTokens (in previous fixed window): 8
+                const count1 = await getWindowFromClient(client, user4);
+                expect(count1.currentTokens).toBe(4);
+                expect(count1.previousTokens).toBe(8);
             });
         });
 
@@ -214,15 +279,40 @@ describe('Test TokenBucket Rate Limiter', () => {
 
                 await setTokenCountInClient(client, user2, initRequest, 0, timestamp);
                 // expect remaining tokens to be 4, b/c the 5 token request should be blocked
-                expect(
-                    (await limiter.processRequest(user2, timestamp + WINDOW_SIZE, 5)).tokens
-                ).toBe(CAPACITY - initRequest);
+                const result = await limiter.processRequest(user2, timestamp + WINDOW_SIZE - 1, 5);
+
+                expect(result.success).toBe(false);
+                expect(result.tokens).toBe(CAPACITY - initRequest);
 
                 // expect current tokens in the window to still be 6
                 expect((await getWindowFromClient(client, user2)).currentTokens).toBe(6);
             });
 
-            // 3 rolling window tests with different proportions (.25, .5, .75)
+            // 5 rolling window tests with different proportions (.01, .25, .5, .75, 1)
+            test('rolling window at 100% blocks requests over allowed limit set by formula', async () => {
+                // 100% of rolling window present in previous fixed window
+                // 1*60000 = 60000 (time after initial fixedWindowStart
+                // to set rolling window at 100% of previous fixed window)
+
+                // to set initial fixedWindowStart
+                await setTokenCountInClient(client, user4, 0, 0, timestamp);
+
+                const initRequest = 8;
+
+                // large request at very end of first fixed window
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, initRequest);
+
+                // 3 + 8 * 1 = 11, above capacity (request should be blocked)
+                const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 3);
+                expect(result.tokens).toBe(10);
+                expect(result.success).toBe(false);
+
+                // currentTokens (in current fixed window): 0
+                // previousTokens (in previous fixed window): 8
+                const count1 = await getWindowFromClient(client, user4);
+                expect(count1.currentTokens).toBe(0);
+                expect(count1.previousTokens).toBe(initRequest);
+            });
             test('rolling window at 75% blocks requests over allowed limit set by formula', async () => {
                 // 75% of rolling window present in previous fixed window
                 // 1.25*60000 = 75000 (time after initial fixedWindowStart
@@ -234,12 +324,16 @@ describe('Test TokenBucket Rate Limiter', () => {
                 const initRequest = 8;
 
                 // large request at very end of first fixed window
-                await limiter.processRequest(user4, timestamp + WINDOW_SIZE, initRequest);
+                await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, initRequest);
 
                 // 5 + 8 * .75 = 11, above capacity (request should be blocked)
-                expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.25, 5)).tokens
-                ).toBe(10);
+                const result = await limiter.processRequest(
+                    user4,
+                    timestamp + WINDOW_SIZE * 1.25,
+                    5
+                );
+                expect(result.tokens).toBe(10);
+                expect(result.success).toBe(false);
 
                 // currentTokens (in current fixed window): 0
                 // previousTokens (in previous fixed window): 8
@@ -260,12 +354,12 @@ describe('Test TokenBucket Rate Limiter', () => {
             const initRequest = 8;
 
             // large request at very end of first fixed window
-            await limiter.processRequest(user4, timestamp + WINDOW_SIZE, initRequest);
+            await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, initRequest);
 
             // 7 + 8 * .5 = 11, over capacity (request should be blocked)
-            expect(
-                (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.5, 7)).tokens
-            ).toBe(10);
+            const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.5, 7);
+            expect(result.tokens).toBe(10);
+            expect(result.success).toBe(false);
 
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
@@ -285,18 +379,42 @@ describe('Test TokenBucket Rate Limiter', () => {
             const initRequest = 8;
 
             // large request at very end of first fixed window
-            await limiter.processRequest(user4, timestamp + WINDOW_SIZE, initRequest);
+            await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, initRequest);
 
             // 9 + 8 * .25 = 11, over capacity (request should be blocked)
-            expect(
-                (await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.75, 9)).tokens
-            ).toBe(10);
+            const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.75, 9);
+            expect(result.tokens).toBe(10);
+            expect(result.success).toBe(false);
 
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
             const count = await getWindowFromClient(client, user4);
             expect(count.currentTokens).toBe(0);
             expect(count.previousTokens).toBe(initRequest);
+        });
+        test('rolling window at 100% blocks requests over allowed limit set by formula', async () => {
+            // 1% of rolling window present in previous fixed window
+            // .01*60000 = 600 (time after initial fixedWindowStart
+            // to set rolling window at 100% of previous fixed window)
+
+            // to set initial fixedWindowStart
+            await setTokenCountInClient(client, user4, 0, 0, timestamp);
+
+            const initRequest = 8;
+
+            // large request at very end of first fixed window
+            await limiter.processRequest(user4, timestamp + WINDOW_SIZE - 1, initRequest);
+
+            // 11 + 8 * .01 = 11, above capacity (request should be blocked)
+            const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 11);
+            expect(result.tokens).toBe(10);
+            expect(result.success).toBe(false);
+
+            // currentTokens (in current fixed window): 0
+            // previousTokens (in previous fixed window): 8
+            const count1 = await getWindowFromClient(client, user4);
+            expect(count1.currentTokens).toBe(0);
+            expect(count1.previousTokens).toBe(initRequest);
         });
     });
 
