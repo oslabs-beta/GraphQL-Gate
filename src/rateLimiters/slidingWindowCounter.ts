@@ -112,10 +112,10 @@ class SlidingWindowCounter implements RateLimiter {
         };
 
         // if request time is in a new window
-        if (timestamp >= window.fixedWindowStart + this.windowSize + 1) {
+        if (timestamp >= window.fixedWindowStart + this.windowSize) {
             updatedUserWindow.previousTokens = updatedUserWindow.currentTokens;
             updatedUserWindow.currentTokens = 0;
-            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize + 1;
+            updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
         }
 
         // assigned to avoid TS error, this var will never be used as 0
