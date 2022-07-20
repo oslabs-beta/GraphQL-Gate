@@ -166,7 +166,10 @@ class SlidingWindowCounter implements RateLimiter {
 
         // if request is blocked
         await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
-        return { success: false, tokens: this.capacity - updatedUserWindow.currentTokens };
+        return {
+            success: false,
+            tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
+        };
     }
 
     /**
