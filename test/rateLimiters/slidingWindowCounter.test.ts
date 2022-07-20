@@ -35,7 +35,7 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
+describe('Test TokenBucket Rate Limiter', () => {
     beforeEach(async () => {
         // init a mock redis cache
         client = new RedisMock();
@@ -50,10 +50,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
             afterEach(() => {
                 client.flushall();
             });
-
-            test('fixed window is initially empty', async () => {
-                setTokenCountInClient(client, user1, 0, 0, timestamp);
-
+            test('fixed window and cache are initially empty', async () => {
                 // window is intially empty
                 const withdraw5 = 5;
                 expect((await limiter.processRequest(user1, timestamp, withdraw5)).tokens).toBe(
@@ -64,7 +61,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                 expect(tokenCountFull.previousTokens).toBe(0);
             });
 
-            test('fixed window and cache are initially empty', async () => {
+            test('fixed window is initially empty', async () => {
                 // window is intially empty
                 const withdraw5 = 5;
                 expect((await limiter.processRequest(user1, timestamp, withdraw5)).tokens).toBe(
@@ -87,28 +84,33 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                 ).toBe(CAPACITY - (initial + partialWithdraw));
 
                 const tokenCountPartial = await getWindowFromClient(client, user2);
-                expect(tokenCountPartial.currentTokens).toBe(
-                    CAPACITY - (initial + partialWithdraw)
-                );
+                expect(tokenCountPartial.currentTokens).toBe(initial + partialWithdraw);
             });
 
             // window partially full and no leftover tokens after request
             test('fixed window is partially full and request has no leftover tokens', async () => {
                 const initial = 6;
                 await setTokenCountInClient(client, user2, initial, 0, timestamp);
-                expect((await limiter.processRequest(user2, timestamp, initial)).tokens).toBe(0);
+                expect(
+                    (await limiter.processRequest(user2, timestamp, CAPACITY - initial)).tokens
+                ).toBe(0);
                 const tokenCountPartialToEmpty = await getWindowFromClient(client, user2);
-                expect(tokenCountPartialToEmpty.currentTokens).toBe(0);
+                expect(tokenCountPartialToEmpty.currentTokens).toBe(10);
             });
 
             // Window initially full but enough time elapsed to paritally fill window since last request
-            test('current window is initially full but after new fixed window is initialized request is allowed', async () => {
+            test('fixed window is initially full but after new fixed window is initialized request is allowed', async () => {
                 await setTokenCountInClient(client, user4, 10, 0, timestamp);
                 // tokens returned in processRequest is equal to the capacity
                 // still available in the fixed window
-                expect(
-                    (await limiter.processRequest(user4, timestamp + WINDOW_SIZE + 1, 1)).tokens
-                ).toBe(0); // here, we expect the rolling window to only allow 1 token, b/c
+
+                const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 1);
+
+                // should be allowed because formula is floored
+                expect(result.success).toBe(true);
+                expect(result.tokens).toBe(0);
+
+                // here, we expect the rolling window to only allow 1 token, b/c
                 // only 1ms has passed since the previous fixed window
 
                 // `currentTokens` cached is the amount of tokens
@@ -214,8 +216,8 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                     (await limiter.processRequest(user2, timestamp + WINDOW_SIZE, 5)).tokens
                 ).toBe(CAPACITY - initRequest);
 
-                // expect current tokens in the window to still be 0
-                expect((await getWindowFromClient(client, user2)).currentTokens).toBe(0);
+                // expect current tokens in the window to still be 6
+                expect((await getWindowFromClient(client, user2)).currentTokens).toBe(6);
             });
 
             // 3 rolling window tests with different proportions (.25, .5, .75)
@@ -291,7 +293,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
             const count = await getWindowFromClient(client, user4);
-            expect(count.currentTokens).toBe(4);
+            expect(count.currentTokens).toBe(0);
             expect(count.previousTokens).toBe(initRequest);
         });
     });
@@ -336,18 +338,17 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
         });
 
         test('fixed window and current/previous tokens update as expected', async () => {
-            await setTokenCountInClient(client, user1, 0, 0, timestamp);
-            // fills first window with 4 tokens
+            // fills first window with 5 tokens
             await limiter.processRequest(user1, timestamp, 5);
-            // fills second window with 5 tokens
+            // fills second window with 4 tokens
             expect(
                 await (
-                    await limiter.processRequest(user1, timestamp + WINDOW_SIZE + 1, 4)
+                    await limiter.processRequest(user1, timestamp + WINDOW_SIZE, 4)
                 ).tokens
-            ).toBe(6);
+            ).toBe(2);
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
-            const count = await getWindowFromClient(client, user4);
+            const count = await getWindowFromClient(client, user1);
             // ensures that fixed window is updated when a request goes over
             expect(count.fixedWindowStart).toBe(timestamp + WINDOW_SIZE);
             // ensures that previous tokens property updates on fixed window change
@@ -363,10 +364,11 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
             await newLimiter.processRequest(user1, timestamp, 8);
 
-            // expect that a new window is entered, leaving 9 tokens available after a 1 token request
+            // expect that a new window is entered, leaving 2 tokens available after both requests
+            // 8 * .99 -> 7 (floored) + 1 = 8
             expect(
                 (await newLimiter.processRequest(user1, timestamp + newWindowSize + 1, 1)).tokens
-            ).toBe(9);
+            ).toBe(2);
         });
 
         test('sliding window allows custom capacities', async () => {
@@ -461,12 +463,14 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
             expect(redisData.currentTokens).toBe(2);
 
-            await limiter.processRequest(user1, timestamp + WINDOW_SIZE + 1, 3);
+            // new window
+            await limiter.processRequest(user1, timestamp + WINDOW_SIZE, 3);
 
             redisData = await getWindowFromClient(client, user1);
 
             expect(redisData.currentTokens).toBe(3);
             expect(redisData.previousTokens).toBe(2);
+            expect(redisData.fixedWindowStart).toBe(timestamp + WINDOW_SIZE);
         });
 
         test('all windows should be able to be reset', async () => {
