@@ -463,7 +463,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         describe('union types', () => {
             test('union types', () => {
                 schema = buildSchema(`
-                    union SearchResult = Human | Droid
                     type Human{
                         name: String
                         homePlanet: String
@@ -473,7 +472,9 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         name: String
                         primaryFunction: String
                         search(first: Int!): [SearchResult]
-                    }`);
+                    }
+                    union SearchResult = Human | Droid
+                    `);
                 expect(buildTypeWeightsFromSchema(schema)).toEqual({
                     searchresult: {
                         weight: 1,

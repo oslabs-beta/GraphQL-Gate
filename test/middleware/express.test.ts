@@ -66,17 +66,30 @@ const schema: GraphQLSchema = buildSchema(`
                 }
             `);
 
-xdescribe('Express Middleware tests', () => {
+describe('Express Middleware tests', () => {
     describe('Middleware is configurable...', () => {
-        xdescribe('...successfully connects to redis using standard connection options', () => {
+        describe('...successfully connects to redis using standard connection options', () => {
+            let redis: ioredis.Redis;
             beforeEach(() => {
                 // TODO: Setup mock redis store.
+                redis = new RedisMock('//localhost:6379');
             });
 
             test('...via url', () => {
                 // TODO: Connect to redis instance and add 'connect' event listener
                 // assert that event listener is called once
-                expect(true).toBeFalsy();
+                expect.assertions(1);
+                expressGraphQLRateLimiter(schema, {
+                    rateLimiter: {
+                        type: 'TOKEN_BUCKET',
+                        options: { refillRate: 1, bucketSize: 10 },
+                    },
+                    redis: { host: '//localhost:6379' },
+                });
+                redis.on('connect', (data) => {
+                    console.log(data);
+                    expect(data.host).toEqual('//localhost:6379');
+                });
             });
 
             xtest('via socket', () => {
@@ -150,7 +163,7 @@ xdescribe('Express Middleware tests', () => {
             });
         });
 
-        describe('... throws an error', () => {
+        xdescribe('... throws an error', () => {
             test('... for invalid schemas', () => {
                 const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
@@ -178,7 +191,7 @@ xdescribe('Express Middleware tests', () => {
             });
         });
 
-        describe('...other configuration parameters', () => {
+        xdescribe('...other configuration parameters', () => {
             // dark
             // enforceBourdedLists
             // depthLimit
