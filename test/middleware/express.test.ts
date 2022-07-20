@@ -101,7 +101,6 @@ xdescribe('Express Middleware tests', () => {
                             type: 'TOKEN_BUCKET',
                             options: { refillRate: 1, bucketSize: 10 },
                         },
-                        redis: { path: '' },
                     })
                 ).not.toThrow();
             });
@@ -113,7 +112,6 @@ xdescribe('Express Middleware tests', () => {
                             type: 'LEAKY_BUCKET',
                             options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         },
-                        redis: { path: '' },
                     })
                 ).not.toThrow();
             });
@@ -125,7 +123,6 @@ xdescribe('Express Middleware tests', () => {
                             type: 'FIXED_WINDOW',
                             options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         },
-                        redis: { path: '' },
                     })
                 ).not.toThrow();
             });
@@ -137,7 +134,6 @@ xdescribe('Express Middleware tests', () => {
                             type: 'SLIDING_WINDOW_LOG',
                             options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         },
-                        redis: { path: '' },
                     })
                 ).not.toThrow();
             });
@@ -149,36 +145,44 @@ xdescribe('Express Middleware tests', () => {
                             type: 'SLIDING_WINDOW_LOG',
                             options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
                         },
-                        redis: { path: '' },
                     })
                 ).not.toThrow();
             });
         });
 
-        test('Throw an error for invalid schemas', () => {
-            const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
+        describe('... throws an error', () => {
+            test('... for invalid schemas', () => {
+                const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
-            expect(
-                expressGraphQLRateLimiter(invalidSchema, {
-                    rateLimiter: {
-                        type: 'TOKEN_BUCKET',
-                        options: { refillRate: 1, bucketSize: 10 },
-                    },
-                })
-            ).toThrowError('ValidationError');
+                expect(
+                    expressGraphQLRateLimiter(invalidSchema, {
+                        rateLimiter: {
+                            type: 'TOKEN_BUCKET',
+                            options: { refillRate: 1, bucketSize: 10 },
+                        },
+                    })
+                ).toThrowError('ValidationError');
+            });
+
+            test('... if unable to connect to redis', () => {
+                expect(
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'TOKEN_BUCKET',
+                            options: { bucketSize: 10, refillRate: 1 },
+                        },
+
+                        redis: { host: 'localhost', port: 1 },
+                    })
+                ).toThrow('ECONNREFUSED');
+            });
         });
 
-        test('Throw an error in unable to connect to redis', () => {
-            expect(
-                expressGraphQLRateLimiter(schema, {
-                    rateLimiter: {
-                        type: 'TOKEN_BUCKET',
-                        options: { bucketSize: 10, refillRate: 1 },
-                    },
-
-                    redis: { host: 'localhost', port: 1 },
-                })
-            ).toThrow('ECONNREFUSED');
+        describe('...other configuration parameters', () => {
+            // dark
+            // enforceBourdedLists
+            // depthLimit
+            // keyExpiry
         });
     });
 
@@ -240,16 +244,8 @@ xdescribe('Express Middleware tests', () => {
         });
 
         describe('Adds expected properties to res.locals', () => {
-            test('Adds UNIX timestamp and complexity', () => {
-                const expectedResponse = {
-                    locals: {},
-                };
-
+            test('adds UNIX timestamp', () => {
                 middleware(mockRequest as Request, mockResponse as Response, nextFunction);
-
-                expect(mockResponse.locals).toHaveProperty('complexity');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
-                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
 
                 expect(mockResponse.locals).toHaveProperty('timestamp');
                 expect(mockResponse.locals?.timestamp).toBeInstanceOf('number');
@@ -257,6 +253,37 @@ xdescribe('Express Middleware tests', () => {
                 const now: number = Date.now().valueOf();
                 const diff: number = Math.abs(now - (mockResponse.locals?.timestamp || 0));
                 expect(diff).toBeLessThan(5 * 60);
+            });
+
+            test('adds complexity', () => {
+                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+
+                expect(mockResponse.locals).toHaveProperty('complexity');
+                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
+                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
+            });
+
+            test('adds tokens', () => {
+                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+
+                expect(mockResponse.locals).toHaveProperty('tokens');
+                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
+                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
+            });
+
+            test('adds success', () => {
+                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+
+                expect(mockResponse.locals).toHaveProperty('success');
+                expect(mockResponse.locals?.complexity).toBeInstanceOf('boolean');
+            });
+
+            xtest('adds depth', () => {
+                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+
+                expect(mockResponse.locals).toHaveProperty('depth');
+                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
+                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
             });
         });
 
@@ -343,6 +370,8 @@ xdescribe('Express Middleware tests', () => {
                     // FIXME: See above comment on sending responses
                     expect(mockResponse.send).toBeCalled();
                 });
+
+                xtest('Retry-After header is on blocked response', () => {});
             });
         });
 
@@ -368,6 +397,12 @@ xdescribe('Express Middleware tests', () => {
 
             expect(finalValue).not.toBeNull();
             expect(finalValue).not.toBe(initialValue);
+        });
+
+        xdescribe('handles error correctly', () => {
+            // validation errors
+            // redis connection errors in token bucket
+            // complexity anaylsis errors
         });
     });
 });
