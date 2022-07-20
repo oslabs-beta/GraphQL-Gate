@@ -35,7 +35,7 @@ class SlidingWindowLog implements RateLimiter {
         if (windowSize <= 0 || capacity <= 0)
             throw SyntaxError('SlidingWindowLog window size and capacity must be positive');
 
-        // TODO: Define lua script for server side computation
+        // TODO: Define lua script for server side computation using either sorted sets or lists
         // while x.timestamp + window_size < timestamp lpop
         // //https://stackoverflow.com/questions/35677682/filtering-deleting-items-from-a-redis-set
         // this.client.defineCommand('popWindow', {
