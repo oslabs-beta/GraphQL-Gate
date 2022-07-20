@@ -44,11 +44,22 @@ export type RateLimiterSelection =
  * @type {number} refillRate - Rate at which tokens are added to the bucket in seconds
  */
 export interface TokenBucketOptions {
+    typename: 'bucket';
     bucketSize: number;
     refillRate: number;
 }
 
+/**
+ * @type {number} windowSize - size of the window in milliseconds
+ * @type {number} capacity - max number of tokens that can be used in the bucket
+ */
+export interface WindowOptions {
+    typename: 'window';
+    windowSize: number;
+    capacity: number;
+}
+
 // TODO: This will be a union type where we can specify Option types for other Rate Limiters
-// Record<string, never> represents the empty object for alogorithms that don't require settings
+// Record<string, never> represents the empty object for algorithms that don't require settings
 // and might be able to be removed in the future.
-export type RateLimiterOptions = TokenBucketOptions | Record<string, never>;
+export type RateLimiterOptions = TokenBucketOptions | WindowSize | Record<string, never>;
