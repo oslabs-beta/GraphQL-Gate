@@ -181,6 +181,7 @@ function compareTypes(a: GraphQLOutputType, b: GraphQLOutputType): boolean {
     return (
         (isObjectType(b) && isObjectType(a) && a.name === b.name) ||
         (isUnionType(b) && isUnionType(a) && a.name === b.name) ||
+        (isEnumType(b) && isEnumType(a) && a.name === b.name) ||
         (isInterfaceType(b) && isInterfaceType(a) && a.name === b.name) ||
         (isScalarType(b) && isScalarType(a) && a.name === b.name) ||
         (isListType(b) && isListType(a) && compareTypes(b.ofType, a.ofType)) ||
@@ -287,24 +288,26 @@ function parseUnionTypes(
              *   c. objects have a resolveTo type.
              *  */
 
-            const current = commonFields[field].type;
+            let current = commonFields[field].type;
+            if (isNonNullType(current)) current = current.ofType;
             if (isScalarType(current)) {
                 fieldTypes[field] = {
                     weight: commonFields[field].weight,
                 };
-            } else if (isObjectType(current) || isInterfaceType(current) || isUnionType(current)) {
+            } else if (
+                isObjectType(current) ||
+                isInterfaceType(current) ||
+                isUnionType(current) ||
+                isEnumType(current)
+            ) {
                 fieldTypes[field] = {
                     resolveTo: commonFields[field].resolveTo,
-                    weight: typeWeights.object,
                 };
             } else if (isListType(current)) {
                 fieldTypes[field] = {
                     resolveTo: commonFields[field].resolveTo,
                     weight: commonFields[field].weight,
                 };
-            } else if (isNonNullType(current)) {
-                throw new Error('non null types not supported on unions');
-                // TODO: also a recursive data structure
             } else {
                 throw new Error('Unhandled union type. Should never get here');
             }

@@ -460,8 +460,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        describe('union types', () => {
-            test('union types', () => {
+        describe('union types with ...', () => {
+            test('lists of union types and scalars', () => {
                 schema = buildSchema(`
                     union SearchResult = Human | Droid
                     type Human{
@@ -506,6 +506,134 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                                 weight: expect.any(Function),
                             },
                         },
+                    },
+                });
+            });
+
+            test('object types', () => {
+                schema = buildSchema(`
+                    union SearchResult = Human | Droid
+                    type Human{
+                        name: String
+                        homePlanet: String
+                        info: Info
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Droid {
+                        name: String
+                        primaryFunction: String
+                        info: Info
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Info {
+                        height: Int
+                    }
+                    `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                            info: { resolveTo: 'info' },
+                        },
+                    },
+                    human: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                            info: { resolveTo: 'info' },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            primaryFunction: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                            info: { resolveTo: 'info' },
+                        },
+                    },
+                    info: {
+                        weight: 1,
+                        fields: {
+                            height: { weight: 0 },
+                        },
+                    },
+                });
+            });
+
+            test('enum types', () => {
+                schema = buildSchema(`
+                    union SearchResult = Human | Droid
+                    type Human{
+                        name: String
+                        homePlanet: String
+                        episode: Episode
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Droid {
+                        name: String
+                        primaryFunction: String
+                        episode: Episode
+                        search(first: Int!): [SearchResult]
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }
+                    `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {
+                            episode: { resolveTo: 'episode' },
+                            name: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                        },
+                    },
+                    human: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                            episode: { resolveTo: 'episode' },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            primaryFunction: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
+                            },
+                            episode: { resolveTo: 'episode' },
+                        },
+                    },
+                    episode: {
+                        weight: 0,
+                        fields: {},
                     },
                 });
             });
