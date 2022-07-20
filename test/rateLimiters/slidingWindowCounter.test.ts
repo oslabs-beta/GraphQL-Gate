@@ -35,7 +35,7 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-describe('Test TokenBucket Rate Limiter', () => {
+xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
     beforeEach(async () => {
         // init a mock redis cache
         client = new RedisMock();
