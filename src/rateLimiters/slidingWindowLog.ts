@@ -38,35 +38,35 @@ class SlidingWindowLog implements RateLimiter {
         // TODO: Define lua script for server side computation
         // while x.timestamp + window_size < timestamp lpop
         // //https://stackoverflow.com/questions/35677682/filtering-deleting-items-from-a-redis-set
-        this.client.defineCommand('popWindow', {
-            // 2 value timestamp and complexity of this request
-            lua: `
-                local totalComplexity = 0 -- complexity of active requests
-                local expiredMembers = 0 -- number of requests to remove
-                local key = keys[1] -- uuid 
-                local current_time = keys[2]
+        // this.client.defineCommand('popWindow', {
+        //     // 2 value timestamp and complexity of this request
+        //     lua: `
+        //         local totalComplexity = 0 -- complexity of active requests
+        //         local expiredMembers = 0 -- number of requests to remove
+        //         local key = keys[1] -- uuid
+        //         local current_time = keys[2]
 
-                for index, value in next, redis.call(key, ????) do
-                    -- string comparisson of timestamps
-                    if .... then
-                    
-                    else
-                        totalComplexity += ????
-                    end
-                end
+        //         for index, value in next, redis.call(key, ????) do
+        //             -- string comparisson of timestamps
+        //             if .... then
 
-                redis.call(pop, ???)
+        //             else
+        //                 totalComplexity += ????
+        //             end
+        //         end
 
-                if total_complexity < window_size then
-                    then 
-                end
-                return {
+        //         redis.call(pop, ???)
 
-                }
-            `,
-            numberOfKeys: 3, // uuid
-            readOnly: true,
-        });
+        //         if total_complexity < window_size then
+        //             then
+        //         end
+        //         return {
+
+        //         }
+        //     `,
+        //     numberOfKeys: 3, // uuid
+        //     readOnly: true,
+        // });
     }
 
     /**
@@ -83,7 +83,6 @@ class SlidingWindowLog implements RateLimiter {
     ): Promise<RateLimiterResponse> {
         // set the expiry of key-value pairs in the cache to 24 hours
         const keyExpiry = 86400000; // TODO: Make this a global for consistency across each algo.
-        // if (tokens > this.capacity) return { success: false, tokens: this.capacity };
 
         // Each user's log is represented by a redis list with a score = request timestamp
         // and a value equal to the complexity
@@ -92,21 +91,41 @@ class SlidingWindowLog implements RateLimiter {
         // Get the log from redis
         let requestLog: RedisLog = JSON.parse((await this.client.get(uuid)) || '[]');
 
-        // if (requestLog.length === 0) {
-        //     if (tokens > 0) requestLog.push({ timestamp, tokens });
-        //     // return { success: true, tokens: this.capacity - tokens };
-        // }
+        // Iterate through the list in reverse and count active tokens
+        // This allows us to track the threshold for when this request would be allowed if it is blocked
+        // Stop at the first timestamp that's expired and cut the rest.
+
         const cutoff = timestamp - this.windowSize;
         let tokensInLog = 0;
-        requestLog = requestLog.filter((bucket: RedisBucket) => {
-            if (bucket.timestamp > cutoff) {
-                // get complexity sum of active requests
-                tokensInLog += bucket.tokens;
-                return true;
+        let cutoffIndex = 0; // index of oldest active request
+        // TODO: Provide a timestamp for when the request will succeeed.
+        // Compute time between response and this timestamp later on
+        // FIXME: What should this be if the complexity is too big?
+        let retryIndex = requestLog.length; // time the user must wait before a request can be allowed.
+
+        for (let index = requestLog.length - 1; index >= 0; index--) {
+            if (cutoff >= requestLog[index].timestamp) {
+                cutoffIndex = index + 1;
+                break;
+            } else {
+                // the request is active
+                tokensInLog += requestLog[index].tokens;
+                if (this.capacity - tokensInLog >= tokens) {
+                    // the log is able to accept this request
+                    retryIndex = index;
+                }
             }
-            // drop expired requests
-            return false;
-        });
+        }
+
+        let retryAfter: number;
+        if (tokens > this.capacity) retryAfter = Infinity;
+        // need the request before retryIndex
+        else if (retryIndex > 0)
+            retryAfter = this.windowSize + requestLog[retryIndex - 1].timestamp;
+        else retryAfter = 0; // request is allowed
+
+        // Conditional check to avoid unecessary slice
+        if (cutoffIndex > 0) requestLog = requestLog.slice(cutoffIndex);
 
         // allow/disallow current request
         if (tokensInLog + tokens <= this.capacity) {
@@ -116,8 +135,10 @@ class SlidingWindowLog implements RateLimiter {
             tokensInLog += tokens;
             return { success: true, tokens: this.capacity - tokensInLog };
         }
+
         await this.client.setex(uuid, keyExpiry, JSON.stringify(requestLog));
-        return { success: false, tokens: this.capacity - tokensInLog };
+
+        return { success: false, tokens: this.capacity - tokensInLog, retryAfter };
     }
 
     /**

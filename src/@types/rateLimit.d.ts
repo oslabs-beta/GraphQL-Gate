@@ -16,6 +16,7 @@ export interface RateLimiter {
 export interface RateLimiterResponse {
     success: boolean;
     tokens: number;
+    retryAfter?: number;
 }
 
 export interface RedisBucket {
