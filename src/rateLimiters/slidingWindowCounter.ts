@@ -87,7 +87,7 @@ class SlidingWindowCounter implements RateLimiter {
             const newUserWindow: RedisWindow = {
                 // current and previous tokens represent how many tokens are in each window
                 currentTokens: tokens <= this.capacity ? tokens : 0,
-                previousTokens: null,
+                previousTokens: 0,
                 fixedWindowStart: timestamp,
             };
 
