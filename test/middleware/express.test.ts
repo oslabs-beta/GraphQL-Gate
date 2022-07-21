@@ -67,6 +67,10 @@ const schema: GraphQLSchema = buildSchema(`
             `);
 
 describe('Express Middleware tests', () => {
+    let redis: ioredis.Redis;
+    beforeEach(() => {
+        redis = new RedisMock();
+    });
     test('middleware can be setup with minum required configuration without error', () => {
         expect(
             expressGraphQLRateLimiter(schema, {
@@ -80,25 +84,24 @@ describe('Express Middleware tests', () => {
 
     describe('Middleware is configurable...', () => {
         xdescribe('...successfully connects to redis using standard connection options', () => {
-            let redis: ioredis.Redis;
+            // let redis: ioredis.Redis;
             beforeEach(() => {
-                // TODO: Setup mock redis store.
-                redis = new RedisMock('//localhost:6379');
+                redis = new RedisMock();
             });
 
             xtest('...via url', () => {
                 // TODO: Connect to redis instance and add 'connect' event listener
                 // assert that event listener is called once
                 expect.assertions(1);
+                redis.on('connect', () => {
+                    expect(true);
+                });
                 expressGraphQLRateLimiter(schema, {
                     rateLimiter: {
                         type: 'TOKEN_BUCKET',
                         options: { refillRate: 1, bucketSize: 10 },
                     },
                     redis: { options: { host: '//localhost:6379' } },
-                });
-                redis.on('connect', () => {
-                    expect(true);
                 });
             });
 
