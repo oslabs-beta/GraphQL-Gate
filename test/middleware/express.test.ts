@@ -67,6 +67,17 @@ const schema: GraphQLSchema = buildSchema(`
             `);
 
 describe('Express Middleware tests', () => {
+    test('middleware can be setup with minum required configuration without error', () => {
+        expect(
+            expressGraphQLRateLimiter(schema, {
+                rateLimiter: {
+                    type: 'TOKEN_BUCKET',
+                    options: { refillRate: 1, bucketSize: 10 },
+                },
+            })
+        ).not.toThrowError();
+    });
+
     describe('Middleware is configurable...', () => {
         xdescribe('...successfully connects to redis using standard connection options', () => {
             let redis: ioredis.Redis;
@@ -84,7 +95,7 @@ describe('Express Middleware tests', () => {
                         type: 'TOKEN_BUCKET',
                         options: { refillRate: 1, bucketSize: 10 },
                     },
-                    redis: { host: '//localhost:6379' },
+                    redis: { options: { host: '//localhost:6379' } },
                 });
                 redis.on('connect', () => {
                     expect(true);
@@ -184,7 +195,7 @@ describe('Express Middleware tests', () => {
                             options: { bucketSize: 10, refillRate: 1 },
                         },
 
-                        redis: { host: 'localhost', port: 1 },
+                        redis: { options: { host: 'localhost', port: 1 } },
                     })
                 ).toThrow('ECONNREFUSED');
             });

@@ -51,7 +51,7 @@ export default function expressGraphQLRateLimiter(
     // TODO: Throw ValidationError if schema is invalid
     const typeWeightObject = buildTypeWeightsFromSchema(schema, middlewareSetup.typeWeights);
     // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis(middlewareSetup.redis.options); // Default port is 6379 automatically
+    const redisClient = new Redis(); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(
         middlewareSetup.rateLimiter.type,
         middlewareSetup.rateLimiter.options,
