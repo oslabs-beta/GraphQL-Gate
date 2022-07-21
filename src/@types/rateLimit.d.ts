@@ -31,23 +31,24 @@ export interface RedisWindow {
 
 export type RedisLog = RedisBucket[];
 
-export type RateLimiterSelection =
-    | 'TOKEN_BUCKET'
-    | 'LEAKY_BUCKET'
-    | 'FIXED_WINDOW'
-    | 'SLIDING_WINDOW_LOG'
-    | 'SLIDING_WINDOW_COUNTER';
+type BucketType = 'TOKEN_BUCKET' | 'LEAKY_BUCKET';
 
-/**
- * @type {number} bucketSize - Size of the token bucket
- * @type {number} refillRate - Rate at which tokens are added to the bucket in seconds
- */
-export interface TokenBucketOptions {
-    bucketSize: number;
-    refillRate: number;
-}
+type WindowType = 'FIXED_WINDOW' | 'SLIDING_WINDOW_LOG' | 'SLIDING_WINDOW_COUNTER';
 
-// TODO: This will be a union type where we can specify Option types for other Rate Limiters
-// Record<string, never> represents the empty object for alogorithms that don't require settings
-// and might be able to be removed in the future.
-export type RateLimiterOptions = TokenBucketOptions | Record<string, never>;
+type BucketRateLimiter = {
+    type: BucketType;
+    options: {
+        refillRate: number;
+        capacity: number;
+    };
+};
+
+type WindowRateLimiter = {
+    type: WindowType;
+    options: {
+        windowSize: number;
+        capacity: number;
+    };
+};
+
+export type RateLimiterConfig = WindowRateLimiter | BucketRateLImiter;

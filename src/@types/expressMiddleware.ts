@@ -1,11 +1,11 @@
 import { RedisOptions } from 'ioredis';
 import { TypeWeightConfig, TypeWeightSet } from './buildTypeWeights';
-import { RateLimiterOptions, RateLimiterSelection } from './rateLimit';
+import { RateLimiterConfig } from './rateLimit';
 
-interface RateLimitingOptions {
-    type: RateLimiterSelection;
-    options: RateLimiterOptions;
-}
+// interface RateLimitingOptions {
+//     type: RateLimiterSelection;
+//     options: RateLimiterOptions;
+// }
 
 // extend ioredis configuration options to include an expiry prooperty for rate limiting cache
 interface RedisConfig {
@@ -19,7 +19,7 @@ interface RedisConfigSet extends RedisConfig {
 }
 
 export interface ExpressMiddlewareConfig {
-    rateLimiter: RateLimitingOptions;
+    rateLimiter: RateLimiterConfig;
     redis?: RedisConfig;
     typeWeights?: TypeWeightConfig;
     dark?: boolean;
