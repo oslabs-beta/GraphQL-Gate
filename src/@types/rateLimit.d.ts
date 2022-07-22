@@ -37,18 +37,14 @@ type WindowType = 'FIXED_WINDOW' | 'SLIDING_WINDOW_LOG' | 'SLIDING_WINDOW_COUNTE
 
 type BucketRateLimiter = {
     type: BucketType;
-    options: {
-        refillRate: number;
-        capacity: number;
-    };
+    refillRate: number;
+    capacity: number;
 };
 
 type WindowRateLimiter = {
     type: WindowType;
-    options: {
-        windowSize: number;
-        capacity: number;
-    };
+    windowSize: number;
+    capacity: number;
 };
 
 export type RateLimiterConfig = WindowRateLimiter | BucketRateLImiter;

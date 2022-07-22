@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterConfig } from '../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
 /**
@@ -12,14 +12,19 @@ import TokenBucket from '../rateLimiters/tokenBucket';
  * @return {*}
  */
 export default function setupRateLimiter(
-    selection: RateLimiterSelection,
-    options: RateLimiterOptions,
-    client: Redis
+    rateLimiter: RateLimiterConfig,
+    client: Redis,
+    keyExpiry: number
 ) {
-    switch (selection) {
+    switch (rateLimiter.type) {
         case 'TOKEN_BUCKET':
             // todo validate options
-            return new TokenBucket(options.bucketSize, options.refillRate, client);
+            return new TokenBucket(
+                rateLimiter.bucketSize,
+                rateLimiter.refillRate,
+                client,
+                keyExpiry
+            );
             break;
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');
