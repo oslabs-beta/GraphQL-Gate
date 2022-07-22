@@ -30,7 +30,7 @@ class TokenBucket implements RateLimiter {
         this.refillRate = refillRate;
         this.client = client;
         this.keyExpiry = expiry;
-        if (refillRate <= 0 || capacity <= 0)
+        if (refillRate <= 0 || capacity <= 0 || expiry <= 0)
             throw Error('TokenBucket refillRate and capacity must be positive');
     }
 
