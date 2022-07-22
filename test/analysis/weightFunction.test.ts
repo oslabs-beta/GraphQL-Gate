@@ -18,26 +18,32 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         type Query {
             reviews(episode: Episode!, first: Int = 5): [Review]
             heroes(episode: Episode!, first: Int): [Review]
-            villains(episode: Episode!, limit: Int! = 3): [Review] 
-            characters(episode: Episode!, limit: Int!): [Review] 
+            villains(episode: Episode!, limit: Int! = 3): [Review]! 
+            characters(episode: Episode!, limit: Int!): [Review!]
+            droids(episode: Episode!, limit: Int!): [Review!]!
+            
         }
         type Review {
             episode: Episode
             stars: Int!
             commentary: String
+            scalarList(last: Int): [Int]
+            objectList(first: Int): [Object]
+        }
+        type Object {
+            hi: String
         }
         enum Episode {
             NEWHOPE
             EMPIRE
             JEDI
         }`);
-
     // building the typeWeights object here since we're testing the weight function created in
     // the typeWeights object
     const typeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema);
 
     describe('a default value is provided in the schema', () => {
-        xtest('and a value is not provided with the query', () => {
+        test('and a value is not provided with the query', () => {
             const query = `query { reviews(episode: NEWHOPE) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(6);
@@ -49,7 +55,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(4);
         });
 
-        xtest('and the argument is passed in as a variable', () => {
+        test('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ reviews(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7, first: 4 }, typeWeights)).toBe(8);
@@ -71,11 +77,25 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
             expect(getQueryTypeComplexity(queryAST, {}, typeWeights)).toBe(4);
         });
 
-        xtest('and the argument is passed in as a variable', () => {
+        test('and the argument is passed in as a variable', () => {
             const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: $items) { stars, episode } }`;
             const queryAST: DocumentNode = parse(query);
             expect(getQueryTypeComplexity(queryAST, { items: 7 }, typeWeights)).toBe(8);
         });
+    });
+
+    xtest('the list is defined with non-null operators (!)', () => {
+        const villainsQuery = `query { villains(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const willainsQueryAST: DocumentNode = parse(villainsQuery);
+        expect(getQueryTypeComplexity(willainsQueryAST, {}, typeWeights)).toBe(4);
+
+        const charQuery = `query { characters(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const charQueryAST: DocumentNode = parse(charQuery);
+        expect(getQueryTypeComplexity(charQueryAST, {}, typeWeights)).toBe(4);
+
+        const droidsQuery = `droidsQuery { droids(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const droidsQueryAST: DocumentNode = parse(droidsQuery);
+        expect(getQueryTypeComplexity(droidsQueryAST, {}, typeWeights)).toBe(4);
     });
 
     test('a custom object weight was configured', () => {
@@ -87,10 +107,45 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(10);
     });
 
+    test('a custom object weight was set to 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            object: 0,
+        });
+        const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
+        const queryAST: DocumentNode = parse(query);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(1); // 1 query
+    });
+    test('a custom scalar weight was set to greater than 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            scalar: 2,
+        });
+        const query = `query { heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
+        const queryAST: DocumentNode = parse(query);
+        expect(getQueryTypeComplexity(queryAST, {}, customTypeWeights)).toBe(16);
+    });
+
     test('variable names matching limiting keywords do not interfere with scalar argument values', () => {
         const query = `query variableQuery ($items: Int){ heroes(episode: NEWHOPE, first: 3) { stars, episode } }`;
         const queryAST: DocumentNode = parse(query);
         expect(getQueryTypeComplexity(queryAST, { first: 7 }, typeWeights)).toBe(4);
+    });
+
+    test('nested queries with lists', () => {
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, objectList(first: 3) {hi}}} `;
+        expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(9); // 1 Query + 2 review + (2 *  3 objects)
+    });
+
+    test('queries with inner scalar lists', () => {
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, scalarList(last: 3) }}`;
+        expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(3); // 1 Query + 2 reviews
+    });
+
+    test('queries with inner scalar lists and custom scalar weight greater than 0', () => {
+        const customTypeWeights: TypeWeightObject = buildTypeWeightsFromSchema(schema, {
+            scalar: 2,
+        });
+        const query = `query { reviews(episode: NEWHOPE, first: 2) {stars, scalarList(last: 3) }}`;
+        expect(getQueryTypeComplexity(parse(query), {}, customTypeWeights)).toBe(19); // 1 Query + 2 reviews + 2 * (2 stars + (3 * 2 scalarList)
     });
 
     xtest('an invalid arg type is provided', () => {
