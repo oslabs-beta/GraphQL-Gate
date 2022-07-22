@@ -8,6 +8,7 @@ const RedisMock = require('ioredis-mock');
 const CAPACITY = 10;
 // FIXME: Changing the refill rate effects test outcomes.
 const REFILL_RATE = 1; // 1 token per second
+const keyExpiry = 1000000;
 
 let limiter: TokenBucket;
 let client: ioredis.Redis;
@@ -40,7 +41,7 @@ describe('Test TokenBucket Rate Limiter', () => {
         // create a mock user
         // intialze the token bucket algorithm
         client = new RedisMock();
-        limiter = new TokenBucket(CAPACITY, REFILL_RATE, client);
+        limiter = new TokenBucket(CAPACITY, REFILL_RATE, client, keyExpiry);
         timestamp = new Date().valueOf();
     });
 
@@ -211,7 +212,7 @@ describe('Test TokenBucket Rate Limiter', () => {
 
         test('bucket allows custom refill rates', async () => {
             const doubleRefillClient: ioredis.Redis = new RedisMock();
-            limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient);
+            limiter = new TokenBucket(CAPACITY, 2, doubleRefillClient, keyExpiry);
 
             await setTokenCountInClient(doubleRefillClient, user1, 0, timestamp);
 
@@ -242,17 +243,20 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test('bucket does not allow capacity or refill rate <= 0', () => {
-            expect(() => new TokenBucket(0, 1, client)).toThrow(
-                'TokenBucket refillRate and capacity must be positive'
+            expect(() => new TokenBucket(0, 1, client, keyExpiry)).toThrow(
+                'TokenBucket refillRate, capacity and keyExpiry must be positive'
             );
-            expect(() => new TokenBucket(-10, 1, client)).toThrow(
-                'TokenBucket refillRate and capacity must be positive'
+            expect(() => new TokenBucket(-10, 1, client, keyExpiry)).toThrow(
+                'TokenBucket refillRate, capacity and keyExpiry must be positive'
             );
-            expect(() => new TokenBucket(10, -1, client)).toThrow(
-                'TokenBucket refillRate and capacity must be positive'
+            expect(() => new TokenBucket(10, -1, client, keyExpiry)).toThrow(
+                'TokenBucket refillRate, capacity and keyExpiry must be positive'
             );
-            expect(() => new TokenBucket(10, 0, client)).toThrow(
-                'TokenBucket refillRate and capacity must be positive'
+            expect(() => new TokenBucket(10, 0, client, keyExpiry)).toThrow(
+                'TokenBucket refillRate, capacity and keyExpiry must be positive'
+            );
+            expect(() => new TokenBucket(10, 2, client, 0)).toThrow(
+                'TokenBucket refillRate, capacity and keyExpiry must be positive'
             );
         });
 
