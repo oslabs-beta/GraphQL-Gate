@@ -1,5 +1,6 @@
+//@ts-ignore
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterOptions, RateLimiterSelection, TokenBucketOptions } from '../@types/rateLimit';
 import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
