@@ -20,7 +20,8 @@ export default function setupRateLimiter(
     switch (selection) {
         case 'TOKEN_BUCKET':
             // todo validate options
-            //@ts-ignore
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             return new TokenBucket(options.bucketSize, options.refillRate, client);
             break;
         case 'LEAKY_BUCKET':
@@ -33,7 +34,8 @@ export default function setupRateLimiter(
             throw new Error('Sliding Window Log has not be implemented.');
             break;
         case 'SLIDING_WINDOW_COUNTER':
-            //@ts-ignore
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             return new SlidingWindowCounter(options.windowSize, options.capacity, client);
             break;
         default:
