@@ -18,7 +18,6 @@ export default function setupRateLimiter(
 ) {
     switch (rateLimiter.type) {
         case 'TOKEN_BUCKET':
-            // todo validate options
             return new TokenBucket(
                 rateLimiter.bucketSize,
                 rateLimiter.refillRate,
