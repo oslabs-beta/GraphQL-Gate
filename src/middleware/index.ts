@@ -11,7 +11,7 @@ import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/express
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
  * @param {GraphQLSchema} schema GraphQLSchema object
  * @param {ExpressMiddlewareConfig} middlewareConfig
- *      /// "ratelimiter" must be explicitly specified in the setup of the middleware. /n
+ *      /// "ratelimiter" must be explicitly specified in the setup of the middleware.
  *      /// "redis" connection options (https://ioredis.readthedocs.io/en/stable/API/#new_Redis) and an optional "keyExpiry" property (defaults to 24h)
  *      /// "typeWeights" optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, query: 1, object: 1, scalar/enum: 0, connection: 2}
  *      /// "dark: true" will run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality. Defaults to false
@@ -80,8 +80,7 @@ export default function expressGraphQLRateLimiter(
         const validationErrors = validate(schema, queryAST);
         // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
         if (validationErrors.length > 0) {
-            // FIXME: Customize this error to throw the GraphQLError
-            return next(Error('invalid query'));
+            res.status(400).json({ errors: validationErrors });
         }
 
         const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);

@@ -2,11 +2,6 @@ import { RedisOptions } from 'ioredis';
 import { TypeWeightConfig, TypeWeightSet } from './buildTypeWeights';
 import { RateLimiterConfig } from './rateLimit';
 
-// interface RateLimitingOptions {
-//     type: RateLimiterSelection;
-//     options: RateLimiterOptions;
-// }
-
 // extend ioredis configuration options to include an expiry prooperty for rate limiting cache
 interface RedisConfig {
     keyExpiry?: number;
