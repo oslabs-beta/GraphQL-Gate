@@ -1,5 +1,5 @@
-import Redis, { RedisOptions } from 'ioredis';
 import { parse, validate } from 'graphql';
+import { RedisOptions } from 'ioredis';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 
@@ -8,6 +8,7 @@ import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
 import { TypeWeightConfig } from '../@types/buildTypeWeights';
+import { connect } from '../utils/redis';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema
@@ -40,7 +41,9 @@ export function expressRateLimiter(
     // TODO: Throw ValidationError if schema is invalid
     const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
     // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis(redisClientOptions); // Default port is 6379 automatically
+    // Default connection timeout is 10000 ms of inactivity
+    // FIXME: Do we need to re-establish connection?
+    const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
     // return the rate limiting middleware
@@ -66,7 +69,7 @@ export function expressRateLimiter(
          * req.ip and req.ips will worx in express but not with other frameworks
          */
         // check for a proxied ip address before using the ip address on request
-        const ip: string = req.ips[0] || req.ip;
+        const ip: string = req.ips ? req.ips[0] : req.ip;
 
         // FIXME: this will only work with type complexity
         const queryAST = parse(query);
@@ -80,8 +83,8 @@ export function expressRateLimiter(
 
         const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
         try {
-            // process the request and conditinoally respond to client with status code 429 o
-            // r pass the request onto the next middleware function
+            // process the request and conditinoally respond to client with status code 429 or
+            // pass the request onto the next middleware function
             const rateLimiterResponse = await rateLimiter.processRequest(
                 ip,
                 requestTimestamp,
