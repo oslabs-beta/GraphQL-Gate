@@ -347,12 +347,16 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple queries that exceed token limit', async () => {
+                    const requests = new Array(5).fill(0);
+
                     for (let i = 0; i < 5; i++) {
                         // Send 5 queries of complexity 2. These should all succeed
-                        await middleware(
-                            mockRequest as Request,
-                            mockResponse as Response,
-                            nextFunction
+                        requests.push(
+                            middleware(
+                                mockRequest as Request,
+                                mockResponse as Response,
+                                nextFunction
+                            )
                         );
 
                         // advance the timers by 20 miliseconds for the next request

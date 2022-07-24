@@ -46,6 +46,41 @@ export function expressRateLimiter(
     const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
+    // Sort the requests by timestamps to make sure we process in the correct order
+    // We need to store the request, response and next object so that the correct one is used
+    // the function we return accepts the unique request, response, next objects
+    // it will store these and then process them in the order in which they were received.
+    // We can do an event listener that waits for the previous request in the queue to be finished
+    // store the middleware in closure
+
+    // Catch the request
+    // add this to the queue
+    // proccess the oldest request in the queue
+    // check if the queue is empty => if not process the next request
+    // otherwise return
+    // process restarts when the next request comes in
+
+    // so r1, r2 come in
+    // r1, and r2 get processed with thin same frame on call stack
+    // r2 call is done once r2 is added to the queue
+
+    const requestsInProcess: { [index: string]: Request[] } = {};
+
+    // return a throttled middleware. Check every 100ms? make this a setting?
+    // how do we make sure these get queued properly?
+    // store the requests in an array when available grab the next request for a user
+    /**
+     * Request 1 comes in
+     *  Start handling request 1
+     *  In the meantime reqeust 2 comes in for the same suer
+     *  Finish handling request 1
+     *    check the queue for this user
+     *    if it's empty we're done
+     *    it it has a request handle the next one
+     *
+     * Not throttling on time just queueing requests.
+     */
+
     // return the rate limiting middleware
     return async (
         req: Request,
@@ -70,6 +105,7 @@ export function expressRateLimiter(
          */
         // check for a proxied ip address before using the ip address on request
         const ip: string = req.ips ? req.ips[0] : req.ip;
+        // requestsInProcess[ip] = true;
 
         // FIXME: this will only work with type complexity
         const queryAST = parse(query);
