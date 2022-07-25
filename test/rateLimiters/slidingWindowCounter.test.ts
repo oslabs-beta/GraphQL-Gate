@@ -35,7 +35,7 @@ async function setTokenCountInClient(
     await redisClient.set(uuid, JSON.stringify(value));
 }
 
-xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
+describe('Test SlidingWindowCounter Rate Limiter', () => {
     beforeEach(async () => {
         // init a mock redis cache
         client = new RedisMock();
@@ -249,7 +249,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                 const result = await limiter.processRequest(
                     user4,
                     timestamp + WINDOW_SIZE * 1.99,
-                    4
+                    10
                 );
                 expect(result.tokens).toBe(0);
                 expect(result.success).toBe(true);
@@ -257,7 +257,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                 // currentTokens (in current fixed window): 4
                 // previousTokens (in previous fixed window): 8
                 const count1 = await getWindowFromClient(client, user4);
-                expect(count1.currentTokens).toBe(4);
+                expect(count1.currentTokens).toBe(10);
                 expect(count1.previousTokens).toBe(8);
             });
         });
@@ -304,7 +304,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
                 // 3 + 8 * 1 = 11, above capacity (request should be blocked)
                 const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 3);
-                expect(result.tokens).toBe(10);
+                expect(result.tokens).toBe(2);
                 expect(result.success).toBe(false);
 
                 // currentTokens (in current fixed window): 0
@@ -332,7 +332,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                     timestamp + WINDOW_SIZE * 1.25,
                     5
                 );
-                expect(result.tokens).toBe(10);
+                expect(result.tokens).toBe(4);
                 expect(result.success).toBe(false);
 
                 // currentTokens (in current fixed window): 0
@@ -358,7 +358,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
             // 7 + 8 * .5 = 11, over capacity (request should be blocked)
             const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.5, 7);
-            expect(result.tokens).toBe(10);
+            expect(result.tokens).toBe(6);
             expect(result.success).toBe(false);
 
             // currentTokens (in current fixed window): 0
@@ -383,7 +383,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
             // 9 + 8 * .25 = 11, over capacity (request should be blocked)
             const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE * 1.75, 9);
-            expect(result.tokens).toBe(10);
+            expect(result.tokens).toBe(8);
             expect(result.success).toBe(false);
 
             // currentTokens (in current fixed window): 0
@@ -407,7 +407,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
 
             // 11 + 8 * .01 = 11, above capacity (request should be blocked)
             const result = await limiter.processRequest(user4, timestamp + WINDOW_SIZE, 11);
-            expect(result.tokens).toBe(10);
+            expect(result.tokens).toBe(2);
             expect(result.success).toBe(false);
 
             // currentTokens (in current fixed window): 0
@@ -465,7 +465,7 @@ xdescribe('Test SlidingWindowCounter Rate Limiter', () => {
                 await (
                     await limiter.processRequest(user1, timestamp + WINDOW_SIZE, 4)
                 ).tokens
-            ).toBe(2);
+            ).toBe(1);
             // currentTokens (in current fixed window): 0
             // previousTokens (in previous fixed window): 8
             const count = await getWindowFromClient(client, user1);
