@@ -112,7 +112,7 @@ class SlidingWindowCounter implements RateLimiter {
         };
 
         // if request time is in a new window
-        if (timestamp >= window.fixedWindowStart + this.windowSize) {
+        if (window.fixedWindowStart && timestamp >= window.fixedWindowStart + this.windowSize) {
             // if more than one window was skipped
             if (timestamp >= window.fixedWindowStart + this.windowSize * 2) {
                 // if one or more windows was skipped, reset new window to be at current timestamp
@@ -131,7 +131,7 @@ class SlidingWindowCounter implements RateLimiter {
         let rollingWindowProportion = 0;
         let previousRollingTokens = 0;
 
-        if (updatedUserWindow.previousTokens) {
+        if (updatedUserWindow.fixedWindowStart && updatedUserWindow.previousTokens) {
             // proportion of rolling window present in previous window
             rollingWindowProportion =
                 (this.windowSize - (timestamp - updatedUserWindow.fixedWindowStart)) /
