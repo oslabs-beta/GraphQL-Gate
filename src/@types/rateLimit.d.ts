@@ -26,7 +26,7 @@ export interface RedisBucket {
 export interface RedisWindow {
     currentTokens: number;
     previousTokens: number;
-    fixedWindowStart: number;
+    fixedWindowStart?: number;
 }
 
 export type RedisLog = RedisBucket[];
