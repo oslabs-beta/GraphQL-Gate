@@ -739,11 +739,13 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 schema = buildSchema(`
                 union SearchResult = Human | Droid
                 type Human{
+                    age: Int!
                     name: String
                     homePlanet: String
                     search(first: Int!): [SearchResult!]!
                 }
                 type Droid {
+                    age: Int!
                     name: String
                     primaryFunction: String!
                     search(first: Int!): [SearchResult!]!
@@ -753,6 +755,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         weight: 1,
                         fields: {
                             name: { weight: 0 },
+                            age: { weight: 0 },
                             search: {
                                 resolveTo: 'searchresult',
                                 weight: expect.any(Function),
@@ -763,6 +766,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         weight: 1,
                         fields: {
                             name: { weight: 0 },
+                            age: { weight: 0 },
                             homePlanet: { weight: 0 },
                             search: {
                                 resolveTo: 'searchresult',
@@ -774,6 +778,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         weight: 1,
                         fields: {
                             name: { weight: 0 },
+                            age: { weight: 0 },
                             primaryFunction: { weight: 0 },
                             search: {
                                 resolveTo: 'searchresult',
