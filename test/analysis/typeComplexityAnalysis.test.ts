@@ -70,12 +70,19 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         scalars: Scalars
     }
 
- *   
- * TODO: extend this schema to include mutations, subscriptions and pagination
- * 
     type Mutation {
         createReview(episode: Episode, review: ReviewInput!): Review
     }
+
+    input ReviewInput {
+        stars: Int!
+        commentary: String
+    }
+
+ *   
+ * TODO: extend this schema to include mutations, subscriptions and pagination
+ * 
+
     type Subscription {
         reviewAdded(episode: Episode): Review
     }

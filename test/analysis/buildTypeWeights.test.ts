@@ -305,6 +305,60 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        // FIXME: what would we expect here?
+        xtest('connections paginiton convention', () => {
+            schema = buildSchema(`
+            type Query {
+                hero(id: ID): Character
+            }
+            type Character {
+                id: ID!
+                name: String!
+                friends(first:Int after: String): [FriendsConnection]
+            }
+            type FriendsConnection {
+                totalCount: Int
+                edges: [FriendsEdge]
+                friends: [Character]
+                pageInfo: PageInfo!
+            }
+            type FriendsEdge {
+                cursor: ID!
+                node: Character
+            }
+            type PageInfo {
+                startCursor: ID
+                endCursor: ID
+                hasNextPage: Boolean!
+            }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                query: {
+                    weight: 1,
+                    fields: {
+                        hero: { resolveTo: 'character' },
+                    },
+                },
+                character: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        friends: { resolveTo: 'friendsConnection' },
+                    },
+                },
+                friendsConnection: {
+                    weight: 2,
+                    fields: {
+                        totalCount: { weight: 0 },
+                        // edges: {resolveTo: }
+                    },
+                },
+                friendsEdge: {},
+                pageInfo: {},
+            });
+        });
+
         describe('mutation types...', () => {
             test('a mutation type and a query type', () => {
                 schema = buildSchema(`
@@ -370,45 +424,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     },
                 });
             });
-
-            // ?mutation and an output type
-            xtest('a mutation type and a query type', () => {
-                schema = buildSchema(`
-                type Mutation {
-                    login(user: UserInput!): User
-                }
-                type User{
-                    id: ID!
-                    email: String!
-                    password: String!
-                }
-                input UserInput {
-                    email: String!
-                    password: String!
-                }
-                `);
-
-                expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                    mutation: {
-                        weight: 10,
-                        fields: {
-                            name: { weight: 0 },
-                            email: { weight: 0 },
-                        },
-                    },
-                    user: {
-                        weight: 1,
-                        fields: {
-                            id: { weight: 0 },
-                            email: { weight: 0 },
-                            password: { weight: 0 },
-                        },
-                    },
-                });
-            });
-            // mutations with lists
-
-            // mutations with nonNull
         });
 
         describe('fields returning lists of objects of determinate size and...', () => {
