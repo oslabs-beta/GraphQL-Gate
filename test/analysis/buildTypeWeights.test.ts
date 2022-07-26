@@ -393,7 +393,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-            test('a mutation type and a query type', () => {
+            test('a mutation type an input type', () => {
                 schema = buildSchema(`
                 type Mutation {
                     login(user: UserInput!): User
