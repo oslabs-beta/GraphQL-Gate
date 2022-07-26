@@ -314,8 +314,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             type Character {
                 id: ID!
                 name: String!
-                friends(first:Int after: String): [Character]
-                friendsConnection (first: Int): FriendsConnection
+                friends(first: Int): [Character]
+                friendsConnection(first: Int, after: ID): FriendsConnection!
             }
             type FriendsConnection {
                 totalCount: Int
@@ -345,7 +345,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     fields: {
                         id: { weight: 0 },
                         name: { weight: 0 },
-                        friends: { resolveTo: 'friendsConnection' },
+                        friends: { resolveTo: 'character', weight: expect.any(Function) },
+                        friendsConnection: { resolveTo: 'friendsConnection' },
                     },
                 },
                 friendsConnection: {
