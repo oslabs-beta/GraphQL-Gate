@@ -600,6 +600,40 @@ describe('Test getQueryTypeComplexity function', () => {
                     expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(5);
                 });
 
+                test('that have greater than 2  levels of nesting', () => {
+                    query = `
+                    query {
+                        hero(episode: EMPIRE) {
+                            name
+                            ... on Droid {
+                                primaryFunction
+                                friends(first: 5) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                            ... on Human {
+                                homePlanet
+                                friends(first: 5) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }
+                    }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(20);
+                    mockHumanFriendsFunction.mockReturnValueOnce(20);
+                    // Query 1 + 1 hero + 3 friends/character
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        22
+                    );
+                });
+
                 xtest('that include a directive', () => {
                     query = `
                         query {
