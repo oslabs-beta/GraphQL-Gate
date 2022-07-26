@@ -357,8 +357,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     mutation: {
                         weight: 10,
                         fields: {
-                            name: { weight: 0 },
-                            email: { weight: 0 },
+                            login: { resolveTo: 'user' },
                         },
                     },
                     user: {
