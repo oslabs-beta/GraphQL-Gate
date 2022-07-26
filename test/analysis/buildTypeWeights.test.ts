@@ -805,6 +805,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     user(id: ID!): User
                     movie(id: ID!): Movie
                 }
+
+                type Mutation {
+                    updateUser(id: ID!, password: String!): User
+                }
                 
                 type User {
                     name: String
@@ -825,6 +829,12 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     fields: {
                         movie: { resolveTo: 'movie' },
                         user: { resolveTo: 'user' },
+                    },
+                },
+                mutation: {
+                    weight: 10,
+                    fields: {
+                        updateUser: { resolveTo: 'user' },
                     },
                 },
                 user: {
@@ -850,6 +860,15 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 query: 2,
             });
             expectedOutput.query.weight = 2;
+
+            expect(typeWeightObject).toEqual(expectedOutput);
+        });
+
+        test('mutation parameter', () => {
+            const typeWeightObject = buildTypeWeightsFromSchema(schema, {
+                mutation: 20,
+            });
+            expectedOutput.mutation.weight = 20;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
@@ -889,8 +908,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(typeWeightObject).toEqual(expectedOutput);
         });
 
-        // TODO: Tests should be written for the remaining configuration options
-        // mutations
         // connections
         // subscriptions
     });
