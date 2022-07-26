@@ -314,7 +314,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             type Character {
                 id: ID!
                 name: String!
-                friends(first:Int after: String): [FriendsConnection]
+                friends(first:Int after: String): [Character]
+                friendsConnection (first: Int): FriendsConnection
             }
             type FriendsConnection {
                 totalCount: Int
