@@ -163,6 +163,12 @@ describe('Test getQueryTypeComplexity function', () => {
                     },
                 },
             },
+            mutation: {
+                weight: 10,
+                fields: {
+                    createReview: { resolveTo: 'review' },
+                },
+            },
             episode: {
                 // enum
                 weight: 0,
@@ -915,7 +921,19 @@ describe('Test getQueryTypeComplexity function', () => {
         // TODO: directives @skip, @include and custom directives
     });
 
-    xdescribe('Calculates the correct type complexity for mutations', () => {});
+    describe('Calculates the correct type complexity for mutations', () => {
+        test('simple mutation', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) {
+                    stars
+                    commentary
+                    episode
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+        });
+    });
 
     xdescribe('Calculates the correct type complexity for subscriptions', () => {});
 });
