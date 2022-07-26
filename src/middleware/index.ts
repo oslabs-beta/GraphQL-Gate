@@ -6,7 +6,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterOptions, RateLimiterSelection, RateLimiterResponse } from '../@types/rateLimit';
 import { TypeWeightConfig } from '../@types/buildTypeWeights';
 import { connect } from '../utils/redis';
 
@@ -46,6 +46,42 @@ export function expressRateLimiter(
     const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
+    // stores request IDs to be processed
+    const requestQueue: { [index: string]: string[] } = {};
+
+    // Throttle rateLimiter.processRequest based on user IP to prent inaccurate redis reads
+    async function throttledProcess(
+        userId: string,
+        timestamp: number,
+        tokens: number
+    ): Promise<RateLimiterResponse> {
+        // Generate a random uuid for this request and add it to the queue
+        // Alternatively use crypto.randomUUID() to generate a uuid
+        const requestId = `${userId}${timestamp}${tokens}`;
+
+        if (!requestQueue[userId]) {
+            requestQueue[userId] = [];
+        }
+        requestQueue[userId].push(requestId);
+
+        // Start a loop to check when this request should be processed
+        return new Promise((resolve, reject) => {
+            const intervalId = setInterval(async () => {
+                console.log('in set timeout');
+                if (requestQueue[userId][0] === requestId) {
+                    // process the request
+                    clearInterval(intervalId);
+                    const response = await rateLimiter.processRequest(userId, timestamp, tokens);
+                    // requestQueue[userId].shift();
+                    requestQueue[userId] = requestQueue[userId].slice(1);
+                    resolve(response);
+                } else {
+                    console.log('not our turn');
+                }
+            }, 100);
+        });
+    }
+
     // Sort the requests by timestamps to make sure we process in the correct order
     // We need to store the request, response and next object so that the correct one is used
     // the function we return accepts the unique request, response, next objects
@@ -64,8 +100,6 @@ export function expressRateLimiter(
     // r1, and r2 get processed with thin same frame on call stack
     // r2 call is done once r2 is added to the queue
 
-    const requestsInProcess: { [index: string]: Request[] } = {};
-
     // return a throttled middleware. Check every 100ms? make this a setting?
     // how do we make sure these get queued properly?
     // store the requests in an array when available grab the next request for a user
@@ -81,7 +115,6 @@ export function expressRateLimiter(
      * Not throttling on time just queueing requests.
      */
 
-    // return the rate limiting middleware
     return async (
         req: Request,
         res: Response,
@@ -95,7 +128,7 @@ export function expressRateLimiter(
             return next();
         }
         /**
-         * There are numorous ways to get the ip address off of the request object.
+         * There are numerous ways to get the ip address off of the request object.
          * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
          * - req.ips wwill hold an array of ip addresses in'x-forward-for' header. client is likely at index zero
          * - req.ip will have the ip address
@@ -105,7 +138,6 @@ export function expressRateLimiter(
          */
         // check for a proxied ip address before using the ip address on request
         const ip: string = req.ips ? req.ips[0] : req.ip;
-        // requestsInProcess[ip] = true;
 
         // FIXME: this will only work with type complexity
         const queryAST = parse(query);
@@ -121,7 +153,7 @@ export function expressRateLimiter(
         try {
             // process the request and conditinoally respond to client with status code 429 or
             // pass the request onto the next middleware function
-            const rateLimiterResponse = await rateLimiter.processRequest(
+            const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
                 queryComplexity
