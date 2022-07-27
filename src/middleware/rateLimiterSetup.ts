@@ -19,23 +19,25 @@ export default function setupRateLimiter(
     switch (selection) {
         case 'TOKEN_BUCKET':
             // todo validate options
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             return new TokenBucket(options.bucketSize, options.refillRate, client);
             break;
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');
-            break;
         case 'FIXED_WINDOW':
             throw new Error('Fixed Window algonithm has not be implemented.');
-            break;
         case 'SLIDING_WINDOW_LOG':
-            throw new Error('Sliding Window Log has not be implemented.');
-            break;
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowLog(options.windowSize, options.capacity, client);
         case 'SLIDING_WINDOW_COUNTER':
-            throw new Error('Sliding Window Counter algonithm has not be implemented.');
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowCounter(options.windowSize, options.capacity, client);
             break;
         default:
             // typescript should never let us invoke this function with anything other than the options above
             throw new Error('Selected rate limiting algorithm is not suppported');
-            break;
     }
 }

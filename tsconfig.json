@@ -7,7 +7,11 @@
         "preserveConstEnums": true,
         "sourceMap": true,
         "target": "es5",
-        "lib": ["dom", "dom.iterable", "esnext"],
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
         "allowJs": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
@@ -17,10 +21,24 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noEmit": false,
-        "typeRoots": ["src/@types", "node_modules/@types"],
-        "types": ["node", "jest"],
+        "typeRoots": [
+            "src/@types",
+            "node_modules/@types"
+        ],
+        "types": [
+            "node",
+            "jest"
+        ],
         "outDir": "build/"
     },
-    "include": ["src/**/*.ts", "src/**/*.js", "test/**/*.ts", "test/**/*.js"],
-    "exclude": ["node_modules", "**/*.spec.ts"]
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "test/**/*.ts",
+        "test/**/*.js"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts"
+    ]
 }
