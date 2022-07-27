@@ -147,11 +147,13 @@ export default function expressGraphQLRateLimiter(
         try {
             // process the request and conditinoally respond to client with status code 429 or
             // pass the request onto the next middleware function
+            console.log('comp', queryComplexity);
             const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
                 queryComplexity
             );
+            console.log('tok', rateLimiterResponse);
             res.locals.graphqlGate = {
                 timestamp: requestTimestamp,
                 complexity: queryComplexity,
@@ -159,6 +161,7 @@ export default function expressGraphQLRateLimiter(
                 success: rateLimiterResponse.success,
                 depth: null, // FIXME: update this once depth limiting is enabled
             };
+            console.log('locals', res.locals.graphqlGate);
             if (!rateLimiterResponse.success && !middlewareSetup.dark) {
                 // TODO: rateLimiter.processRequest response should have a property for retryAfter if the reqest is blocked
                 return (

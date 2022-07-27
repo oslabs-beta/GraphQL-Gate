@@ -8,9 +8,9 @@ import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
  * Instatieate the rateLimiting algorithm class based on the developer selection and options
  *
  * @export
- * @param {RateLimiterSelection} selection
- * @param {RateLimiterOptions} options
+ * @param {RateLimiterConfig} rateLimiter limiter selection and option
  * @param {Redis} client
+ * @param {number} keyExpiry
  * @return {*}
  */
 export default function setupRateLimiter(
@@ -20,12 +20,7 @@ export default function setupRateLimiter(
 ) {
     switch (rateLimiter.type) {
         case 'TOKEN_BUCKET':
-            return new TokenBucket(
-                rateLimiter.bucketSize,
-                rateLimiter.refillRate,
-                client,
-                keyExpiry
-            );
+            return new TokenBucket(rateLimiter.capacity, rateLimiter.refillRate, client, keyExpiry);
             break;
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');

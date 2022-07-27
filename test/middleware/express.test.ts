@@ -3,10 +3,10 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
 import * as ioredis from 'ioredis';
 import expressGraphQLRateLimiter from '../../src/middleware/index';
+import setupRateLimiter from '../../src/middleware/rateLimiterSetup';
 
 import * as redis from '../../src/utils/redis';
 
-// jest.mock('../../src/utils/redis');
 const mockConnect = jest.spyOn(redis, 'connect');
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
