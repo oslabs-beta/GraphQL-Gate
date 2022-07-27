@@ -1,3 +1,5 @@
+import EventEmitter from 'events';
+
 import { parse, validate } from 'graphql';
 import { RedisOptions } from 'ioredis';
 import { GraphQLSchema } from 'graphql/type/schema';
@@ -48,6 +50,7 @@ export function expressRateLimiter(
 
     // stores request IDs to be processed
     const requestQueue: { [index: string]: string[] } = {};
+    const requestEvents = new EventEmitter();
 
     // Throttle rateLimiter.processRequest based on user IP to prent inaccurate redis reads
     async function throttledProcess(
@@ -57,7 +60,7 @@ export function expressRateLimiter(
     ): Promise<RateLimiterResponse> {
         // Generate a random uuid for this request and add it to the queue
         // Alternatively use crypto.randomUUID() to generate a uuid
-        const requestId = `${userId}${timestamp}${tokens}`;
+        const requestId = `${timestamp}${tokens}`;
 
         if (!requestQueue[userId]) {
             requestQueue[userId] = [];
@@ -66,19 +69,16 @@ export function expressRateLimiter(
 
         // Start a loop to check when this request should be processed
         return new Promise((resolve, reject) => {
-            const intervalId = setInterval(async () => {
-                console.log('in set timeout');
-                if (requestQueue[userId][0] === requestId) {
-                    // process the request
-                    clearInterval(intervalId);
-                    const response = await rateLimiter.processRequest(userId, timestamp, tokens);
-                    // requestQueue[userId].shift();
-                    requestQueue[userId] = requestQueue[userId].slice(1);
-                    resolve(response);
-                } else {
-                    console.log('not our turn');
-                }
-            }, 100);
+            requestEvents.once(requestId, async () => {
+                // process the request
+                const response = await rateLimiter.processRequest(userId, timestamp, tokens);
+                requestQueue[userId] = requestQueue[userId].slice(1);
+                // trigger the next event
+                requestEvents.emit(requestQueue[userId][0]);
+
+                resolve(response);
+            });
+            requestEvents.emit(requestQueue[userId][0]);
         });
     }
 
