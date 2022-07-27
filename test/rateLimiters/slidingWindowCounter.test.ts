@@ -40,7 +40,7 @@ describe('Test SlidingWindowCounter Rate Limiter', () => {
         // init a mock redis cache
         client = new RedisMock();
         // init a new sliding window counter instance
-        limiter = new SlidingWindowCounter(WINDOW_SIZE, CAPACITY, client);
+        limiter = new SlidingWindowCounter(WINDOW_SIZE, CAPACITY, client, 8000);
         // get the current time
         timestamp = new Date().valueOf();
     });
@@ -480,7 +480,7 @@ describe('Test SlidingWindowCounter Rate Limiter', () => {
         test('sliding window allows custom window sizes', async () => {
             const newWindowSize = 10000;
 
-            const newLimiter = new SlidingWindowCounter(newWindowSize, CAPACITY, client);
+            const newLimiter = new SlidingWindowCounter(newWindowSize, CAPACITY, client, 8000);
 
             await newLimiter.processRequest(user1, timestamp, 8);
 
@@ -494,7 +494,7 @@ describe('Test SlidingWindowCounter Rate Limiter', () => {
         test('sliding window allows custom capacities', async () => {
             const newCapacity = 5;
 
-            const newLimiter = new SlidingWindowCounter(WINDOW_SIZE, newCapacity, client);
+            const newLimiter = new SlidingWindowCounter(WINDOW_SIZE, newCapacity, client, 8000);
 
             // expect that tokens available after request will be consistent with the new capacity
             expect((await newLimiter.processRequest(user1, timestamp, newCapacity)).tokens).toBe(0);
@@ -522,17 +522,17 @@ describe('Test SlidingWindowCounter Rate Limiter', () => {
         });
 
         test("sliding window doesn't allow capacity/window size <= 0", () => {
-            expect(() => new SlidingWindowCounter(0, 10, client)).toThrow(
-                'SlidingWindowCounter windowSize and capacity must be positive'
+            expect(() => new SlidingWindowCounter(0, 10, client, 8000)).toThrow(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowCounter(-1, 10, client)).toThrow(
-                'SlidingWindowCounter windowSize and capacity must be positive'
+            expect(() => new SlidingWindowCounter(-1, 10, client, 8000)).toThrow(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowCounter(10, -1, client)).toThrow(
-                'SlidingWindowCounter windowSize and capacity must be positive'
+            expect(() => new SlidingWindowCounter(10, -1, client, 8000)).toThrow(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowCounter(10, 0, client)).toThrow(
-                'SlidingWindowCounter windowSize and capacity must be positive'
+            expect(() => new SlidingWindowCounter(10, 0, client, 8000)).toThrow(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
             );
         });
 

@@ -1,6 +1,8 @@
 import Redis from 'ioredis';
 import { RateLimiterConfig } from '../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
+import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
+import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
 
 /**
  * Instatieate the rateLimiting algorithm class based on the developer selection and options
@@ -30,13 +32,19 @@ export default function setupRateLimiter(
         case 'FIXED_WINDOW':
             throw new Error('Fixed Window algonithm has not be implemented.');
         case 'SLIDING_WINDOW_LOG':
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return new SlidingWindowLog(options.windowSize, options.capacity, client);
+            return new SlidingWindowLog(
+                rateLimiter.windowSize,
+                rateLimiter.capacity,
+                client,
+                keyExpiry
+            );
         case 'SLIDING_WINDOW_COUNTER':
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return new SlidingWindowCounter(options.windowSize, options.capacity, client);
+            return new SlidingWindowCounter(
+                rateLimiter.windowSize,
+                rateLimiter.capacity,
+                client,
+                keyExpiry
+            );
             break;
         default:
             // typescript should never let us invoke this function with anything other than the options above

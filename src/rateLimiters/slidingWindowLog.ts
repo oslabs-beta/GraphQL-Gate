@@ -18,6 +18,8 @@ import { RateLimiter, RateLimiterResponse, RedisBucket, RedisLog } from '../@typ
 class SlidingWindowLog implements RateLimiter {
     private windowSize: number;
 
+    private keyExpiry: number;
+
     private capacity: number;
 
     private client: Redis;
@@ -28,12 +30,15 @@ class SlidingWindowLog implements RateLimiter {
      * @param capacity max number of tokens allowed in each window
      * @param client redis client where rate limiter will cache information
      */
-    constructor(windowSize: number, capacity: number, client: Redis) {
+    constructor(windowSize: number, capacity: number, client: Redis, expiry: number) {
         this.windowSize = windowSize;
         this.capacity = capacity;
         this.client = client;
-        if (windowSize <= 0 || capacity <= 0)
-            throw SyntaxError('SlidingWindowLog window size and capacity must be positive');
+        this.keyExpiry = expiry;
+        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+            throw SyntaxError(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
+            );
 
         // TODO: Define lua script for server side computation using either sorted sets or lists
         // while x.timestamp + window_size < timestamp lpop
@@ -81,9 +86,6 @@ class SlidingWindowLog implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set the expiry of key-value pairs in the cache to 24 hours
-        const keyExpiry = 86400000; // TODO: Make this a global for consistency across each algo.
-
         // Each user's log is represented by a redis list with a score = request timestamp
         // and a value equal to the complexity
         // Drop expired requests from the log. represented by a sorted set in redis
@@ -132,12 +134,12 @@ class SlidingWindowLog implements RateLimiter {
         if (tokensInLog + tokens <= this.capacity) {
             // update the log
             if (tokens > 0) requestLog.push({ timestamp, tokens });
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(requestLog));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(requestLog));
             tokensInLog += tokens;
             return { success: true, tokens: this.capacity - tokensInLog };
         }
 
-        await this.client.setex(uuid, keyExpiry, JSON.stringify(requestLog));
+        await this.client.setex(uuid, this.keyExpiry, JSON.stringify(requestLog));
 
         return { success: false, tokens: this.capacity - tokensInLog, retryAfter };
     }

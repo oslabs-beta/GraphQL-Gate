@@ -77,7 +77,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
     });
 
     beforeEach(() => {
-        limiter = new SlidingWindowLog(WINDOW_SIZE, CAPACITY, client);
+        limiter = new SlidingWindowLog(WINDOW_SIZE, CAPACITY, client, 80000);
         timestamp = new Date().valueOf();
     });
 
@@ -521,23 +521,23 @@ describe('SlidingWindowLog Rate Limiter', () => {
 
     describe('is configurable...', () => {
         test('does not allow capacity or window size <= 0', () => {
-            expect(() => new SlidingWindowLog(0, 1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(0, 1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(-10, 1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(-10, 1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(10, -1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(10, -1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(10, 0, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(10, 0, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
         });
 
         test('...allows custom window size and capacity', async () => {
             const customWindow = 500;
-            const customSizelimiter = new SlidingWindowLog(customWindow, CAPACITY, client);
+            const customSizelimiter = new SlidingWindowLog(customWindow, CAPACITY, client, 8000);
 
             let customSizeSuccess = await customSizelimiter
                 .processRequest(user1, timestamp, CAPACITY)
@@ -557,7 +557,12 @@ describe('SlidingWindowLog Rate Limiter', () => {
             customSizelimiter.reset();
 
             const customCapacity = 5;
-            const customCapacitylimiter = new SlidingWindowLog(WINDOW_SIZE, customCapacity, client);
+            const customCapacitylimiter = new SlidingWindowLog(
+                WINDOW_SIZE,
+                customCapacity,
+                client,
+                8000
+            );
 
             let customCapacitySuccess = await customCapacitylimiter
                 .processRequest(user1, timestamp, customCapacity + 1)

@@ -19,6 +19,8 @@ import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLim
 class SlidingWindowCounter implements RateLimiter {
     private windowSize: number;
 
+    private keyExpiry: number;
+
     private capacity: number;
 
     private client: Redis;
@@ -29,12 +31,15 @@ class SlidingWindowCounter implements RateLimiter {
      * @param capacity max capacity of tokens allowed per fixed window
      * @param client redis client where rate limiter will cache information
      */
-    constructor(windowSize: number, capacity: number, client: Redis) {
+    constructor(windowSize: number, capacity: number, client: Redis, expiry: number) {
         this.windowSize = windowSize;
         this.capacity = capacity;
         this.client = client;
-        if (windowSize <= 0 || capacity <= 0)
-            throw SyntaxError('SlidingWindowCounter windowSize and capacity must be positive');
+        this.keyExpiry = expiry;
+        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+            throw SyntaxError(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
+            );
     }
 
     /**
@@ -76,9 +81,6 @@ class SlidingWindowCounter implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set the expiry of key-value pairs in the cache to 24 hours
-        const keyExpiry = 86400000;
-
         // attempt to get the value for the uuid from the redis cache
         const windowJSON = await this.client.get(uuid);
 
@@ -92,11 +94,11 @@ class SlidingWindowCounter implements RateLimiter {
             };
 
             if (tokens <= this.capacity) {
-                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+                await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
                 return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
             }
 
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
             // tokens property represents how much capacity remains
             return { success: false, tokens: this.capacity };
         }
@@ -153,7 +155,7 @@ class SlidingWindowCounter implements RateLimiter {
         // if request is allowed
         if (tokens + rollingTokens <= this.capacity) {
             updatedUserWindow.currentTokens += tokens;
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
             return {
                 success: true,
                 tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
@@ -161,7 +163,7 @@ class SlidingWindowCounter implements RateLimiter {
         }
 
         // if request is blocked
-        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+        await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
         return {
             success: false,
             tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),

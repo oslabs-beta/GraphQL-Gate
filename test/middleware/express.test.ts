@@ -118,7 +118,8 @@ describe('Express Middleware tests', () => {
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'TOKEN_BUCKET',
-                            options: { refillRate: 1, bucketSize: 10 },
+                            refillRate: 1,
+                            capacity: 10,
                         },
                     })
                 ).not.toThrow();
@@ -146,23 +147,25 @@ describe('Express Middleware tests', () => {
                 ).not.toThrow();
             });
 
-            xtest('...Sliding Window', () => {
+            test('...Sliding Window Log', () => {
                 expect(() =>
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'SLIDING_WINDOW_LOG',
-                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                            windowSize: 1000,
+                            capacity: 10,
                         },
                     })
                 ).not.toThrow();
             });
 
-            xtest('...Sliding Window Counter', () => {
+            test('...Sliding Window Counter', () => {
                 expect(() =>
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'SLIDING_WINDOW_LOG',
-                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                            windowSize: 1,
+                            capacity: 10,
                         },
                     })
                 ).not.toThrow();
@@ -177,7 +180,8 @@ describe('Express Middleware tests', () => {
                     expressGraphQLRateLimiter(invalidSchema, {
                         rateLimiter: {
                             type: 'TOKEN_BUCKET',
-                            options: { refillRate: 1, bucketSize: 10 },
+                            refillRate: 1,
+                            capacity: 10,
                         },
                     })
                 ).toThrowError('ValidationError');
@@ -188,7 +192,8 @@ describe('Express Middleware tests', () => {
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'TOKEN_BUCKET',
-                            options: { bucketSize: 10, refillRate: 1 },
+                            refillRate: 1,
+                            capacity: 10,
                         },
 
                         redis: { options: { host: 'localhost', port: 1 } },
@@ -223,7 +228,8 @@ describe('Express Middleware tests', () => {
             middleware = expressGraphQLRateLimiter(schema, {
                 rateLimiter: {
                     type: 'TOKEN_BUCKET',
-                    options: { bucketSize: 10, refillRate: 1 },
+                    refillRate: 1,
+                    capacity: 10,
                 },
             });
             mockRequest = {
@@ -267,18 +273,10 @@ describe('Express Middleware tests', () => {
         });
 
         describe('Adds expected properties to res.locals', () => {
-            test('Adds UNIX timestamp and complexity', async () => {
+            test('Adds UNIX timestamp', async () => {
                 jest.useRealTimers();
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
                 jest.useFakeTimers();
-                const expected = {
-                    complexity: expect.any(Number),
-                    timestamp: expect.any(Number),
-                    tokens: expect.any(Number),
-                };
-
-                expect(mockResponse.locals?.graphqlGate).toEqual(expected);
-                expect(mockResponse.locals?.graphqlGate.complexity).toBeGreaterThanOrEqual(0);
 
                 // confirm that this is timestamp +/- 5 minutes of now.
                 const now: number = Date.now().valueOf();
@@ -288,35 +286,35 @@ describe('Express Middleware tests', () => {
                 expect(diff).toBeLessThan(5 * 60 * 1000);
             });
 
-            test('adds complexity', () => {
-                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+            test('adds complexity', async () => {
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                expect(mockResponse.locals).toHaveProperty('complexity');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
-                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
+                expect(mockResponse.locals?.graphqlGate).toHaveProperty('complexity');
+                expect(typeof mockResponse.locals?.graphqlGate.complexity).toBe('number');
+                expect(mockResponse.locals?.graphqlGate.complexity).toBeGreaterThanOrEqual(0);
             });
 
-            test('adds tokens', () => {
-                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+            test('adds tokens', async () => {
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                expect(mockResponse.locals).toHaveProperty('tokens');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
-                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
+                expect(mockResponse.locals?.graphqlGate).toHaveProperty('tokens');
+                expect(typeof mockResponse.locals?.graphqlGate.tokens).toBe('number');
+                expect(mockResponse.locals?.graphqlGate.tokens).toBeGreaterThanOrEqual(0);
             });
 
-            test('adds success', () => {
-                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+            test('adds success', async () => {
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                expect(mockResponse.locals).toHaveProperty('success');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('boolean');
+                expect(mockResponse.locals?.graphqlGate).toHaveProperty('success');
+                expect(typeof mockResponse.locals?.graphqlGate.success).toBe('boolean');
             });
 
-            xtest('adds depth', () => {
-                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+            xtest('adds depth', async () => {
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
-                expect(mockResponse.locals).toHaveProperty('depth');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
-                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
+                expect(mockResponse.locals?.graphqlGate).toHaveProperty('depth');
+                expect(typeof mockResponse.locals?.graphqlGate.depth).toBe('number');
+                expect(mockResponse.locals?.graphqlGate.depth).toBeGreaterThanOrEqual(0);
             });
         });
 
