@@ -30,6 +30,10 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
 class ASTParser {
     typeWeights: TypeWeightObject;
 
+    depth: number;
+
+    maxDepth: number;
+
     variables: Variables;
 
     fragmentCache: { [index: string]: number };
@@ -38,6 +42,8 @@ class ASTParser {
         this.typeWeights = typeWeights;
         this.variables = variables;
         this.fragmentCache = {};
+        this.depth = 0;
+        this.maxDepth = 0;
     }
 
     private calculateCost(
@@ -78,7 +84,7 @@ class ASTParser {
             }
             let typeName: string | undefined;
             let typeWeight: FieldWeight | undefined;
-
+            if (node.name.value === '__typename') return complexity;
             if (node.name.value in this.typeWeights) {
                 // node is an object type n the typeWeight root
                 typeName = node.name.value;
@@ -133,6 +139,8 @@ class ASTParser {
 
     selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
+        this.depth += 1;
+        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
         // check the kind property against the set of selection nodes that are possible
         if (node.kind === Kind.FIELD) {
             // call the function that handle field nodes
@@ -154,6 +162,7 @@ class ASTParser {
             // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
+        this.depth -= 1;
         return complexity;
     }
 
@@ -187,6 +196,8 @@ class ASTParser {
 
     definitionNode(node: DefinitionNode): number {
         let complexity = 0;
+        this.depth += 1;
+        this.maxDepth += 1;
         // check the kind property against the set of definiton nodes that are possible
         if (node.kind === Kind.OPERATION_DEFINITION) {
             // check if the operation is in the type weights object.

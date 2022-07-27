@@ -887,10 +887,10 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        xtest('accounting for __typename feild', () => {
+        test('accounting for __typename feild', () => {
             query = `
             query {
-                search(text: "an", first: 4) {
+                hero{
                     __typename
                     ... on Human {
                         name
@@ -902,7 +902,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 search results
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // 1 Query + 1 hero/character
         });
 
         // TODO: directives @skip, @include and custom directives
