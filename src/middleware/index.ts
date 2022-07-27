@@ -53,6 +53,26 @@ export function expressRateLimiter(
     // Manages processing of event queue
     const requestEvents = new EventEmitter();
 
+    // Resolves the promise created by throttledProcess
+    async function processRequestResolver(
+        userId: string,
+        timestamp: number,
+        tokens: number,
+        resolve: (value: RateLimiterResponse | PromiseLike<RateLimiterResponse>) => void,
+        reject: (reason: any) => void
+    ) {
+        try {
+            const response = await rateLimiter.processRequest(userId, timestamp, tokens);
+            requestQueue[userId] = requestQueue[userId].slice(1);
+            // trigger the next event
+            resolve(response);
+            requestEvents.emit(requestQueue[userId][0]);
+            if (requestQueue[userId].length === 0) delete requestQueue[userId];
+        } catch (err) {
+            reject(err);
+        }
+    }
+
     /**
      * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
      * Throttling is based on a event driven promise fulfillment approach.
@@ -77,17 +97,14 @@ export function expressRateLimiter(
         }
         requestQueue[userId].push(requestId);
 
-        return new Promise((resolve) => {
-            requestEvents.once(requestId, async () => {
-                // process the request
-                const response = await rateLimiter.processRequest(userId, timestamp, tokens);
-                requestQueue[userId] = requestQueue[userId].slice(1);
-                // trigger the next event
-                requestEvents.emit(requestQueue[userId][0]);
-
-                resolve(response);
-            });
-            requestEvents.emit(requestQueue[userId][0]);
+        return new Promise((resolve, reject) => {
+            if (requestQueue[userId].length > 1) {
+                requestEvents.once(requestId, async () => {
+                    await processRequestResolver(userId, timestamp, tokens, resolve, reject);
+                });
+            } else {
+                processRequestResolver(userId, timestamp, tokens, resolve, reject);
+            }
         });
     }
 
