@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterOptions, RateLimiterSelection, TokenBucketOptions } from '../@types/rateLimit';
+import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
 /**
@@ -19,6 +20,8 @@ export default function setupRateLimiter(
     switch (selection) {
         case 'TOKEN_BUCKET':
             // todo validate options
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
             return new TokenBucket(options.bucketSize, options.refillRate, client);
             break;
         case 'LEAKY_BUCKET':
@@ -31,7 +34,9 @@ export default function setupRateLimiter(
             throw new Error('Sliding Window Log has not be implemented.');
             break;
         case 'SLIDING_WINDOW_COUNTER':
-            throw new Error('Sliding Window Counter algonithm has not be implemented.');
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowCounter(options.windowSize, options.capacity, client);
             break;
         default:
             // typescript should never let us invoke this function with anything other than the options above
