@@ -467,7 +467,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
             expect(retryAfter).toBe(timestamp + 100 + WINDOW_SIZE);
         });
     });
-    xtest('users have their own logs', async () => {
+    test('users have their own logs', async () => {
         const requested = 6;
         const user3Tokens = 8;
         // // Add log for user 3 so we have both a user that exists in the store (3) and one that doesn't (2)
@@ -477,12 +477,14 @@ describe('SlidingWindowLog Rate Limiter', () => {
         await limiter.processRequest(user1, timestamp + 100, requested);
 
         // // Check that each user has the expected log
-        expect(await getLogFromClient(client, user1)).toEqual({
-            timestamp: timestamp + 100,
-            tokens: requested,
-        });
+        expect(await getLogFromClient(client, user1)).toEqual([
+            {
+                timestamp: timestamp + 100,
+                tokens: requested,
+            },
+        ]);
         expect(await getLogFromClient(client, user2)).toEqual([]);
-        expect(await getLogFromClient(client, user3)).toEqual([{ timestamp, tokens: requested }]);
+        expect(await getLogFromClient(client, user3)).toEqual([{ timestamp, tokens: user3Tokens }]);
 
         await limiter.processRequest(user2, timestamp + 200, 1);
         expect(await getLogFromClient(client, user1)).toEqual([
@@ -497,7 +499,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 tokens: 1,
             },
         ]);
-        expect(await getLogFromClient(client, user3)).toEqual([{ timestamp, tokens: requested }]);
+        expect(await getLogFromClient(client, user3)).toEqual([{ timestamp, tokens: user3Tokens }]);
     });
 
     test('is able to be reset', async () => {
@@ -533,7 +535,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
             );
         });
 
-        xtest('...allows custom window size and capacity', async () => {
+        test('...allows custom window size and capacity', async () => {
             const customWindow = 500;
             const customSizelimiter = new SlidingWindowLog(customWindow, CAPACITY, client);
 
@@ -551,18 +553,21 @@ describe('SlidingWindowLog Rate Limiter', () => {
                 .processRequest(user1, timestamp + customWindow, CAPACITY)
                 .then((res) => res.success);
 
-            const customCapacitylimiter = new SlidingWindowLog(WINDOW_SIZE, 5, client);
-            const customCapacity = 5;
+            // Reset the redis store
+            customSizelimiter.reset();
 
-            let customWindowSuccess = await customCapacitylimiter
+            const customCapacity = 5;
+            const customCapacitylimiter = new SlidingWindowLog(WINDOW_SIZE, customCapacity, client);
+
+            let customCapacitySuccess = await customCapacitylimiter
                 .processRequest(user1, timestamp, customCapacity + 1)
                 .then((res) => res.success);
-            expect(customSizeSuccess).toBe(false);
+            expect(customCapacitySuccess).toBe(false);
 
-            customWindowSuccess = await customCapacitylimiter
+            customCapacitySuccess = await customCapacitylimiter
                 .processRequest(user1, timestamp + 100, customCapacity)
                 .then((res) => res.success);
-            expect(customWindowSuccess).toBe(true);
+            expect(customCapacitySuccess).toBe(true);
         });
     });
 });

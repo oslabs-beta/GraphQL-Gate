@@ -96,32 +96,33 @@ class SlidingWindowLog implements RateLimiter {
         // Stop at the first timestamp that's expired and cut the rest.
 
         const cutoff = timestamp - this.windowSize;
-        let tokensInLog = 0;
+        let tokensInLog = 0; // total active tokens in the log
         let cutoffIndex = 0; // index of oldest active request
-        // TODO: Provide a timestamp for when the request will succeeed.
-        // Compute time between response and this timestamp later on
-        // FIXME: What should this be if the complexity is too big?
-        let retryIndex = requestLog.length; // time the user must wait before a request can be allowed.
+        let lastAllowedIndex = requestLog.length; // Index of oldest request in the log for which this request would be allowed.
 
         for (let index = requestLog.length - 1; index >= 0; index--) {
             if (cutoff >= requestLog[index].timestamp) {
+                // we reached the first expired request
                 cutoffIndex = index + 1;
                 break;
             } else {
                 // the request is active
                 tokensInLog += requestLog[index].tokens;
                 if (this.capacity - tokensInLog >= tokens) {
-                    // the log is able to accept this request
-                    retryIndex = index;
+                    // the log is able to accept the current request
+                    lastAllowedIndex = index;
                 }
             }
         }
 
+        // Time (ms) after which the current request would succeed if it is blocked.
         let retryAfter: number;
+
+        // Request will never be allowed
         if (tokens > this.capacity) retryAfter = Infinity;
-        // need the request before retryIndex
-        else if (retryIndex > 0)
-            retryAfter = this.windowSize + requestLog[retryIndex - 1].timestamp;
+        // need the request before lastAllowedIndex
+        else if (lastAllowedIndex > 0)
+            retryAfter = this.windowSize + requestLog[lastAllowedIndex - 1].timestamp;
         else retryAfter = 0; // request is allowed
 
         // Conditional check to avoid unecessary slice
