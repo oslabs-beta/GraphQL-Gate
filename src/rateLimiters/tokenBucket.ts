@@ -16,18 +16,22 @@ class TokenBucket implements RateLimiter {
 
     private client: Redis;
 
+    private keyExpiry: number;
+
     /**
      * Create a new instance of a TokenBucket rate limiter that can be connected to any database store
      * @param capacity max token bucket capacity
      * @param refillRate rate at which the token bucket is refilled
      * @param client redis client where rate limiter will cache information
+     * @param expiry redis key expiry in ms
      */
-    constructor(capacity: number, refillRate: number, client: Redis) {
+    constructor(capacity: number, refillRate: number, client: Redis, expiry: number) {
         this.capacity = capacity;
         this.refillRate = refillRate;
         this.client = client;
-        if (refillRate <= 0 || capacity <= 0)
-            throw Error('TokenBucket refillRate and capacity must be positive');
+        this.keyExpiry = expiry;
+        if (refillRate <= 0 || capacity <= 0 || expiry <= 0)
+            throw Error('TokenBucket refillRate, capacity and keyExpiry must be positive');
     }
 
     /**
@@ -44,9 +48,6 @@ class TokenBucket implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set the expiry of key-value pairs in the cache to 24 hours
-        const keyExpiry = 86400000;
-
         // attempt to get the value for the uuid from the redis cache
         const bucketJSON = await this.client.get(uuid);
 
@@ -59,10 +60,10 @@ class TokenBucket implements RateLimiter {
             };
             // reject the request, not enough tokens could even be in the bucket
             if (tokens > this.capacity) {
-                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
+                await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserBucket));
                 return { success: false, tokens: this.capacity };
             }
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserBucket));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserBucket));
             return { success: true, tokens: newUserBucket.tokens };
         }
 
@@ -77,10 +78,10 @@ class TokenBucket implements RateLimiter {
         };
         if (bucket.tokens < tokens) {
             // reject the request, not enough tokens in bucket
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserBucket));
             return { success: false, tokens: bucket.tokens };
         }
-        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserBucket));
+        await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserBucket));
         return { success: true, tokens: updatedUserBucket.tokens };
     }
 
@@ -99,7 +100,7 @@ class TokenBucket implements RateLimiter {
         timestamp: number
     ): number => {
         const timeSinceLastQueryInSeconds: number = Math.floor(
-            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second FIXME: magic number if specifying custom timeframe
+            (timestamp - bucket.timestamp) / 1000 // 1000 ms in a second // FIXME: magic number if specifying custom timeframe
         );
         const tokensToAdd = timeSinceLastQueryInSeconds * this.refillRate;
         const updatedTokenCount = bucket.tokens + tokensToAdd;
