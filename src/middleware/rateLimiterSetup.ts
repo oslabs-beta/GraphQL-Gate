@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
 import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
-import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
 /**
@@ -19,21 +18,24 @@ export default function setupRateLimiter(
 ) {
     switch (selection) {
         case 'TOKEN_BUCKET':
-            if (options.typename === 'bucket') {
-                return new TokenBucket(options.bucketSize, options.refillRate, client);
-            }
-            throw new Error('Invalid options for token bucket');
+            // todo validate options
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new TokenBucket(options.bucketSize, options.refillRate, client);
+            break;
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');
         case 'FIXED_WINDOW':
             throw new Error('Fixed Window algonithm has not be implemented.');
         case 'SLIDING_WINDOW_LOG':
-            if (options.typename === 'window') {
-                return new SlidingWindowLog(options.windowSize, options.capacity, client);
-            }
-            throw new Error('Invalid options for sliding window log');
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowLog(options.windowSize, options.capacity, client);
         case 'SLIDING_WINDOW_COUNTER':
-            throw new Error('Sliding Window Counter algonithm has not be implemented.');
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowCounter(options.windowSize, options.capacity, client);
+            break;
         default:
             // typescript should never let us invoke this function with anything other than the options above
             throw new Error('Selected rate limiting algorithm is not suppported');

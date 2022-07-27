@@ -154,7 +154,7 @@ describe('Test TokenBucket Rate Limiter', () => {
         });
 
         test("blocks requests exceeding the user's current allotment of tokens", async () => {
-            // Test > capacity tokens reqeusted
+            // Test > capacity tokens requested
             expect((await limiter.processRequest(user1, timestamp, CAPACITY + 1)).success).toBe(
                 false
             );
