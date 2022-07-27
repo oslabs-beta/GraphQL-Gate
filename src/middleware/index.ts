@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import EventEmitter from 'events';
 import { parse, validate } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
@@ -6,6 +6,8 @@ import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysi
 import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
+import { RateLimiterResponse } from '../@types/rateLimit';
+import { connect } from '../utils/redis';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
@@ -48,17 +50,76 @@ export default function expressGraphQLRateLimiter(
      * build the type weight object, create the redis client and instantiate the ratelimiter
      * before returning the express middleware that calculates query complexity and throttles the requests
      */
-    // TODO: Throw ValidationError if schema is invalid
+    // FIXME: Error handling
     const typeWeightObject = buildTypeWeightsFromSchema(schema, middlewareSetup.typeWeights);
-    // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis({ ...middlewareSetup.redis.options }); // Default port is 6379 automatically
+    const redisClient = connect(middlewareSetup.redis.options); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(
         middlewareSetup.rateLimiter,
         redisClient,
         middlewareSetup.redis.keyExpiry
     );
 
-    // return the rate limiting middleware
+    // stores request IDs to be processed
+    const requestQueue: { [index: string]: string[] } = {};
+
+    // Manages processing of event queue
+    const requestEvents = new EventEmitter();
+
+    // Resolves the promise created by throttledProcess
+    async function processRequestResolver(
+        userId: string,
+        timestamp: number,
+        tokens: number,
+        resolve: (value: RateLimiterResponse | PromiseLike<RateLimiterResponse>) => void,
+        reject: (reason: any) => void
+    ) {
+        try {
+            const response = await rateLimiter.processRequest(userId, timestamp, tokens);
+            requestQueue[userId] = requestQueue[userId].slice(1);
+            // trigger the next event
+            resolve(response);
+            requestEvents.emit(requestQueue[userId][0]);
+            if (requestQueue[userId].length === 0) delete requestQueue[userId];
+        } catch (err) {
+            reject(err);
+        }
+    }
+
+    /**
+     * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
+     * Throttling is based on a event driven promise fulfillment approach.
+     * Each time a request is received a promise is added to the user's request queue. The promise "subscribes"
+     * to the previous request in the user's queue then calls processRequest and resolves once the previous request
+     * is complete.
+     * @param userId
+     * @param timestamp
+     * @param tokens
+     * @returns
+     */
+    async function throttledProcess(
+        userId: string,
+        timestamp: number,
+        tokens: number
+    ): Promise<RateLimiterResponse> {
+        // Alternatively use crypto.randomUUID() to generate a random uuid
+        const requestId = `${timestamp}${tokens}`;
+
+        if (!requestQueue[userId]) {
+            requestQueue[userId] = [];
+        }
+        requestQueue[userId].push(requestId);
+
+        return new Promise((resolve, reject) => {
+            if (requestQueue[userId].length > 1) {
+                requestEvents.once(requestId, async () => {
+                    await processRequestResolver(userId, timestamp, tokens, resolve, reject);
+                });
+            } else {
+                processRequestResolver(userId, timestamp, tokens, resolve, reject);
+            }
+        });
+    }
+
     return async (
         req: Request,
         res: Response,
@@ -71,9 +132,8 @@ export default function expressGraphQLRateLimiter(
             console.log('There is no query on the request');
             return next();
         }
-
         // check for a proxied ip address before using the ip address on request
-        const ip: string = req.ips[0] || req.ip;
+        const ip: string = req.ips ? req.ips[0] : req.ip;
 
         const queryAST = parse(query);
         // validate the query against the schema. The GraphQL validation function returns an array of errors.
@@ -87,7 +147,7 @@ export default function expressGraphQLRateLimiter(
         try {
             // process the request and conditinoally respond to client with status code 429 or
             // pass the request onto the next middleware function
-            const rateLimiterResponse = await rateLimiter.processRequest(
+            const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
                 queryComplexity

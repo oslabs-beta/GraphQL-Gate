@@ -52,7 +52,7 @@ class TokenBucket implements RateLimiter {
         const bucketJSON = await this.client.get(uuid);
 
         // if the response is null, we need to create a bucket for the user
-        if (bucketJSON === null) {
+        if (!bucketJSON) {
             const newUserBucket: RedisBucket = {
                 // conditionally set tokens depending on how many are requested comapred to the capacity
                 tokens: tokens > this.capacity ? this.capacity : this.capacity - tokens,
