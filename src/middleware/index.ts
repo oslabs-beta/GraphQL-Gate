@@ -42,24 +42,34 @@ export function expressRateLimiter(
      */
     // TODO: Throw ValidationError if schema is invalid
     const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
+
     // TODO: Throw error if connection is unsuccessful
-    // Default connection timeout is 10000 ms of inactivity
-    // FIXME: Do we need to re-establish connection?
     const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
     // stores request IDs to be processed
     const requestQueue: { [index: string]: string[] } = {};
+
+    // Manages processing of event queue
     const requestEvents = new EventEmitter();
 
-    // Throttle rateLimiter.processRequest based on user IP to prent inaccurate redis reads
+    /**
+     * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
+     * Throttling is based on a event driven promise fulfillment approach.
+     * Each time a request is received a promise is added to the user's request queue. The promise "subscribes"
+     * to the previous request in the user's queue then calls processRequest and resolves once the previous request
+     * is complete.
+     * @param userId
+     * @param timestamp
+     * @param tokens
+     * @returns
+     */
     async function throttledProcess(
         userId: string,
         timestamp: number,
         tokens: number
     ): Promise<RateLimiterResponse> {
-        // Generate a random uuid for this request and add it to the queue
-        // Alternatively use crypto.randomUUID() to generate a uuid
+        // Alternatively use crypto.randomUUID() to generate a random uuid
         const requestId = `${timestamp}${tokens}`;
 
         if (!requestQueue[userId]) {
@@ -67,8 +77,7 @@ export function expressRateLimiter(
         }
         requestQueue[userId].push(requestId);
 
-        // Start a loop to check when this request should be processed
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             requestEvents.once(requestId, async () => {
                 // process the request
                 const response = await rateLimiter.processRequest(userId, timestamp, tokens);
@@ -81,39 +90,6 @@ export function expressRateLimiter(
             requestEvents.emit(requestQueue[userId][0]);
         });
     }
-
-    // Sort the requests by timestamps to make sure we process in the correct order
-    // We need to store the request, response and next object so that the correct one is used
-    // the function we return accepts the unique request, response, next objects
-    // it will store these and then process them in the order in which they were received.
-    // We can do an event listener that waits for the previous request in the queue to be finished
-    // store the middleware in closure
-
-    // Catch the request
-    // add this to the queue
-    // proccess the oldest request in the queue
-    // check if the queue is empty => if not process the next request
-    // otherwise return
-    // process restarts when the next request comes in
-
-    // so r1, r2 come in
-    // r1, and r2 get processed with thin same frame on call stack
-    // r2 call is done once r2 is added to the queue
-
-    // return a throttled middleware. Check every 100ms? make this a setting?
-    // how do we make sure these get queued properly?
-    // store the requests in an array when available grab the next request for a user
-    /**
-     * Request 1 comes in
-     *  Start handling request 1
-     *  In the meantime reqeust 2 comes in for the same suer
-     *  Finish handling request 1
-     *    check the queue for this user
-     *    if it's empty we're done
-     *    it it has a request handle the next one
-     *
-     * Not throttling on time just queueing requests.
-     */
 
     return async (
         req: Request,
