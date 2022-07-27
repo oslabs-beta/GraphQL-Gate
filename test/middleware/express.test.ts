@@ -295,7 +295,7 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple valid requests at within one second', async () => {
-                    const requests = new Array(5).fill(0);
+                    const requests = [];
 
                     for (let i = 0; i < 3; i++) {
                         // Send 3 queries of complexity 2. These should all succeed
@@ -308,22 +308,11 @@ describe('Express Middleware tests', () => {
                         );
 
                         // advance the timers by 20 miliseconds for the next request
-                        // jest.advanceTimersByTime(20);
+                        jest.advanceTimersByTime(20);
                     }
-                    jest.runAllTimers();
                     await Promise.all(requests);
                     expect(nextFunction).toBeCalledTimes(3);
                     expect(nextFunction).toBeCalledWith();
-
-                    // for (let i = 0; i < 3; i++) {
-                    //     const next: NextFunction = jest.fn();
-                    //     await middleware(mockRequest as Request, mockResponse as Response, next);
-                    //     expect(next).toBeCalledTimes(1);
-                    //     expect(next).toBeCalledWith();
-
-                    //     // advance the timers by 20 milliseconds for the next request
-                    //     jest.advanceTimersByTime(20);
-                    // }
                 });
             });
 
@@ -366,8 +355,7 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple queries that exceed token limit', async () => {
-                    // jest.useRealTimers();
-                    const requests = new Array(5).fill(0);
+                    const requests = [];
 
                     for (let i = 0; i < 5; i++) {
                         // Send 5 queries of complexity 2. These should all succeed
@@ -383,18 +371,17 @@ describe('Express Middleware tests', () => {
                         jest.advanceTimersByTime(20);
                     }
 
-                    jest.runAllTimers();
                     await Promise.all(requests);
                     // Send a 6th request that should be blocked.
                     const next: NextFunction = jest.fn();
 
-                    const myPromise = middleware(
+                    const lastRequest = middleware(
                         mockRequest as Request,
                         mockResponse as Response,
                         next
                     );
-                    jest.runAllTimers();
-                    await myPromise;
+
+                    await lastRequest;
 
                     expect(mockResponse.status).toHaveBeenCalledWith(429);
                     expect(next).not.toBeCalled();
