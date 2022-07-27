@@ -910,5 +910,20 @@ describe('Test getQueryTypeComplexity function', () => {
 
     xdescribe('Calculates the correct type complexity for mutations', () => {});
 
+    xdescribe('Calculates the depth of the query', () => {
+        /**
+         * make test cases for
+         * 1. simple
+         * 2. nesting
+         * 3. lists
+         * 4. fragments
+         *
+         * */
+        // test('with one feild', () => {
+        //     query = `query { scalars { num } }`;
+        //     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+        // });
+    });
+
     xdescribe('Calculates the correct type complexity for subscriptions', () => {});
 });
