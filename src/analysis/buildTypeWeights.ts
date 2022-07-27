@@ -80,11 +80,9 @@ function parseObjectFields(
     // Iterate through the fields and add the required data to the result
     Object.keys(fields).forEach((field: string) => {
         // The GraphQL type that this field represents
-        const fieldType: GraphQLOutputType = fields[field].type;
-        if (
-            isScalarType(fieldType) ||
-            (isNonNullType(fieldType) && isScalarType(fieldType.ofType))
-        ) {
+        let fieldType: GraphQLOutputType = fields[field].type;
+        if (isNonNullType(fieldType)) fieldType = fieldType.ofType;
+        if (isScalarType(fieldType)) {
             result.fields[field] = {
                 weight: typeWeights.scalar,
                 // resolveTo: fields[field].name.toLowerCase(),
@@ -100,7 +98,8 @@ function parseObjectFields(
             };
         } else if (isListType(fieldType)) {
             // 'listType' is the GraphQL type that the list resolves to
-            const listType = fieldType.ofType;
+            let listType = fieldType.ofType;
+            if (isNonNullType(listType)) listType = listType.ofType;
             if (isScalarType(listType) && typeWeights.scalar === 0) {
                 // list won't compound if weight is zero
                 result.fields[field] = {
@@ -115,7 +114,6 @@ function parseObjectFields(
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
-                    // FIXME: Can nonnull wrap list types?
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
                         result.fields[field] = {
@@ -183,6 +181,7 @@ function compareTypes(a: GraphQLOutputType, b: GraphQLOutputType): boolean {
     return (
         (isObjectType(b) && isObjectType(a) && a.name === b.name) ||
         (isUnionType(b) && isUnionType(a) && a.name === b.name) ||
+        (isEnumType(b) && isEnumType(a) && a.name === b.name) ||
         (isInterfaceType(b) && isInterfaceType(a) && a.name === b.name) ||
         (isScalarType(b) && isScalarType(a) && a.name === b.name) ||
         (isListType(b) && isListType(a) && compareTypes(b.ofType, a.ofType)) ||
@@ -289,24 +288,26 @@ function parseUnionTypes(
              *   c. objects have a resolveTo type.
              *  */
 
-            const current = commonFields[field].type;
+            let current = commonFields[field].type;
+            if (isNonNullType(current)) current = current.ofType;
             if (isScalarType(current)) {
                 fieldTypes[field] = {
                     weight: commonFields[field].weight,
                 };
-            } else if (isObjectType(current) || isInterfaceType(current) || isUnionType(current)) {
+            } else if (
+                isObjectType(current) ||
+                isInterfaceType(current) ||
+                isUnionType(current) ||
+                isEnumType(current)
+            ) {
                 fieldTypes[field] = {
                     resolveTo: commonFields[field].resolveTo,
-                    weight: typeWeights.object,
                 };
             } else if (isListType(current)) {
                 fieldTypes[field] = {
                     resolveTo: commonFields[field].resolveTo,
                     weight: commonFields[field].weight,
                 };
-            } else if (isNonNullType(current)) {
-                throw new Error('non null types not supported on unions');
-                // TODO: also a recursive data structure
             } else {
                 throw new Error('Unhandled union type. Should never get here');
             }

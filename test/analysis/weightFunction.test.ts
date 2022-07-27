@@ -84,7 +84,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         });
     });
 
-    xtest('the list is defined with non-null operators (!)', () => {
+    test('the list is defined with non-null operators (!)', () => {
         const villainsQuery = `query { villains(episode: NEWHOPE, limit: 3) { stars, episode } }`;
         const willainsQueryAST: DocumentNode = parse(villainsQuery);
         expect(getQueryTypeComplexity(willainsQueryAST, {}, typeWeights)).toBe(4);
@@ -93,7 +93,7 @@ describe('Weight Function correctly parses Argument Nodes if', () => {
         const charQueryAST: DocumentNode = parse(charQuery);
         expect(getQueryTypeComplexity(charQueryAST, {}, typeWeights)).toBe(4);
 
-        const droidsQuery = `droidsQuery { droids(episode: NEWHOPE, limit: 3) { stars, episode } }`;
+        const droidsQuery = `query droidsQuery { droids(episode: NEWHOPE, limit: 3) { stars, episode } }`;
         const droidsQueryAST: DocumentNode = parse(droidsQuery);
         expect(getQueryTypeComplexity(droidsQueryAST, {}, typeWeights)).toBe(4);
     });
