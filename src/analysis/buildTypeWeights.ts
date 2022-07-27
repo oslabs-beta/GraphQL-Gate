@@ -17,6 +17,7 @@ import {
     ValueNode,
     GraphQLUnionType,
     GraphQLFieldMap,
+    GraphQLDirective,
 } from 'graphql';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
@@ -114,7 +115,8 @@ function parseObjectFields(
             } else {
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
-                    // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
+                    // then the weight of the field should be dependent on both the weight of the
+                    // resolved type and the limiting argument.
                     // FIXME: Can nonnull wrap list types?
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
@@ -145,6 +147,26 @@ function parseObjectFields(
                                     return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
                                 }
+
+                                // if the @listCost directive is given for the field,
+                                // apply the cost argument's value to the field's weight
+                                const directives = fields[field].astNode?.directives;
+                                if (directives && directives.length > 0) {
+                                    // eslint-disable-next-line consistent-return
+                                    directives.forEach((dir) => {
+                                        if (dir.name.value === 'listCost') {
+                                            if (dir.arguments && dir.arguments[0])
+                                                return {
+                                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                                    // @ts-ignore
+                                                    // ignoring for the time being,
+                                                    // 'value does not exist on type ConstValueNode'
+                                                    weight: Number(dir.arguments[0].value.value),
+                                                };
+                                        }
+                                    });
+                                }
+
                                 // if there is no argument provided with the query, check the schema for a default
                                 if (arg.defaultValue) {
                                     return Number(arg.defaultValue) * (selectionsCost + weight);
@@ -152,7 +174,8 @@ function parseObjectFields(
 
                                 // FIXME: The list is unbounded. Return the object weight for
                                 throw new Error(
-                                    `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                                    `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
+                                            or limit query results with ${KEYWORDS}`
                                 );
                             },
                         };

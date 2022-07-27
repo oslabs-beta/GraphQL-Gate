@@ -396,7 +396,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     id: ID!
                     name: String!
                     homePlanet: String
-                    friends: [Human]
+                    friends: [Human] @listCost(cost: 10)
                 }
             `);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
@@ -408,7 +408,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         hamePlanet: { weight: 0 },
                         friends: {
                             resolvesTo: 'human',
-                            weight: expect.any(Function),
+                            weight: 10,
                         },
                     },
                 },
