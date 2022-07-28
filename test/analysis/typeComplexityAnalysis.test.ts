@@ -916,19 +916,129 @@ describe('Test getQueryTypeComplexity function', () => {
 
     xdescribe('Calculates the correct type complexity for mutations', () => {});
 
-    xdescribe('Calculates the depth of the query', () => {
-        /**
-         * make test cases for
-         * 1. simple
-         * 2. nesting
-         * 3. lists
-         * 4. fragments
-         *
-         * */
-        // test('with one feild', () => {
-        //     query = `query { scalars { num } }`;
-        //     expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
-        // });
+    describe('Calculates the depth of the query', () => {
+        beforeEach(() => {
+            queryParser = new ASTParser(typeWeights, {});
+        });
+        test('with one feild', () => {
+            query = `query { scalars { num } }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(2);
+        });
+
+        test('with multiple feilds of the same depth', () => {
+            query = `query { 
+                scalars { num } 
+                character(id: 5) {name}
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(2);
+        });
+
+        test('with multiple feilds of different depth', () => {
+            query = `query { 
+                scalars { num, test {name} } 
+                character(id: 5) {name}
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(3);
+        });
+
+        test('with simple nesting', () => {
+            query = `query { human(id: 1) { name, friends(first: 5) { name, friends(first: 3){ name }}}} `;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(4);
+        });
+
+        test('with fragments as the deepest part of the query', () => {
+            query = `
+            query {
+                leftComparison: hero(episode: EMPIRE) {
+                ...comparisonFields
+                }
+                rightComparison: hero(episode: JEDI) {
+                ...comparisonFields
+                }
+            }
+            
+            fragment comparisonFields on Character {
+                name
+                appearsIn
+                friends(first: 3) {
+                    name
+                }
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(2);
+        });
+
+        test('with fragments nested at the second level of the query', () => {
+            query = `
+            query {
+                hero (episode: Episode) {
+                    name,
+                    friends (first: 1) {
+                        leftComparison: friends (first: 1) {
+                            ...comparisonFields
+                        }
+                        rightComparison: friends(first: 1) {
+                            ...comparisonFields
+                        }
+                    }
+                }
+                
+            }
+            
+            fragment comparisonFields on Character {
+                name
+                appearsIn
+                friends (first: 3) {
+                    name
+                }
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(5);
+        });
+
+        test('with inline fragments of differing depths', () => {
+            query = `
+            query {
+                hero(episode: EMPIRE) {
+                    name
+                    ... on Droid {
+                        primaryFunction
+                        friends(first: 1) {
+                            name
+                        }
+                    }
+                    ... on Human {
+                        homePlanet
+                    }
+                }
+            }`;
+            mockDroidFriendsFunction.mockReturnValueOnce(1);
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(3);
+        });
+
+        xtest('with inline fragments that contain an directive', () => {
+            query = `
+            query {
+                hero(episode: EMPIRE) {
+                    ...@include(if: true) {
+                        name
+                        friends(first: 3) {
+                            name
+                        }
+                    }
+                    ... on Human {
+                        homePlanet
+                    }
+                }
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(3);
+        });
     });
 
     xdescribe('Calculates the correct type complexity for subscriptions', () => {});

@@ -157,7 +157,10 @@ class ASTParser {
             const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
 
             // TODO: Handle directives like @include
+            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
+            this.depth -= 1;
             complexity += this.selectionSetNode(node.selectionSet, namedType);
+            this.depth += 1;
         } else {
             // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
@@ -196,8 +199,6 @@ class ASTParser {
 
     private definitionNode(node: DefinitionNode): number {
         let complexity = 0;
-        this.depth += 1;
-        this.maxDepth += 1;
         // check the kind property against the set of definiton nodes that are possible
         if (node.kind === Kind.OPERATION_DEFINITION) {
             // check if the operation is in the type weights object.
