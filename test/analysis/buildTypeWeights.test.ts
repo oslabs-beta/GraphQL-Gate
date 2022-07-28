@@ -305,8 +305,8 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // FIXME: what would we expect here?
-        xtest('connections paginiton convention', () => {
+        // TODO: Write tests for connection pagination convention
+        xtest('connections pagination convention', () => {
             schema = buildSchema(`
             type Query {
                 hero(id: ID): Character
@@ -353,7 +353,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 2,
                     fields: {
                         totalCount: { weight: 0 },
-                        // edges: {resolveTo: }
+                        // edges: {resolveTo: } //TODO: finish spec'ing out how the typeweight object should look for connections
                     },
                 },
                 friendsEdge: {},
@@ -647,6 +647,57 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                                 resolveTo: 'searchresult',
                                 weight: expect.any(Function),
                             },
+                        },
+                    },
+                });
+            });
+
+            test('interface types', () => {
+                schema = buildSchema(`
+                union SearchResult = Human | Droid
+                interface Character {
+                    id: ID!
+                    name: String!                    
+                }
+                type Human implements Character {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                }
+                type Droid implements Character {
+                    id: ID!
+                    name: String!                
+                    primaryFunction: String
+                }`);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            name: { weight: 0 },
+                        },
+                    },
+                    character: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            name: { weight: 0 },
+                        },
+                    },
+                    human: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                            id: { weight: 0 },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            primaryFunction: { weight: 0 },
+                            id: { weight: 0 },
                         },
                     },
                 });
