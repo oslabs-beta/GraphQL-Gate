@@ -73,7 +73,7 @@ class ASTParser {
         return complexity;
     }
 
-    fieldNode(node: FieldNode, parentName: string): number {
+    private fieldNode(node: FieldNode, parentName: string): number {
         try {
             let complexity = 0;
             const parentType = this.typeWeights[parentName];
@@ -137,7 +137,7 @@ class ASTParser {
         }
     }
 
-    selectionNode(node: SelectionNode, parentName: string): number {
+    private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
         this.depth += 1;
         if (this.depth > this.maxDepth) this.maxDepth = this.depth;
@@ -166,7 +166,7 @@ class ASTParser {
         return complexity;
     }
 
-    selectionSetNode(node: SelectionSetNode, parentName: string): number {
+    private selectionSetNode(node: SelectionSetNode, parentName: string): number {
         let complexity = 0;
         let maxFragmentComplexity = 0;
         // iterate shrough the 'selections' array on the seletion set node
@@ -194,7 +194,7 @@ class ASTParser {
         return complexity + maxFragmentComplexity;
     }
 
-    definitionNode(node: DefinitionNode): number {
+    private definitionNode(node: DefinitionNode): number {
         let complexity = 0;
         this.depth += 1;
         this.maxDepth += 1;
@@ -236,7 +236,7 @@ class ASTParser {
         return complexity;
     }
 
-    documentNode(node: DocumentNode): number {
+    private documentNode(node: DocumentNode): number {
         let complexity = 0;
         // sort the definitions array by kind so that fragments are always parsed first.
         // Fragments must be parsed first so that their complexity is available to other nodes.
@@ -248,6 +248,10 @@ class ASTParser {
             complexity += this.definitionNode(sortedDefinitions[i]);
         }
         return complexity;
+    }
+
+    processQuery(queryAST: DocumentNode): number {
+        return this.documentNode(queryAST);
     }
 }
 

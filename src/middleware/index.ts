@@ -4,10 +4,10 @@ import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
-import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
 import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
 import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
+import ASTParser from '../analysis/ASTParser';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
@@ -143,7 +143,9 @@ export default function expressGraphQLRateLimiter(
             res.status(400).json({ errors: validationErrors });
         }
 
-        const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
+        const queryParser = new ASTParser(typeWeightObject, variables);
+        const queryComplexity = queryParser.processQuery(queryAST);
+
         try {
             // process the request and conditinoally respond to client with status code 429 or
             // pass the request onto the next middleware function
@@ -157,9 +159,13 @@ export default function expressGraphQLRateLimiter(
                 complexity: queryComplexity,
                 tokens: rateLimiterResponse.tokens,
                 success: rateLimiterResponse.success,
-                depth: null, // FIXME: update this once depth limiting is enabled
+                depth: queryParser.maxDepth,
             };
-            if (!rateLimiterResponse.success && !middlewareSetup.dark) {
+            if (
+                (!rateLimiterResponse.success ||
+                    queryParser.maxDepth >= middlewareSetup.depthLimit) &&
+                !middlewareSetup.dark
+            ) {
                 // TODO: rateLimiter.processRequest response should have a property for retryAfter if the reqest is blocked
                 return (
                     res
