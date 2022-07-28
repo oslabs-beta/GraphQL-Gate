@@ -158,7 +158,9 @@ export default function expressGraphQLRateLimiter(
                 timestamp: requestTimestamp,
                 complexity: queryComplexity,
                 tokens: rateLimiterResponse.tokens,
-                success: rateLimiterResponse.success,
+                success:
+                    rateLimiterResponse.success &&
+                    queryParser.maxDepth >= middlewareSetup.depthLimit,
                 depth: queryParser.maxDepth,
             };
             if (
