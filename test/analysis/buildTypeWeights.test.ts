@@ -703,6 +703,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
+
             test('object types', () => {
                 schema = buildSchema(`
                     union SearchResult = Human | Droid
