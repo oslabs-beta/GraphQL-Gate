@@ -969,7 +969,33 @@ describe('Test getQueryTypeComplexity function', () => {
                 }
             }`;
             queryParser.processQuery(parse(query));
-            expect(queryParser.maxDepth).toBe(2);
+            expect(queryParser.maxDepth).toBe(3);
+        });
+
+        test('with multiple fragments', () => {
+            query = `
+            query {
+                leftComparison: hero(episode: EMPIRE) {
+                ...comparisonFieldsLeft
+                }
+                rightComparison: hero(episode: JEDI) {
+                ...comparisonFieldsRight
+                }
+            }
+            
+            fragment comparisonFieldsRight on Character {
+                name
+                appearsIn
+                friends(first: 3) {
+                    name
+                }
+            }
+            fragment comparisonFieldsLeft on Character {
+                name
+                appearsIn
+            }`;
+            queryParser.processQuery(parse(query));
+            expect(queryParser.maxDepth).toBe(3);
         });
 
         test('with fragments nested at the second level of the query', () => {
@@ -977,18 +1003,15 @@ describe('Test getQueryTypeComplexity function', () => {
             query {
                 hero (episode: Episode) {
                     name,
-                    friends (first: 1) {
-                        leftComparison: friends (first: 1) {
-                            ...comparisonFields
-                        }
-                        rightComparison: friends(first: 1) {
-                            ...comparisonFields
-                        }
+                    leftComparison: friends (first: 2) {
+                        ...comparisonFields
                     }
-                }
-                
+                    rightComparison: friends(first: 2) {
+                        ...comparisonFields
+                    }
+                    
+                }   
             }
-            
             fragment comparisonFields on Character {
                 name
                 appearsIn
@@ -996,8 +1019,9 @@ describe('Test getQueryTypeComplexity function', () => {
                     name
                 }
             }`;
+
             queryParser.processQuery(parse(query));
-            expect(queryParser.maxDepth).toBe(5);
+            expect(queryParser.maxDepth).toBe(4);
         });
 
         test('with inline fragments of differing depths', () => {

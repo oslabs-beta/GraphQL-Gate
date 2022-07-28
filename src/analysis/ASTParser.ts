@@ -36,7 +36,7 @@ class ASTParser {
 
     variables: Variables;
 
-    fragmentCache: { [index: string]: number };
+    fragmentCache: { [index: string]: { complexity: number; depth: number } };
 
     constructor(typeWeights: TypeWeightObject, variables: Variables) {
         this.typeWeights = typeWeights;
@@ -146,7 +146,14 @@ class ASTParser {
             // call the function that handle field nodes
             complexity += this.fieldNode(node, parentName.toLowerCase());
         } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-            complexity += this.fragmentCache[node.name.value];
+            // add complexity and depth from fragment cache
+            const { complexity: fragComplexity, depth: fragDepth } =
+                this.fragmentCache[node.name.value];
+            complexity += fragComplexity;
+            this.depth += fragDepth;
+            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+            this.depth -= fragDepth;
+
             // This is a leaf
             // need to parse fragment definition at root and get the result here
         } else if (node.kind === Kind.INLINE_FRAGMENT) {
@@ -165,6 +172,7 @@ class ASTParser {
             // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
+
         this.depth -= 1;
         return complexity;
     }
@@ -219,15 +227,16 @@ class ASTParser {
             // Duplicate fragment names are not allowed by the GraphQL spec and an error is thrown if used.
             const fragmentName = node.name.value;
 
-            if (this.fragmentCache[fragmentName]) return this.fragmentCache[fragmentName];
-
             const fragmentComplexity = this.selectionSetNode(
                 node.selectionSet,
                 namedType.toLowerCase()
             );
 
             // Don't count fragment complexity in the node's complexity. Only when fragment is used.
-            this.fragmentCache[fragmentName] = fragmentComplexity;
+            this.fragmentCache[fragmentName] = {
+                complexity: fragmentComplexity,
+                depth: this.maxDepth - 1, // subtract one from the calculated depth of the fragment to correct for the additional depth the fragment ads to the query when used
+            };
         } else {
             // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
             // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and

@@ -406,7 +406,7 @@ describe('Express Middleware tests', () => {
                 expect(typeof mockResponse.locals?.graphqlGate.success).toBe('boolean');
             });
 
-            xtest('adds depth', async () => {
+            test('adds depth', async () => {
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
 
                 expect(mockResponse.locals?.graphqlGate).toHaveProperty('depth');
