@@ -76,8 +76,9 @@ describe('Express Middleware tests', () => {
     });
     describe('Middleware is configurable...', () => {
         xdescribe('...successfully connects to redis using standard connection options', () => {
+            let mockRedis;
             beforeEach(() => {
-                // TODO: Setup mock redis store.
+                mockRedis = new RedisMock();
             });
 
             xtest('...via url', () => {
@@ -184,10 +185,10 @@ describe('Express Middleware tests', () => {
                             capacity: 10,
                         },
                     })
-                ).toThrowError('ValidationError');
+                ).toThrow('GraphQLError');
             });
 
-            test('... if unable to connect to redis', () => {
+            xtest('... if unable to connect to redis', () => {
                 expect(async () =>
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
@@ -202,11 +203,108 @@ describe('Express Middleware tests', () => {
             });
         });
 
-        xdescribe('...other configuration parameters', () => {
-            // dark
-            // enforceBourdedLists
+        describe('...other configuration parameters', () => {
+            beforeAll(() => mockConnect.mockImplementation(() => new RedisMock()));
+            beforeEach(() => {
+                mockRequest = {
+                    body: {
+                        // complexity should be 2 (1 Query + 1 Scalar)
+                        query: `query {
+                            droid(id: 1) {
+                                name
+                            }
+                            reviews(episode: NEWHOPE, first: 8) {
+                                episode
+                                stars
+                                commentary
+                            }
+                        } `,
+                    },
+                    ip: '111',
+                };
+
+                mockResponse = {
+                    json: jest.fn(),
+                    send: jest.fn(),
+                    sendStatus: jest.fn(),
+                    status: jest.fn().mockReturnThis(),
+                    locals: {},
+                };
+                nextFunction = jest.fn();
+            });
+
+            test('can be configured to run in dark mode', async () => {
+                middleware = expressGraphQLRateLimiter(schema, {
+                    rateLimiter: {
+                        type: 'TOKEN_BUCKET',
+                        refillRate: 1,
+                        capacity: 2,
+                    },
+                    dark: true,
+                });
+
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                // ratelimiting capacity is set very low
+                // request exceeds capacity
+                // request will not be blocked
+                expect(nextFunction).toBeCalled();
+                expect(mockResponse.json).not.toBeCalled();
+                expect(mockResponse.locals?.graphqlGate.success).toBe(false);
+            });
+
+            xtest('can be configured to throw an error for unbounded lists', () => {
+                const unboundedSchema = `
+                Query {
+                    biglist: [List]
+                }
+                List {
+                    stuff: String
+                }
+                `;
+                expect(() =>
+                    expressGraphQLRateLimiter(buildSchema(unboundedSchema), {
+                        rateLimiter: {
+                            type: 'TOKEN_BUCKET',
+                            refillRate: 1,
+                            capacity: 2,
+                        },
+                        enforceBoundedLists: true,
+                    })
+                ).toThrow();
+            });
             // depthLimit
-            // keyExpiry
+            xtest('can be configured to limit requests by depth', async () => {
+                middleware = expressGraphQLRateLimiter(schema, {
+                    rateLimiter: {
+                        type: 'TOKEN_BUCKET',
+                        refillRate: 1,
+                        capacity: 2,
+                    },
+                    depthLimit: 2,
+                });
+
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                // depthLimit is set very low
+                // request exceeds capacity
+                // request will not be blocked
+                expect(nextFunction).not.toBeCalled();
+                expect(mockResponse.json).toBeCalled();
+                expect(mockResponse.locals?.graphqlGate.success).toBe(false);
+            });
+
+            // ? test for key expiry in redis cache?
+            test('can be configured with a key expiry without error', () => {
+                expect(() =>
+                    expressGraphQLRateLimiter(schema, {
+                        rateLimiter: {
+                            type: 'TOKEN_BUCKET',
+                            refillRate: 1,
+                            capacity: 2,
+                        },
+                        redis: { keyExpiry: 4000 },
+                    })
+                ).not.toThrow();
+            });
         });
     });
 
