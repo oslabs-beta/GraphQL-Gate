@@ -272,21 +272,20 @@ describe('Express Middleware tests', () => {
                     })
                 ).toThrow();
             });
-            // depthLimit
+
             test('can be configured to limit requests by depth', async () => {
                 middleware = expressGraphQLRateLimiter(schema, {
                     rateLimiter: {
                         type: 'TOKEN_BUCKET',
                         refillRate: 1,
-                        capacity: 2,
+                        capacity: 20,
                     },
                     depthLimit: 2,
                 });
 
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
                 // depthLimit is set very low
-                // request exceeds capacity
-                // request will not be blocked
+                // request will be blocked
                 expect(nextFunction).not.toBeCalled();
                 expect(mockResponse.json).toBeCalled();
                 expect(mockResponse.locals?.graphqlGate.success).toBe(false);
