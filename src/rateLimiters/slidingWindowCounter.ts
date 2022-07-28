@@ -100,7 +100,7 @@ class SlidingWindowCounter implements RateLimiter {
 
             await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
             // tokens property represents how much capacity remains
-            return { success: false, tokens: this.capacity };
+            return { success: false, tokens: this.capacity, retryAfter: Infinity };
         }
 
         // if the cache is populated
@@ -158,7 +158,7 @@ class SlidingWindowCounter implements RateLimiter {
             await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
             return {
                 success: true,
-                tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
+                tokens: this.capacity - rollingTokens,
             };
         }
 
@@ -166,7 +166,16 @@ class SlidingWindowCounter implements RateLimiter {
         await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
         return {
             success: false,
-            tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
+            tokens: this.capacity - rollingTokens,
+            retryAfter:
+                tokens > this.capacity
+                    ? Infinity
+                    : Number(
+                          (
+                              (Math.abs(this.capacity - rollingTokens - tokens) / this.capacity) *
+                              this.windowSize
+                          ).toFixed(0)
+                      ),
         };
     }
 
