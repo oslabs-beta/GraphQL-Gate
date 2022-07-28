@@ -703,7 +703,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
 
-
             test('object types', () => {
                 schema = buildSchema(`
                     union SearchResult = Human | Droid
@@ -830,6 +829,40 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         fields: {},
                     },
                 });
+            });
+        });
+
+        test('Unions with no fields overlapping', () => {
+            schema = buildSchema(`
+            union SearchResult = Human | Droid
+            type Human{
+                name: String
+                homePlanet: String
+            }
+            type Droid {
+                primaryFunction: String
+                id: String
+            }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                searchresult: {
+                    weight: 1,
+                    fields: {},
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        homePlanet: { weight: 0 },
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        primaryFunction: { weight: 0 },
+                        id: { weight: 0 },
+                    },
+                },
             });
         });
 
