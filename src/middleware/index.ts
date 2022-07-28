@@ -168,13 +168,10 @@ export default function expressGraphQLRateLimiter(
                     queryParser.maxDepth >= middlewareSetup.depthLimit) &&
                 !middlewareSetup.dark
             ) {
-                // TODO: rateLimiter.processRequest response should have a property for retryAfter if the reqest is blocked
-                return (
-                    res
-                        .status(429)
-                        // .set('Retry-After', `${timeToWaitInMs}`) // FIXME: pass correct time into this header
-                        .json(res.locals.graphqlgate)
-                );
+                return res
+                    .status(429)
+                    .set('Retry-After', `${rateLimiterResponse.retryAfter}`)
+                    .json(res.locals.graphqlgate);
             }
             return next();
         } catch (err) {

@@ -61,7 +61,11 @@ class TokenBucket implements RateLimiter {
             // reject the request, not enough tokens could even be in the bucket
             if (tokens > this.capacity) {
                 await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserBucket));
-                return { success: false, tokens: this.capacity };
+                return {
+                    success: false,
+                    tokens: this.capacity,
+                    retryAfter: Infinity,
+                };
             }
             await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserBucket));
             return { success: true, tokens: newUserBucket.tokens };
@@ -79,7 +83,14 @@ class TokenBucket implements RateLimiter {
         if (bucket.tokens < tokens) {
             // reject the request, not enough tokens in bucket
             await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserBucket));
-            return { success: false, tokens: bucket.tokens };
+            return {
+                success: false,
+                tokens: bucket.tokens,
+                retryAfter:
+                    tokens > this.capacity
+                        ? Infinity
+                        : Math.abs(tokens - bucket.tokens) * this.refillRate * 1000,
+            };
         }
         await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserBucket));
         return { success: true, tokens: updatedUserBucket.tokens };
