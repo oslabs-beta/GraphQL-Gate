@@ -273,7 +273,7 @@ describe('Express Middleware tests', () => {
                 ).toThrow();
             });
             // depthLimit
-            xtest('can be configured to limit requests by depth', async () => {
+            test('can be configured to limit requests by depth', async () => {
                 middleware = expressGraphQLRateLimiter(schema, {
                     rateLimiter: {
                         type: 'TOKEN_BUCKET',

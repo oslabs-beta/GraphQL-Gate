@@ -1,5 +1,5 @@
 import { parse } from 'graphql';
-import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
+import ASTParser from '../../src/analysis/ASTParser';
 import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
@@ -109,6 +109,8 @@ let nonNullMockWeightFunction: jest.Mock<number, []>;
 
 // this object is created by the schema above for use in all the tests below
 let typeWeights: TypeWeightObject;
+
+let queryParser: ASTParser;
 
 describe('Test getQueryTypeComplexity function', () => {
     beforeEach(() => {
@@ -255,50 +257,54 @@ describe('Test getQueryTypeComplexity function', () => {
     let variables: Variables = {};
 
     describe('Calculates the correct type complexity for queries', () => {
+        beforeEach(() => {
+            queryParser = new ASTParser(typeWeights, variables);
+        });
         test('with one feild', () => {
             query = `query { scalars { num } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + Scalars 1
         });
 
         xtest('with one with capital first letter for field', () => {
             query = `query { Scalars { num } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + Scalars 1
         });
 
         test('with two or more fields', () => {
             query = `query { scalars { num } test { name } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(queryParser.processQuery(parse(query))).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with one level of nested fields', () => {
             query = `query { scalars { num, test { name } } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalars 1 + test 1
+            expect(queryParser.processQuery(parse(query))).toBe(3); // Query 1 + scalars 1 + test 1
         });
 
         test('with multiple levels of nesting', () => {
             query = `query { scalars { num, test { name, scalars { id } } } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
+            expect(queryParser.processQuery(parse(query))).toBe(4); // Query 1 + scalars 1 + test 1 + scalars 1
         });
 
         test('with aliases', () => {
             query = `query { foo: scalars { num } bar: scalars { id }}`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + scalar 1 + scalar 1
+            expect(queryParser.processQuery(parse(query))).toBe(3); // Query 1 + scalar 1 + scalar 1
         });
 
         test('with all scalar fields', () => {
             query = `query { scalars { id, num, float, bool, string } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + scalar 1
         });
 
         test('with arguments and variables', () => {
             query = `query { hero(episode: EMPIRE) { id, name } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + hero/character 1
             query = `query { human(id: 1) { id, name, homePlanet } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + human/character 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + human/character 1
             // argument passed in as a variable
             variables = { ep: 'EMPIRE' };
+            queryParser = new ASTParser(typeWeights, variables);
             query = `query variableQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
+            expect(queryParser.processQuery(parse(query))).toBe(2); // Query 1 + hero/character 1
         });
 
         describe('with fragments', () => {
@@ -318,7 +324,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     appearsIn
                 }`;
                 // Query 1 + 2*(appearsIn/episode 0 + name/string 0)
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+                expect(queryParser.processQuery(parse(query))).toBe(3);
             });
 
             test('that contain an object and a non-zero complexity', () => {
@@ -341,8 +347,9 @@ describe('Test getQueryTypeComplexity function', () => {
                 }`;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 variables = { first: 3 };
+                queryParser = new ASTParser(typeWeights, variables);
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+                expect(queryParser.processQuery(parse(query))).toBe(9);
             });
 
             test('that use a variable', () => {
@@ -365,8 +372,9 @@ describe('Test getQueryTypeComplexity function', () => {
                 }`;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 variables = { first: 3 };
+                queryParser = new ASTParser(typeWeights, variables);
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+                expect(queryParser.processQuery(parse(query))).toBe(9);
             });
 
             test('recalculates fragment complexity for individual queries', () => {
@@ -390,8 +398,9 @@ describe('Test getQueryTypeComplexity function', () => {
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
 
                 variables = { first: 3 };
+                queryParser = new ASTParser(typeWeights, variables);
                 // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+                expect(queryParser.processQuery(parse(query))).toBe(9);
 
                 query = `
                 query {
@@ -409,8 +418,9 @@ describe('Test getQueryTypeComplexity function', () => {
                 }`;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 variables = { first: 3 };
+                queryParser = new ASTParser(typeWeights, variables);
                 // Query 1 + 2*(character 1 + 0 selectionCost)
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+                expect(queryParser.processQuery(parse(query))).toBe(3);
             });
         });
 
@@ -485,6 +495,8 @@ describe('Test getQueryTypeComplexity function', () => {
                             },
                         },
                     };
+                    variables = {};
+                    queryParser = new ASTParser(unionTypeWeights, variables);
                 });
                 test('that have a complexity of zero', () => {
                     query = `
@@ -500,9 +512,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero
-                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
-                        2
-                    );
+                    expect(queryParser.processQuery(parse(query))).toBe(2);
                 });
 
                 test('that have differing complexities', () => {
@@ -527,9 +537,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     // Query 1 + 1 hero + max(Droid 2, Human 3) = 5
                     mockHumanCharacterFriendsFunction.mockReturnValueOnce(3);
                     mockDroidFriendsFunction.mockReturnValueOnce(1);
-                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
-                        5
-                    );
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that contain an object and a non-zero complexity', () => {
@@ -550,10 +558,9 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
+                    queryParser = new ASTParser(unionTypeWeights, variables);
                     // Query 1 + 1 hero + 3 friends/character
-                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
-                        5
-                    );
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that use a variable', () => {
@@ -574,10 +581,9 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockDroidFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
+                    queryParser = new ASTParser(unionTypeWeights, variables);
                     // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
-                        5
-                    );
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that do not have a TypeCondition', () => {
@@ -597,7 +603,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + max(Character 3, Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that have greater than 2  levels of nesting', () => {
@@ -629,9 +635,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockDroidFriendsFunction.mockReturnValueOnce(20);
                     mockHumanFriendsFunction.mockReturnValueOnce(20);
                     // Query 1 + 1 hero + 3 friends/character
-                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
-                        22
-                    );
+                    expect(queryParser.processQuery(parse(query))).toBe(22);
                 });
 
                 xtest('that include a directive', () => {
@@ -651,7 +655,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('and multiple fragments apply to the selection set', () => {
@@ -674,7 +678,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     mockHumanFriendsFunction.mockReturnValueOnce(2);
                     // Query 1 + 1 hero + ...Character 3 + ...Human 2 = 7
-                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(7);
+                    expect(queryParser.processQuery(parse(query))).toBe(7);
                 });
             });
 
@@ -693,7 +697,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }`;
                     // Query 1 + 1 hero
-                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2);
+                    expect(queryParser.processQuery(parse(query))).toBe(2);
                 });
 
                 test('that have differing complexities', () => {
@@ -718,7 +722,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
                     mockHumanFriendsFunction.mockReturnValueOnce(3);
                     mockDroidFriendsFunction.mockReturnValueOnce(2);
-                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that contain an object and a non-zero complexity', () => {
@@ -740,7 +744,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + 3 friends/character
                     mockHumanFriendsFunction.mockReturnValueOnce(3);
-                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that use a variable', () => {
@@ -761,8 +765,9 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockDroidFriendsFunction.mockReturnValueOnce(3);
                     variables = { first: 3 };
+                    queryParser = new ASTParser(typeWeights, variables);
                     // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('that do not have a TypeCondition', () => {
@@ -783,7 +788,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + max(Character 3, Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 xtest('that include a directive', () => {
@@ -803,7 +808,7 @@ describe('Test getQueryTypeComplexity function', () => {
                         }`;
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
-                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(5);
+                    expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
                 test('and multiple fragments apply to the selection set', () => {
@@ -826,7 +831,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     mockHumanFriendsFunction.mockReturnValueOnce(2);
                     // Query 1 + 1 hero + ...Character 3 + ...Human 2 = 7
-                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(7);
+                    expect(queryParser.processQuery(parse(query))).toBe(7);
                 });
             });
         });
@@ -842,20 +847,21 @@ describe('Test getQueryTypeComplexity function', () => {
                     name
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
+            expect(queryParser.processQuery(parse(query))).toBe(false); // ?
         });
 
         test('with lists determined by arguments and variables', () => {
             query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
-            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(queryParser.processQuery(parse(query))).toBe(4); // 1 Query + 3 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(1);
             expect(mockWeightFunction.mock.calls[0].length).toBe(3); // calling  with arguments and variables
 
             variables = { first: 4 };
+            queryParser = new ASTParser(typeWeights, variables);
             mockWeightFunction.mockReturnValueOnce(4);
             query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
+            expect(queryParser.processQuery(parse(query))).toBe(5); // 1 Query + 4 reviews
             expect(mockWeightFunction.mock.calls.length).toBe(2);
             expect(mockWeightFunction.mock.calls[1].length).toBe(3); // calling  with arguments and variables
         });
@@ -863,7 +869,7 @@ describe('Test getQueryTypeComplexity function', () => {
         test('with bounded lists including non-null operators', () => {
             query = `query {nonNull(episode: EMPIRE, first: 3) { name, id } }`;
             nonNullMockWeightFunction.mockReturnValueOnce(3);
-            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(queryParser.processQuery(parse(query))).toBe(4); // 1 Query + 3 reviews
             expect(nonNullMockWeightFunction.mock.calls.length).toBe(1);
             expect(nonNullMockWeightFunction.mock.calls[0].length).toBe(3);
         });
@@ -873,7 +879,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 query = `query { human(id: 1) { name, friends(first: 5) { name, friends(first: 3){ name }}}} `;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 mockHumanFriendsFunction.mockReturnValueOnce(20);
-                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
+                expect(queryParser.processQuery(parse(query))).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
                 expect(mockCharacterFriendsFunction.mock.calls.length).toBe(1);
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
             });
@@ -882,7 +888,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 query = `
                 query { human(id: 1) { name, friends(first: 5) { name, scalarList(first: 3)} }}`;
                 mockHumanFriendsFunction.mockReturnValueOnce(5);
-                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
+                expect(queryParser.processQuery(parse(query))).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
                 expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
             });
         });
@@ -902,7 +908,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     }
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // 1 Query + 1 hero/character
+            expect(queryParser.processQuery(parse(query))).toBe(2); // 1 Query + 1 hero/character
         });
 
         // TODO: directives @skip, @include and custom directives
