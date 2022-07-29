@@ -226,6 +226,7 @@ describe('Express Middleware tests', () => {
                 mockResponse = {
                     json: jest.fn(),
                     send: jest.fn(),
+                    set: jest.fn().mockReturnThis(),
                     sendStatus: jest.fn(),
                     status: jest.fn().mockReturnThis(),
                     locals: {},
@@ -280,15 +281,15 @@ describe('Express Middleware tests', () => {
                         refillRate: 1,
                         capacity: 20,
                     },
-                    depthLimit: 2,
+                    depthLimit: 1,
                 });
 
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
                 // depthLimit is set very low
                 // request will be blocked
-                expect(nextFunction).not.toBeCalled();
                 expect(mockResponse.json).toBeCalled();
                 expect(mockResponse.locals?.graphqlGate.success).toBe(false);
+                expect(nextFunction).not.toBeCalled();
             });
 
             // ? test for key expiry in redis cache?
@@ -344,6 +345,7 @@ describe('Express Middleware tests', () => {
             mockResponse = {
                 json: jest.fn(),
                 send: jest.fn(),
+                set: jest.fn().mockReturnThis(),
                 sendStatus: jest.fn(),
                 status: jest.fn().mockReturnThis(),
                 locals: {},

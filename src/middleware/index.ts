@@ -165,12 +165,18 @@ export default function expressGraphQLRateLimiter(
             };
             if (
                 (!rateLimiterResponse.success ||
-                    queryParser.maxDepth >= middlewareSetup.depthLimit) &&
+                    queryParser.maxDepth > middlewareSetup.depthLimit) &&
                 !middlewareSetup.dark
             ) {
                 return res
                     .status(429)
-                    .set('Retry-After', `${rateLimiterResponse.retryAfter}`)
+                    .set({
+                        'Retry-After': `${
+                            queryParser.maxDepth > middlewareSetup.depthLimit
+                                ? Infinity
+                                : rateLimiterResponse.retryAfter
+                        }`,
+                    })
                     .json(res.locals.graphqlgate);
             }
             return next();
