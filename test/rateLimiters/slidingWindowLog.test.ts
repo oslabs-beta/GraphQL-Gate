@@ -467,6 +467,17 @@ describe('SlidingWindowLog Rate Limiter', () => {
             const { retryAfter } = await limiter.processRequest(user1, timestamp + 3000, 9);
             expect(retryAfter).toBe(Math.ceil((1000 + WINDOW_SIZE * 5 - 3000) / 1000)); // 3 seconds
         });
+
+        test('request exceeds the capacity', async () => {
+            const requestLog = [
+                { timestamp, tokens: 1 }, // older request
+                { timestamp: timestamp + 1000, tokens: 8 }, // limiting request
+                { timestamp: timestamp + 2000, tokens: 1 }, // newer request
+            ];
+            await setLogInClient(client, user1, requestLog);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 3000, 11);
+            expect(retryAfter).toBe(Infinity);
+        });
     });
     test('users have their own logs', async () => {
         const requested = 6;
