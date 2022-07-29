@@ -133,7 +133,7 @@ class SlidingWindowCounter implements RateLimiter {
         let rollingWindowProportion = 0;
         let previousRollingTokens = 0;
 
-        if (updatedUserWindow.fixedWindowStart && updatedUserWindow.previousTokens) {
+        if (updatedUserWindow.fixedWindowStart) {
             // proportion of rolling window present in previous window
             rollingWindowProportion =
                 (this.windowSize - (timestamp - updatedUserWindow.fixedWindowStart)) /
@@ -158,24 +158,51 @@ class SlidingWindowCounter implements RateLimiter {
             await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
             return {
                 success: true,
-                tokens: this.capacity - rollingTokens,
+                tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
             };
         }
 
         // if request is blocked
         await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
+
+        const { previousTokens, currentTokens } = updatedUserWindow;
+        // Size and proportion of the window in seconds
+        const windowSizeSeconds = this.windowSize / 1000;
+        const rollingWindowProportionSeconds = windowSizeSeconds * rollingWindowProportion;
+        // Tokens available for the request to use
+        const tokensAvailable = this.capacity - (currentTokens + previousRollingTokens);
+        // Additional tokens that are needed for the request to pass
+        const tokensNeeded = tokens - tokensAvailable;
+        // share of the tokens needed that can come from the previous window
+        // 1. if the previous rolling portion of the window has more tokens than is needed for the request, than we need only those tokens needed from this window
+        // 2. otherwise we need all the previous rolling tokens(and then some) for the request to pass
+        const tokensNeededFromPreviousWindow =
+            previousRollingTokens >= tokensNeeded ? tokensNeeded : previousRollingTokens;
+        // time needed to wait to aquire the tokens needed from the previous window
+        // 1. if the tokens available in the previous rolling window equals those needed form this window, we need to wait the remaing protion of this window to pass
+        // 2. otherwise wait a fraction of that window to pass, determined by the ratio of previous rolling tokens available to the tokens needed from this window
+        const timeToWaitFromPreviousTokens =
+            previousRollingTokens === tokensNeededFromPreviousWindow
+                ? rollingWindowProportionSeconds
+                : rollingWindowProportionSeconds *
+                  ((previousTokens - tokensNeededFromPreviousWindow) / previousRollingTokens);
+        // tokens needed from the current window for the request to pass
+        const tokensNeededFromCurrentWindow = tokensNeeded - tokensNeededFromPreviousWindow;
+        // time needed to wait to aquire the from the current window tfor the request to pass
+        // 1. if the tokens needed from the current window is 0, thon no time is needed
+        // 2. otherwise wait a fraction of time as determined by
+        const timeToWaitFromCurrentTokens =
+            tokensNeededFromCurrentWindow === 0
+                ? 0
+                : windowSizeSeconds * (tokensNeededFromCurrentWindow / currentTokens);
+
         return {
             success: false,
-            tokens: this.capacity - rollingTokens,
+            tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
             retryAfter:
                 tokens > this.capacity
                     ? Infinity
-                    : Number(
-                          (
-                              (Math.abs(this.capacity - rollingTokens - tokens) / this.capacity) *
-                              this.windowSize
-                          ).toFixed(0)
-                      ),
+                    : Math.ceil(timeToWaitFromPreviousTokens + timeToWaitFromCurrentTokens),
         };
     }
 
