@@ -89,7 +89,7 @@ class TokenBucket implements RateLimiter {
                 retryAfter:
                     tokens > this.capacity
                         ? Infinity
-                        : Math.abs(tokens - bucket.tokens) * this.refillRate * 1000,
+                        : Math.abs(tokens - bucket.tokens) * this.refillRate,
             };
         }
         await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserBucket));
