@@ -434,37 +434,38 @@ describe('SlidingWindowLog Rate Limiter', () => {
          * */
         beforeEach(() => {
             timestamp = 1000;
+            limiter = new SlidingWindowLog(WINDOW_SIZE * 5, CAPACITY, client, 80000);
         });
 
         test('the limiting request was is at the beginning of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 9 }, // limiting request
-                { timestamp: timestamp + 100, tokens: 1 }, // newer request
+                { timestamp: timestamp + 1000, tokens: 1 }, // newer request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 2000, 9);
+            expect(retryAfter).toBe((WINDOW_SIZE * 5 - 2000) / 1000); // 3 seconds
         });
 
         test('the limiting request was is at the end of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 1 }, // older request
-                { timestamp: timestamp + 100, tokens: 9 }, // limiting request
+                { timestamp: timestamp + 1000, tokens: 9 }, // limiting request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + 100 + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 2000, 9);
+            expect(retryAfter).toBe(Math.ceil((1000 + WINDOW_SIZE * 5 - 2000) / 1000)); // 4 seconds
         });
 
         test('the limiting request was is the middle of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 1 }, // older request
-                { timestamp: timestamp + 100, tokens: 8 }, // limiting request
-                { timestamp: timestamp + 200, tokens: 1 }, // newer request
+                { timestamp: timestamp + 1000, tokens: 8 }, // limiting request
+                { timestamp: timestamp + 2000, tokens: 1 }, // newer request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + 100 + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 3000, 9);
+            expect(retryAfter).toBe(Math.ceil((1000 + WINDOW_SIZE * 5 - 3000) / 1000)); // 3 seconds
         });
     });
     test('users have their own logs', async () => {

@@ -124,7 +124,9 @@ class SlidingWindowLog implements RateLimiter {
         if (tokens > this.capacity) retryAfter = Infinity;
         // need the request before lastAllowedIndex
         else if (lastAllowedIndex > 0)
-            retryAfter = this.windowSize + requestLog[lastAllowedIndex - 1].timestamp;
+            retryAfter = Math.ceil(
+                (this.windowSize + requestLog[lastAllowedIndex - 1].timestamp - timestamp) / 1000
+            );
         else retryAfter = 0; // request is allowed
 
         // Conditional check to avoid unecessary slice
