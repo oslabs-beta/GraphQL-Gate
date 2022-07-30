@@ -30,12 +30,6 @@ export interface RedisWindow {
     fixedWindowStart: number;
 }
 
-export interface RedisWindow {
-    currentTokens: number;
-    previousTokens: number;
-    fixedWindowStart: number;
-}
-
 export type RedisLog = RedisBucket[];
 
 export type RateLimiterSelection =
