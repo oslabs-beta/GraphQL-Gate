@@ -33,6 +33,8 @@ class FixedWindow implements RateLimiter {
     }
 
     /**
+     * @function processRequest - Fixed Window algorithm to allow or block
+     * based on the depth/complexity (in amount of tokens) of incoming requests.
      *               Fixed Window
      *     _________________________________
      *    |         *full capacity          |
@@ -42,6 +44,12 @@ class FixedWindow implements RateLimiter {
      *    |<--        window size        -->|
      *current timestamp              next timestamp
      *
+     * First, checks if a window exists in the redis cache.
+     * If not, then `fixedWindowStart` is set as the current timestamp, and `currentTokens` is checked against `capacity`.
+     * If enough room exists for the request, returns success as true and tokens as how many tokens remain in the current fixed window.
+     *
+     * If a window does exist in the cache, we first check if the timestamp is greater than the fixedWindowStart + windowSize.
+     * If it isn't, we update currentToken with the incoming token until reach the capcity
      *
      * @param {string} uuid - unique identifer used to throttle requests
      * @param {number} timestamp - time the request was recieved
@@ -62,29 +70,40 @@ class FixedWindow implements RateLimiter {
 
         if (windowJSON === null) {
             const newUserWindow: RedisWindow = {
-                currentTokens: tokens <= this.capacity ? tokens : 0,
+                currentTokens: tokens > this.capacity ? 0 : tokens,
                 fixedWindowStart: timestamp,
             };
 
-            if (tokens <= this.capacity) {
+            if (tokens > this.capacity) {
                 await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-                return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
+                return { success: false, tokens: this.capacity };
             }
-            // optional
             await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
-            return { success: false, tokens: this.capacity };
+            return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
+        }
+        const window: RedisWindow = await JSON.parse(windowJSON);
+
+        // update the currentToken until reaches its capacity
+        window.currentTokens += tokens;
+        if (window.currentTokens > this.capacity) {
+            window.currentTokens = this.capacity;
+            return {
+                success: false,
+                tokens: this.capacity - window.currentTokens,
+            };
         }
 
-        const window: RedisWindow = await JSON.parse(windowJSON as string);
-
+        // update a new time window, check the current capacity situation
         const updatedUserWindow = this.updateTimeWindow(window, timestamp);
         if (tokens > this.capacity) {
             await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
-            return { success: false, tokens: this.capacity - updatedUserWindow.currentTokens };
+            return { success: false, tokens: this.capacity };
         }
         await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
-
-        return { success: true, tokens: updatedUserWindow.currentTokens };
+        return {
+            success: true,
+            tokens: this.capacity - updatedUserWindow.currentTokens,
+        };
     }
 
     /**
@@ -100,7 +119,6 @@ class FixedWindow implements RateLimiter {
             fixedWindowStart: window.fixedWindowStart,
         };
         if (timestamp >= window.fixedWindowStart + this.windowSize) {
-            // TODO: should base on user's current timestamp
             updatedUserWindow.fixedWindowStart = window.fixedWindowStart + this.windowSize;
             updatedUserWindow.currentTokens = 0;
         }

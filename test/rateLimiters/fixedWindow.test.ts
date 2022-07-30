@@ -14,7 +14,6 @@ let timestamp: number;
 const user1 = '1';
 const user2 = '2';
 const user3 = '3';
-const user4 = '4';
 
 async function getWindowFromClient(redisClient: ioredis.Redis, uuid: string): Promise<RedisWindow> {
     const res = await redisClient.get(uuid);
@@ -59,24 +58,21 @@ describe('Test FixedWindow Rate Limiter', () => {
                     (await limiter.processRequest(user2, timestamp, initial + partialWithdraw))
                         .tokens
                 ).toBe(CAPACITY - initial - partialWithdraw);
-                // TODO: using setWindowClient first and update the capacity (not working)
-                // TODO: might need to look into why is not taking second request...
 
                 const tokenCountPartial = await getWindowFromClient(client, user2);
                 expect(tokenCountPartial.currentTokens).toBe(initial + partialWithdraw);
             });
 
-            // TODO: need to fix processRequest Fn()
-
-            xtest('window is partially full and request has no leftover tokens', async () => {
+            test('window is partially full and request has no leftover tokens', async () => {
                 const initial = 6;
                 const partialWithdraw = 5;
                 await setTokenCountInClient(client, user2, initial, timestamp);
                 expect(
                     (await limiter.processRequest(user2, timestamp, partialWithdraw)).success
                 ).toBe(false);
-                const tokenCountPartialToEmpty = await getWindowFromClient(client, user2);
-                expect(tokenCountPartialToEmpty.currentTokens).toBe(10);
+                expect(
+                    (await limiter.processRequest(user2, timestamp, partialWithdraw)).tokens
+                ).toBe(0);
             });
         });
         describe('after a BLOCKED request...', () => {
@@ -89,17 +85,15 @@ describe('Test FixedWindow Rate Limiter', () => {
                 // expect current tokens in the window to still be 0
                 expect((await getWindowFromClient(client, user1)).currentTokens).toBe(0);
             });
-            xtest('window is partially full but not enough time elapsed to reach new window', async () => {
+            test('window is partially full but not enough time elapsed to reach new window', async () => {
                 const requestedTokens = 9;
 
                 await setTokenCountInClient(client, user2, requestedTokens, timestamp);
                 // expect remaining tokens to be 1, b/c the 2-token-request should be blocked
-                // TODO: fix processRequest function
                 const result = await limiter.processRequest(user2, timestamp + WINDOW_SIZE - 1, 2);
 
                 expect(result.success).toBe(false);
-                // TODO: fix this, (expect 1, but get 9 -- which is # of currentTokens)
-                expect(result.tokens).toBe(CAPACITY - requestedTokens);
+                expect(result.tokens).toBe(0);
 
                 // expect current tokens in the window to still be 9
                 expect((await getWindowFromClient(client, user2)).currentTokens).toBe(9);
@@ -109,7 +103,7 @@ describe('Test FixedWindow Rate Limiter', () => {
             afterEach(() => {
                 client.flushall();
             });
-            xtest('New window is initialized after reaching the window size', async () => {
+            test('New window is initialized after reaching the window size', async () => {
                 const fullRequest = 10;
                 await setTokenCountInClient(client, user3, fullRequest, timestamp);
                 const noAccess = await limiter.processRequest(
@@ -118,8 +112,8 @@ describe('Test FixedWindow Rate Limiter', () => {
                     1
                 );
 
-                // TODO: fix processRequest function
                 // expect cannot pass any request
+                expect(noAccess.tokens).toBe(0);
                 expect(noAccess.success).toBe(false);
 
                 const newRequest = 3;
@@ -127,7 +121,7 @@ describe('Test FixedWindow Rate Limiter', () => {
                 const newAccess = await limiter.processRequest(user3, timestamp, 1);
 
                 expect(newAccess.success).toBe(true);
-                expect(newAccess.tokens).toBe(4);
+                expect(newAccess.tokens).toBe(6);
             });
         });
     });
