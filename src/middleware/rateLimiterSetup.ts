@@ -1,6 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection, TokenBucketOptions } from '../@types/rateLimit';
-import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
+import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
 
 /**
@@ -26,13 +25,12 @@ export default function setupRateLimiter(
             break;
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');
-            break;
         case 'FIXED_WINDOW':
             throw new Error('Fixed Window algonithm has not be implemented.');
-            break;
         case 'SLIDING_WINDOW_LOG':
-            throw new Error('Sliding Window Log has not be implemented.');
-            break;
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            return new SlidingWindowLog(options.windowSize, options.capacity, client);
         case 'SLIDING_WINDOW_COUNTER':
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
@@ -41,6 +39,5 @@ export default function setupRateLimiter(
         default:
             // typescript should never let us invoke this function with anything other than the options above
             throw new Error('Selected rate limiting algorithm is not suppported');
-            break;
     }
 }

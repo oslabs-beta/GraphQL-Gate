@@ -16,6 +16,7 @@ export interface RateLimiter {
 export interface RateLimiterResponse {
     success: boolean;
     tokens: number;
+    retryAfter?: number;
 }
 
 export interface RedisBucket {
@@ -32,7 +33,7 @@ export interface RedisWindow {
 export interface RedisWindow {
     currentTokens: number;
     previousTokens: number;
-    fixedWindowStart?: number;
+    fixedWindowStart: number;
 }
 
 export type RedisLog = RedisBucket[];
@@ -54,18 +55,15 @@ export interface TokenBucketOptions {
 }
 
 /**
- * @type {number} windowSize - Size of each fixed window and the rolling window
- * @type {number} capacity - Number of tokens a window can hold
+ * @type {number} windowSize - size of the window in milliseconds
+ * @type {number} capacity - max number of tokens that can be used in the bucket
  */
-export interface SlidingWindowCounterOptions {
+export interface WindowOptions {
     windowSize: number;
     capacity: number;
 }
 
 // TODO: This will be a union type where we can specify Option types for other Rate Limiters
-// Record<string, never> represents the empty object for alogorithms that don't require settings
+// Record<string, never> represents the empty object for algorithms that don't require settings
 // and might be able to be removed in the future.
-export type RateLimiterOptions =
-    | TokenBucketOptions
-    | SlidingWindowCounterOptions
-    | Record<string, never>;
+export type RateLimiterOptions = TokenBucketOptions | Record<string, never>;
