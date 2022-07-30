@@ -388,14 +388,39 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // FIXME: need to figure out how to handle this situation. Skip for now.
-        // The field 'friends' returns a list of an unknown number of objects.
-        xtest('fields returning lists of objects of indeterminate size', () => {
+        // the field 'humans' on Query returns an unbounded list
+        test('query definitions returning lists of indeterminate size', () => {
             schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
                 type Human {
                     id: ID!
-                    name: String!
-                    homePlanet: String
+                }
+                type Query {
+                    humans: [Human] @listCost(cost: 10)
+                }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                    },
+                },
+                query: {
+                    weight: 1,
+                    fields: {
+                        humans: { weight: 10, resolveTo: 'human' },
+                    },
+                },
+            });
+        });
+
+        // The field 'friends' returns a list of an unknown number of objects.
+        test('fields returning lists of objects of indeterminate size', () => {
+            schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                type Human {
+                    id: ID!
                     friends: [Human] @listCost(cost: 10)
                 }
             `);
@@ -404,10 +429,33 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 1,
                     fields: {
                         id: { weight: 0 },
-                        name: { weight: 0 },
-                        hamePlanet: { weight: 0 },
                         friends: {
-                            resolvesTo: 'human',
+                            resolveTo: 'human',
+                            weight: 10,
+                        },
+                    },
+                },
+            });
+        });
+
+        // this test is just in place to make sure additional directives don't cause errors
+        test('fields returning lists of objects of indeterminate size with multiple directives', () => {
+            schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                directive @testDirective(test: Int!) on FIELD_DEFINITION
+                directive @testDirective2(test: Int!) on FIELD_DEFINITION
+                type Human {
+                    id: ID!
+                    friends: [Human] @testDirective2(test: 10) @listCost(cost: 10) @testDirective(test: 10)
+                }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        friends: {
+                            resolveTo: 'human',
                             weight: 10,
                         },
                     },

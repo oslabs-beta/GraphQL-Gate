@@ -113,6 +113,29 @@ function parseObjectFields(
                     resolveTo: listType.toString().toLocaleLowerCase(),
                 };
             } else {
+                // if the @listCost directive is given for the field,
+                // apply the cost argument's value to the field's weight
+                const directives = fields[field].astNode?.directives;
+
+                if (directives && directives.length > 0) {
+                    // eslint-disable-next-line consistent-return
+                    directives.forEach((dir) => {
+                        if (dir.name.value === 'listCost') {
+                            if (dir.arguments && dir.arguments[0])
+                                result.fields[field] = {
+                                    resolveTo: listType.toString().toLocaleLowerCase(),
+                                    weight: Number(
+                                        // ts-error:  'value does not exist on type ConstValueNode'
+                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                        // @ts-ignore
+                                        dir.arguments[0].value.value
+                                    ),
+                                };
+                        }
+                    });
+                }
+
+                // if no directive is supplied to list field
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
                     // then the weight of the field should be dependent on both the weight of the
@@ -146,25 +169,6 @@ function parseObjectFields(
                                     }
                                     return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
-                                }
-
-                                // if the @listCost directive is given for the field,
-                                // apply the cost argument's value to the field's weight
-                                const directives = fields[field].astNode?.directives;
-                                if (directives && directives.length > 0) {
-                                    // eslint-disable-next-line consistent-return
-                                    directives.forEach((dir) => {
-                                        if (dir.name.value === 'listCost') {
-                                            if (dir.arguments && dir.arguments[0])
-                                                return {
-                                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                                                    // @ts-ignore
-                                                    // ignoring for the time being,
-                                                    // 'value does not exist on type ConstValueNode'
-                                                    weight: Number(dir.arguments[0].value.value),
-                                                };
-                                        }
-                                    });
                                 }
 
                                 // if there is no argument provided with the query, check the schema for a default

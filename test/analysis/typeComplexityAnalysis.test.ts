@@ -3,7 +3,7 @@ import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
 import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
- * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
+ * Here is the schema that creates the following 'typeWeightsObject' used for the tests
  * 
     type Query {
         hero(episode: Episode): Character
@@ -136,7 +136,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     },
                     search: {
                         resolveTo: 'searchresult',
-                        weight: jest.fn(), // FIXME: Unbounded list result
+                        weight: 10, // FIXME: Unbounded list result
                     },
                     character: {
                         resolveTo: 'character',
