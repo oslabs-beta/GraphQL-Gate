@@ -13,10 +13,12 @@ import {
     isObjectType,
     isScalarType,
     isUnionType,
+    isInputType,
     Kind,
     ValueNode,
     GraphQLUnionType,
     GraphQLFieldMap,
+    isInputObjectType,
 } from 'graphql';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
@@ -351,7 +353,7 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
                 };
             } else if (isUnionType(currentType)) {
                 unions.push(currentType);
-            } else if (!isScalarType(currentType)) {
+            } else if (!isScalarType(currentType) && !isInputObjectType(currentType)) {
                 throw new Error(`ERROR: buildTypeWeight: Unsupported type: ${currentType}`);
             }
         }

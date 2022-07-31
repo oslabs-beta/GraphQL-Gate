@@ -70,16 +70,26 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
         scalars: Scalars
     }
 
- *   
- * TODO: extend this schema to include mutations, subscriptions and pagination
- * 
     type Mutation {
         createReview(episode: Episode, review: ReviewInput!): Review
     }
+
+    input ReviewInput {
+        stars: Int!
+        commentary: String
+    }
+    
+
+
+ *   
+ * TODO: extend this schema to include mutations, subscriptions and pagination
+ * 
+
     type Subscription {
         reviewAdded(episode: Episode): Review
     }
-    type FriendsConnection {
+
+        type FriendsConnection {
         totalCount: Int
         edges: [FriendsEdge]
         friends: [Character]
@@ -156,6 +166,12 @@ describe('Test getQueryTypeComplexity function', () => {
                         resolveTo: 'droid',
                         weight: nonNullMockWeightFunction,
                     },
+                },
+            },
+            mutation: {
+                weight: 10,
+                fields: {
+                    createReview: { resolveTo: 'review' },
                 },
             },
             episode: {
@@ -911,10 +927,51 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(queryParser.processQuery(parse(query))).toBe(2); // 1 Query + 1 hero/character
         });
 
+        // TODO: create tests for an implementation of the connection pagination convention -- need soln for unbounded lists
+        xdescribe('connection pagination convention', () => {});
+
         // TODO: directives @skip, @include and custom directives
     });
 
-    xdescribe('Calculates the correct type complexity for mutations', () => {});
+    describe('Calculates the correct type complexity for mutations', () => {
+        test('simple mutation', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) {
+                    stars
+                    commentary
+                    episode
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+        });
+
+        test('mutation with no feilds queried', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) 
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+        });
+
+        test('mutation and query definitons', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) {
+                    stars
+                    commentary
+                    episode
+                }
+            }
+            
+            query {
+                hero(episode: EMPIRE) {
+                    name
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(13); // Mutation 10 + review 1 + query 1 + character 1
+        });
+    });
 
     describe('Calculates the depth of the query', () => {
         beforeEach(() => {
