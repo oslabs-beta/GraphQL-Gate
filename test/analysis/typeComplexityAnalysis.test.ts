@@ -943,7 +943,8 @@ describe('Test getQueryTypeComplexity function', () => {
                     episode
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+            queryParser = new ASTParser(typeWeights, variables);
+            expect(queryParser.processQuery(parse(query))).toBe(11); // Mutation 10 + review 1
         });
 
         test('mutation with no feilds queried', () => {
@@ -951,7 +952,8 @@ describe('Test getQueryTypeComplexity function', () => {
             query = `mutation createReviewMutation($review: ReviewInput!) { 
                 createReview(episode: Empire, review: $review) 
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+            queryParser = new ASTParser(typeWeights, variables);
+            expect(queryParser.processQuery(parse(query))).toBe(11); // Mutation 10 + review 1
         });
 
         test('mutation and query definitons', () => {
@@ -969,7 +971,8 @@ describe('Test getQueryTypeComplexity function', () => {
                     name
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(13); // Mutation 10 + review 1 + query 1 + character 1
+            queryParser = new ASTParser(typeWeights, variables);
+            expect(queryParser.processQuery(parse(query))).toBe(13); // Mutation 10 + review 1 + query 1 + character 1
         });
     });
 
