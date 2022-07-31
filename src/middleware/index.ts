@@ -1,13 +1,16 @@
-import Redis, { RedisOptions } from 'ioredis';
+import EventEmitter from 'events';
+
 import { parse, validate } from 'graphql';
+import { RedisOptions } from 'ioredis';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
 import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterOptions, RateLimiterSelection, RateLimiterResponse } from '../@types/rateLimit';
 import { TypeWeightConfig } from '../@types/buildTypeWeights';
+import { connect } from '../utils/redis';
 
 // FIXME: Will the developer be responsible for first parsing the schema from a file?
 // Can consider accepting a string representing a the filepath to a schema
@@ -39,11 +42,72 @@ export function expressRateLimiter(
      */
     // TODO: Throw ValidationError if schema is invalid
     const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
+
     // TODO: Throw error if connection is unsuccessful
-    const redisClient = new Redis(redisClientOptions); // Default port is 6379 automatically
+    const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
 
-    // return the rate limiting middleware
+    // stores request IDs to be processed
+    const requestQueue: { [index: string]: string[] } = {};
+
+    // Manages processing of event queue
+    const requestEvents = new EventEmitter();
+
+    // Resolves the promise created by throttledProcess
+    async function processRequestResolver(
+        userId: string,
+        timestamp: number,
+        tokens: number,
+        resolve: (value: RateLimiterResponse | PromiseLike<RateLimiterResponse>) => void,
+        reject: (reason: any) => void
+    ) {
+        try {
+            const response = await rateLimiter.processRequest(userId, timestamp, tokens);
+            requestQueue[userId] = requestQueue[userId].slice(1);
+            // trigger the next event
+            resolve(response);
+            requestEvents.emit(requestQueue[userId][0]);
+            if (requestQueue[userId].length === 0) delete requestQueue[userId];
+        } catch (err) {
+            reject(err);
+        }
+    }
+
+    /**
+     * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
+     * Throttling is based on a event driven promise fulfillment approach.
+     * Each time a request is received a promise is added to the user's request queue. The promise "subscribes"
+     * to the previous request in the user's queue then calls processRequest and resolves once the previous request
+     * is complete.
+     * @param userId
+     * @param timestamp
+     * @param tokens
+     * @returns
+     */
+    async function throttledProcess(
+        userId: string,
+        timestamp: number,
+        tokens: number
+    ): Promise<RateLimiterResponse> {
+        // Alternatively use crypto.randomUUID() to generate a random uuid
+        const requestId = `${timestamp}${tokens}`;
+
+        if (!requestQueue[userId]) {
+            requestQueue[userId] = [];
+        }
+        requestQueue[userId].push(requestId);
+
+        return new Promise((resolve, reject) => {
+            if (requestQueue[userId].length > 1) {
+                requestEvents.once(requestId, async () => {
+                    await processRequestResolver(userId, timestamp, tokens, resolve, reject);
+                });
+            } else {
+                processRequestResolver(userId, timestamp, tokens, resolve, reject);
+            }
+        });
+    }
+
     return async (
         req: Request,
         res: Response,
@@ -57,7 +121,7 @@ export function expressRateLimiter(
             return next();
         }
         /**
-         * There are numorous ways to get the ip address off of the request object.
+         * There are numerous ways to get the ip address off of the request object.
          * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
          * - req.ips wwill hold an array of ip addresses in'x-forward-for' header. client is likely at index zero
          * - req.ip will have the ip address
@@ -66,7 +130,7 @@ export function expressRateLimiter(
          * req.ip and req.ips will worx in express but not with other frameworks
          */
         // check for a proxied ip address before using the ip address on request
-        const ip: string = req.ips[0] || req.ip;
+        const ip: string = req.ips ? req.ips[0] : req.ip;
 
         // FIXME: this will only work with type complexity
         const queryAST = parse(query);
@@ -80,9 +144,9 @@ export function expressRateLimiter(
 
         const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
         try {
-            // process the request and conditinoally respond to client with status code 429 o
-            // r pass the request onto the next middleware function
-            const rateLimiterResponse = await rateLimiter.processRequest(
+            // process the request and conditinoally respond to client with status code 429 or
+            // pass the request onto the next middleware function
+            const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
                 queryComplexity
