@@ -72,7 +72,7 @@ describe('Test FixedWindow Rate Limiter', () => {
                 ).toBe(false);
                 expect(
                     (await limiter.processRequest(user2, timestamp, partialWithdraw)).tokens
-                ).toBe(0);
+                ).toBe(4);
             });
         });
         describe('after a BLOCKED request...', () => {
@@ -93,7 +93,7 @@ describe('Test FixedWindow Rate Limiter', () => {
                 const result = await limiter.processRequest(user2, timestamp + WINDOW_SIZE - 1, 2);
 
                 expect(result.success).toBe(false);
-                expect(result.tokens).toBe(0);
+                expect(result.tokens).toBe(1);
 
                 // expect current tokens in the window to still be 9
                 expect((await getWindowFromClient(client, user2)).currentTokens).toBe(9);
@@ -109,19 +109,44 @@ describe('Test FixedWindow Rate Limiter', () => {
                 const noAccess = await limiter.processRequest(
                     user3,
                     timestamp + WINDOW_SIZE - 1,
-                    1
+                    2
                 );
 
-                // expect cannot pass any request
+                // expect not passing any request
                 expect(noAccess.tokens).toBe(0);
                 expect(noAccess.success).toBe(false);
 
-                const newRequest = 3;
-                await setTokenCountInClient(client, user3, newRequest, timestamp + WINDOW_SIZE + 1);
-                const newAccess = await limiter.processRequest(user3, timestamp, 1);
+                const newRequest = 1;
+                expect(
+                    (await limiter.processRequest(user3, timestamp + WINDOW_SIZE, newRequest))
+                        .success
+                ).toBe(true);
+                const count = await getWindowFromClient(client, user3);
+                expect(count.currentTokens).toBe(1);
+            });
+            test('Request will be passed after two window sizes', async () => {
+                const fullRequest = 10;
+                await setTokenCountInClient(client, user3, fullRequest, timestamp);
+                const noAccess = await limiter.processRequest(
+                    user3,
+                    timestamp + WINDOW_SIZE - 1,
+                    2
+                );
 
+                // expect not passing any request
+                expect(noAccess.tokens).toBe(0);
+                expect(noAccess.success).toBe(false);
+
+                const newRequest = 6;
+                // check if current time is over one window size
+                const newAccess = await limiter.processRequest(
+                    user3,
+                    timestamp + WINDOW_SIZE * 2,
+                    newRequest
+                );
+
+                expect(newAccess.tokens).toBe(4);
                 expect(newAccess.success).toBe(true);
-                expect(newAccess.tokens).toBe(6);
             });
         });
     });
