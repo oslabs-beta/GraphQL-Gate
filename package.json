@@ -1,5 +1,5 @@
 {
-    "name": "graphql-gate",
+    "name": "graphqlgate",
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "index.js",
@@ -16,13 +16,13 @@
         "type": "git",
         "url": "git+https://github.com/oslabs-beta/graph-beaver.git"
     },
-    "keywords": [],
-    "author": "",
+    "keywords": ["graphql", "graphqlgate", "rate-limiting", "throttling","query", "express", "complexity", "analysis"],
+    "author": "Evan McNeely, Stephan Halarewicz, Flora Yufei Wu, Jon Dewey, Milos Popovic",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/oslabs-beta/graph-beaver/issues"
+        "url": "https://github.com/oslabs-beta/GraphQL-Gate/issues"
     },
-    "homepage": "https://github.com/oslabs-beta/graph-beaver#readme",
+    "homepage": "https://github.com/oslabs-beta/GraphQL-Gate#readme",
     "devDependencies": {
         "@babel/core": "^7.17.12",
         "@babel/preset-env": "^7.17.12",
