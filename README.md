@@ -12,7 +12,10 @@
 
 -   [Getting Started](#getting-started)
 -   [Configuration](#configuration)
+-   [Notes on Lists](#lists)
 -   [How It Works](#how-it-works)
+-   [Response](#response)
+-   [Error Handling](#error-handling)
 -   [Future Development](#future-development)
 -   [Contributions](#contributions)
 -   [Developers](#developers)
@@ -85,8 +88,8 @@ app.use(
     ```javascript
     expressGraphQLRateLimiter(schemaObject, {
         rateLimiter: {
-            type: 'TOKEN_BUCKET', // rate-limiter selection
-            refillRate: 10,
+            type: 'SLIDING_WINDOW_LOG', // rate-limiter selection
+            windowSize: 6000, // 6 seconds
             capacity: 100,
         },
         redis: {
@@ -106,19 +109,81 @@ app.use(
         dark: false, // defaults to false
         depthLimit: 7 // defaults to Infinity (ie. no depth limiting)
     });
-    ```
+   ```   
+    
+## <a name="lists"></a> Notes on Lists
+
+The complexity for list types is not determined by the schema, but by the varibales passed to the field as slicing arguments or by directives
+
+1. Slicing arguments: lists must be bounded by one integer slicing argument in order to calculate the comlexity for the field. This package supports the slicing arguments `first`, `last` and `limit`. The complexity of the list will be the value passed as the argument to the field.
+
+2. Directives: ... TODO ...
+   
 
 ## <a name="how-it-works"></a> How It Works
 
-how are things weighted examples
+Rate-limiting is done by IP address.
+
+On server start, the GraphQL (GQL) schema is parsed to build an object that maps GQL types/feilds to values corresponding to the weights assigned to each GQL type/field. This object is used internally to cross refernce the fields queried by the user with the weight to apply that field when totaling the overall complexity of the query. 
+
+For each request, the query is parsed and traversed to total the overall complexity of the query based on the type/field weights configured on setup. This is done statically, before any resolvers are fired, to estimate the upper bound of response size of the request (a proxy for the work done by the server to build the response). The total complexity is then used to allow/block the request based on popular rate-limiting algorithms.
+
+If a user sends two request simustaneously, the trailing request will wait for the first one to complete any asyncronous work before being processed.
+
+Example (with default weights):
+
+```javascript
+query { //  1
+   hero (episode: EMPIRE) { // 1,  total complexity: 1 (hero) + 3 (friends) = 4
+      name // 0
+      id // 0
+      friends (first: 3) { // 3
+         name // 0
+         id // 0
+      }
+   }
+   reviews(episode: EMPIRE, first: 5) { // 5
+      stars // stars 0
+      commentary // commentary 0 
+   } 
+}
+// total complexity 10
+```
+## <a name="response"></a> Response
+
+1. Blocked Requests: blocked requests recieve a response with, 
+
+   -  status of `429` for ` Too Many Requests` 
+   -  `Retry-After` header with a value of the time to wait in seconds before the request would be approved (`Infinity` if the complexity is greater than rate-limiting capacity). 
+   -  A JSON response with the `tokens` available, `complexity` of the query, `depth` of the query, `success` of the query set to `false`, and the `timestamp` of the request in ms
+   
+2. Successful Requests: successful request are passed onto the next function in the middleware chain with the following properties saved to `res.locals`
+
+```javascript
+{
+   graphglGate: {
+      success: boolean, // true
+      tokens: number, // tokens available after request
+      compexity: number, // complexity of the query
+      depth: number, // depth of the query
+      timestamp: number, // ms
+   }
+}
+```
+
+## <a name="error-handling"></a> Error Handling
+
+-  Incoming queries are validated against the GraphQL schema. If the query is invalid, a response with status code `400` is returned along with the array of GraphQL Validation Errors that were found.
+-  To avoid disrupting server activity, errors thrown during the analysis and rate-limiting of the query are logged and the request is passed onto the next middleware function in the chain.
 
 ## <a name="future-development"></a> Future Development
 
--   configure rate-limiting cache with other caching libraries
--   resolve complexity analysis for queries
--   leaky bucket rate-limiting algorithm
+-   the ability to use this package with other caching technologies or libraries
+-   implement "resolve complexity analysis" for queries
+-   implement leaky bucket algorithm for rate-limiting
 -   experimint with performance improvments
-    -   caching optimizations
+    -   caching optimization
+-   ensure connection pagination conventions can be accuratly acconuted for in comprlexity analysis 
 
 ## <a name="contributions"></a> Contributions
 
