@@ -1,28 +1,33 @@
 language: node_js
 node_js:
     - 16
+    - 18
+    
 branches:
     only:
         - dev
+        - main
 script:
     - 'npm run lint'
     - 'npm run test'
     - 'npm run build'
 
-# deploy:
-#   on:
-#       branch: main
-#   provider: npm
-#   email: $NPM_EMAIL_ADDRESS
-#   api_key: $NPM_AUTH_TOKEN
+deploy:
+  on:
+      branch: main
+      tags: true
+  provider: npm
+  email: $NPM_EMAIL_ADDRESS
+  api_key: $NPM_AUTH_TOKEN
 
-  jobs: 
-    include:
-      - stage: npm release
-        script: echo "Deploying to npm ..."
-        deploy:
-          on: 
-            branch: main
-          provider: npm
-          email: $NPM_EMAIL_ADDRESS
-          api_key: $NPM_API_KEY
+# optional speciying jobs to run
+  # jobs: 
+  #   include:
+  #     - stage: npm release
+  #       script: echo "Deploying to npm ..."
+  #       deploy:
+  #         on: 
+  #           branch: main
+  #         provider: npm
+  #         email: $NPM_EMAIL_ADDRESS
+  #         api_key: $NPM_API_KEY
