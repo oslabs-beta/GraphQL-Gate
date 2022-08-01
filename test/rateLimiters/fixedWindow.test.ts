@@ -1,5 +1,5 @@
 import * as ioredis from 'ioredis';
-import { RedisWindow } from '../../src/@types/rateLimit';
+import { FixedWindow as Window } from '../../src/@types/rateLimit';
 import FixedWindow from '../../src/rateLimiters/fixedWindow';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -15,7 +15,7 @@ const user1 = '1';
 const user2 = '2';
 const user3 = '3';
 
-async function getWindowFromClient(redisClient: ioredis.Redis, uuid: string): Promise<RedisWindow> {
+async function getWindowFromClient(redisClient: ioredis.Redis, uuid: string): Promise<Window> {
     const res = await redisClient.get(uuid);
     // if no uuid is found, return -1 for tokens and timestamp, which are both impossible
     if (res === null) return { currentTokens: -1, fixedWindowStart: -1 };
@@ -28,7 +28,7 @@ async function setTokenCountInClient(
     currentTokens: number,
     fixedWindowStart: number
 ) {
-    const value: RedisWindow = { currentTokens, fixedWindowStart };
+    const value: Window = { currentTokens, fixedWindowStart };
     await redisClient.set(uuid, JSON.stringify(value));
 }
 describe('Test FixedWindow Rate Limiter', () => {

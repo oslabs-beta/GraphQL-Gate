@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLimit';
+import { RateLimiter, RateLimiterResponse, FixedWindow as Window } from '../@types/rateLimit';
 
 /**
  * The FixedWindow instance of a RateLimiter limits requests based on a unique user ID and a fixed time window.
@@ -69,7 +69,7 @@ class FixedWindow implements RateLimiter {
         const windowJSON = await this.client.get(uuid);
 
         if (windowJSON === null) {
-            const newUserWindow: RedisWindow = {
+            const newUserWindow: Window = {
                 currentTokens: tokens > this.capacity ? 0 : tokens,
                 fixedWindowStart: timestamp,
             };
@@ -81,7 +81,7 @@ class FixedWindow implements RateLimiter {
             await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
             return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
         }
-        const window: RedisWindow = await JSON.parse(windowJSON);
+        const window: Window = await JSON.parse(windowJSON);
 
         const updatedUserWindow = this.updateTimeWindow(window, timestamp);
         updatedUserWindow.currentTokens += tokens;
@@ -113,8 +113,8 @@ class FixedWindow implements RateLimiter {
         this.client.flushall();
     }
 
-    private updateTimeWindow = (window: RedisWindow, timestamp: number): RedisWindow => {
-        const updatedUserWindow: RedisWindow = {
+    private updateTimeWindow = (window: Window, timestamp: number): Window => {
+        const updatedUserWindow: Window = {
             currentTokens: window.currentTokens,
             fixedWindowStart: window.fixedWindowStart,
         };
