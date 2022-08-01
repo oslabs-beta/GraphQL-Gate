@@ -24,10 +24,12 @@ export interface RedisBucket {
     timestamp: number;
 }
 
-export interface RedisWindow {
+export interface FixedWindow {
     currentTokens: number;
-    previousTokens: number;
     fixedWindowStart: number;
+}
+export interface RedisWindow extends FixedWindow {
+    previousTokens: number;
 }
 
 export type RedisLog = RedisBucket[];
