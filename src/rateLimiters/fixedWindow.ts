@@ -31,8 +31,8 @@ class FixedWindow implements RateLimiter {
         this.windowSize = windowSize;
         this.client = client;
         this.keyExpiry = expiry;
-        if (windowSize <= 0 || capacity <= 0)
-            throw Error('FixedWindow windowSize and capacity must be positive');
+        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+            throw Error('FixedWindow windowSize, capacity and keyExpiry must be positive');
     }
 
     /**

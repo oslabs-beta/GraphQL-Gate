@@ -136,12 +136,12 @@ describe('Express Middleware tests', () => {
                 ).not.toThrow();
             });
 
-            xtest('...Fixed Window', () => {
+            test('...Fixed Window', () => {
                 expect(() =>
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'FIXED_WINDOW',
-                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                            options: { capacity: 1, windowSize: 1000 },
                         },
                     })
                 ).not.toThrow();
