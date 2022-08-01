@@ -1,11 +1,10 @@
-# GraphQLGate
-
 <div align="center">
-
+<h1>GraphQLGate</h1>
 <a href="https://github.com/oslabs-beta/GraphQL-Gate"><img src="https://img.shields.io/badge/license-MIT-blue"/></a> <a href="https://github.com/oslabs-beta/GraphQL-Gate/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/oslabs-beta/GraphQL-Gate"></a> <a href="https://github.com/oslabs-beta/GraphQL-Gate/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/oslabs-beta/GraphQL-Gate"></a> <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/oslabs-beta/GraphQL-Gate">
 
-   <p align="center"> <strong>A GraphQL rate-limiting library with query complextiy analysis for Node.js and Express</strong></p>
+   <h3 align="center"> <strong>A GraphQL rate-limiting library with query complextiy analysis for Node.js and Express</strong></h3>
    </div>
+
 
 ## Table of Contents
 
