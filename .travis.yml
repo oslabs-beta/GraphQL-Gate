@@ -7,3 +7,21 @@ branches:
 script:
     - 'npm run lint'
     - 'npm run test'
+
+# deploy:
+#   on:
+#       branch: main
+#   provider: npm
+#   email: $NPM_EMAIL_ADDRESS
+#   api_key: $NPM_AUTH_TOKEN
+
+  jobs: 
+    include:
+      - stage: npm release
+        script: echo "Deploying to npm ..."
+        deploy:
+          on: 
+            branch: main
+          provider: npm
+          email: $NPM_EMAIL_ADDRESS
+          api_key: $NPM_API_KEY
