@@ -25,8 +25,7 @@ export interface RedisBucket {
 }
 export interface RedisWindow {
     currentTokens: number;
-    // null if limiter is currently on the initial fixed window
-    previousTokens?: number | null;
+    previousTokens?: number;
     fixedWindowStart: number;
 }
 
