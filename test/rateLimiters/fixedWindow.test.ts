@@ -85,9 +85,13 @@ describe('Test FixedWindow Rate Limiter', () => {
                 const initial = 6;
                 const partialWithdraw = 5;
                 await setTokenCountInClient(client, user2, initial, timestamp);
-                expect(
-                    (await limiter.processRequest(user2, timestamp, partialWithdraw)).success
-                ).toBe(false);
+                const blocked = await limiter.processRequest(
+                    user2,
+                    timestamp + WINDOW_SIZE * 0.4,
+                    partialWithdraw
+                );
+                expect(blocked.success).toBe(false);
+                expect(blocked.retryAfter).toBe(Math.ceil((WINDOW_SIZE * 0.6) / 1000));
                 expect(
                     (await limiter.processRequest(user2, timestamp, partialWithdraw)).tokens
                 ).toBe(4);
@@ -99,7 +103,9 @@ describe('Test FixedWindow Rate Limiter', () => {
             });
             test('initial request is greater than capacity', async () => {
                 // expect remaining tokens to be 10, b/c the 11 token request should be blocked
-                expect((await limiter.processRequest(user1, timestamp, 11)).success).toBe(false);
+                const blocked = await limiter.processRequest(user1, timestamp, 11);
+                expect(blocked.success).toBe(false);
+                expect(blocked.retryAfter).toBe(Infinity);
                 // expect current tokens in the window to still be 0
                 expect((await getWindowFromClient(client, user1)).currentTokens).toBe(0);
             });
@@ -112,6 +118,7 @@ describe('Test FixedWindow Rate Limiter', () => {
 
                 expect(result.success).toBe(false);
                 expect(result.tokens).toBe(1);
+                expect(result.retryAfter).toBe(1); // 1 second
 
                 // expect current tokens in the window to still be 9
                 expect((await getWindowFromClient(client, user2)).currentTokens).toBe(9);
