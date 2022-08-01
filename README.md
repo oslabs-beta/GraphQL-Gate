@@ -50,6 +50,34 @@ app.use(
 
 ## <a name="configuration"></a> Configuration
 
+
+1. #### `schema: GraphQLSchema` | required
+
+2. #### `config: ExpressMiddlewareConfig` | required
+
+-   `rateLimiter: RateLimiterOptions` | required
+
+    -   `type: 'TOKEN_BUCKET' | 'FIXED_WINDOW' | 'SLIDING_WINDOW_LOG' | 'SLIDING_WINDOW_COUTER'`
+    -   `refillRate: number` | bucket algorithms only
+    -   `capacity: number`
+    -   `windowSize: number` | (in ms) window algorithms only
+
+-   `redis: RedisConfig`
+
+    -   `options: RedisOptions` | [ioredis configuration options](https://github.com/luin/ioredis) | defaults to standard ioredis connection options
+    -   `keyExpiry: number` (ms) | custom expiry of keys in redis cache | defaults to 24 hours
+
+-   `typeWeights: TypeWeightObject`
+
+    -    `mutation: number` | assigned weight to mutations | defaults to 10
+    -    `query: number` | assigned weight of a query | defaults to 1
+    -    `object: number` | assigned weight of GraphQL object, interface and union types | defaults to 1
+    -    `scalar: number` | assigned weight of GraphQL scalar and enum types | defaults to 0
+
+-  `depthLimit: number` | throttle queies by the depth of the nested stucture | defaults to Infinity (ie. no limit)
+-  `enforceBoundedLists: boolean` | if true, an error will be thrown if any lists types are not bound by slicing arguments or directives | deyaults to false
+- `dark: boolean` | if true, the package will calculate complexity depth and tokens but not throttle any queries. Use this to dark launch the package and monitor what would happen if rate limiting was added to yaur application
+
 All configuration options
 
 ```javascript
@@ -76,33 +104,6 @@ expressGraphQLRateLimiter(schemaObject, {
         depthLimit: 7 // defaults to Infinity (ie. no depth limiting)
     });
 ```
-
-1. ### `schema: GraphQLSchema` | required
-
-2. ### `configObject: ExpressMiddlewareConfig` | required
-
--   `rateLimiter: <object>` | required
-
-    -   Buckets
-
-        -   `type: 'TOKEN_BUCKET'`
-        -   `refillRate: number`
-        -   `capacity: number`
-
-    -   Windows
-
-        -   `type: 'FIXED_WINDOW' | SLIDING_WINDOW_LOG | SLIDING_WINDOW_COUTER`
-        -   `windowSize: number` (in ms)
-        -   `capacity: number`
-
--   `redis: <object>`
-
-    -   `options: RedisOptions` | [ioredis configuration options](https://github.com/luin/ioredis) | defaults to standard ioredis connection options
-    -   `keyExpiry: number` (ms) | custom expiry of keys in redis cache | defaults to 24 hours
-
--   `typeWeights: <object>`
-
-typeWeights?: TypeWeightConfig; dark?: boolean; enforceBoundedLists?: boolean; depthLimit?: number;
 
 ## <a name="how-it-works"></a> How It Works
 
