@@ -34,7 +34,7 @@ async function setTokenCountInClient(
 describe('Test FixedWindow Rate Limiter', () => {
     beforeEach(async () => {
         client = new RedisMock();
-        limiter = new FixedWindow(CAPACITY, WINDOW_SIZE, client);
+        limiter = new FixedWindow(CAPACITY, WINDOW_SIZE, client, 8000);
         timestamp = new Date().valueOf();
     });
     describe('FixedWindow returns correct number of tokens and updates redis store as expected', () => {
