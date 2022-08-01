@@ -95,10 +95,10 @@ class FixedWindow implements RateLimiter {
         }
 
         // update a new time window, check the current capacity situation
-        if (tokens > this.capacity) {
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
-            return { success: false, tokens: this.capacity };
-        }
+        // if (tokens > this.capacity) {
+        //     await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+        //     return { success: false, tokens: this.capacity };
+        // }
         await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
         return {
             success: true,

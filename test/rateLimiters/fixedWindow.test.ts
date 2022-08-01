@@ -53,10 +53,16 @@ describe('Test FixedWindow Rate Limiter', () => {
             });
             test('reached 40% capacity in current time window and still can pass request', async () => {
                 const initial = 5;
+                await setTokenCountInClient(client, user2, initial, timestamp);
                 const partialWithdraw = 2;
                 expect(
-                    (await limiter.processRequest(user2, timestamp, initial + partialWithdraw))
-                        .tokens
+                    (
+                        await limiter.processRequest(
+                            user2,
+                            timestamp + WINDOW_SIZE * 0.4,
+                            partialWithdraw
+                        )
+                    ).tokens
                 ).toBe(CAPACITY - initial - partialWithdraw);
 
                 const tokenCountPartial = await getWindowFromClient(client, user2);
@@ -64,6 +70,18 @@ describe('Test FixedWindow Rate Limiter', () => {
             });
 
             test('window is partially full and request has no leftover tokens', async () => {
+                const initial = 6;
+                const partialWithdraw = 4;
+                await setTokenCountInClient(client, user2, initial, timestamp);
+                expect(
+                    (await limiter.processRequest(user2, timestamp, partialWithdraw)).success
+                ).toBe(true);
+                expect(
+                    (await limiter.processRequest(user2, timestamp, partialWithdraw)).tokens
+                ).toBe(0);
+            });
+
+            test('window is partially full and request exceeds tokens in availability', async () => {
                 const initial = 6;
                 const partialWithdraw = 5;
                 await setTokenCountInClient(client, user2, initial, timestamp);
