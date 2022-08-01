@@ -50,4 +50,4 @@ type WindowRateLimiter = {
     capacity: number;
 };
 
-export type RateLimiterConfig = WindowRateLimiter | BucketRateLImiter;
+export type RateLimiterConfig = WindowRateLimiter | BucketRateLimiter;
