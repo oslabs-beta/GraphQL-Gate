@@ -3,6 +3,7 @@ import { RateLimiterConfig } from '../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
 import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
 import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
+import FixedWindow from '../rateLimiters/fixedWindow';
 
 /**
  * Instatieate the rateLimiting algorithm class based on the developer selection and options
@@ -25,7 +26,7 @@ export default function setupRateLimiter(
         case 'LEAKY_BUCKET':
             throw new Error('Leaky Bucket algonithm has not be implemented.');
         case 'FIXED_WINDOW':
-            throw new Error('Fixed Window algonithm has not be implemented.');
+            return new FixedWindow(rateLimiter.capacity, rateLimiter.windowSize, client, keyExpiry);
         case 'SLIDING_WINDOW_LOG':
             return new SlidingWindowLog(
                 rateLimiter.windowSize,

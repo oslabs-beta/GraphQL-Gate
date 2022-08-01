@@ -13,6 +13,8 @@ import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLim
 class FixedWindow implements RateLimiter {
     private capacity: number;
 
+    private keyExpiry: number;
+
     private windowSize: number;
 
     private client: Redis;
@@ -24,10 +26,11 @@ class FixedWindow implements RateLimiter {
      * @param client redis client where rate limiter will cache information
      */
 
-    constructor(capacity: number, windowSize: number, client: Redis) {
+    constructor(capacity: number, windowSize: number, client: Redis, expiry: number) {
         this.capacity = capacity;
         this.windowSize = windowSize;
         this.client = client;
+        this.keyExpiry = expiry;
         if (windowSize <= 0 || capacity <= 0)
             throw Error('FixedWindow windowSize and capacity must be positive');
     }
@@ -62,9 +65,6 @@ class FixedWindow implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set the expiry of key-value pairs in the cache to 24 hours
-        const keyExpiry = 86400000;
-
         // attempt to get the value for the uuid from the redis cache
         const windowJSON = await this.client.get(uuid);
 
@@ -75,10 +75,10 @@ class FixedWindow implements RateLimiter {
             };
 
             if (tokens > this.capacity) {
-                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+                await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
                 return { success: false, tokens: this.capacity };
             }
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
             return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
         }
         const window: RedisWindow = await JSON.parse(windowJSON);
@@ -99,7 +99,7 @@ class FixedWindow implements RateLimiter {
         //     await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
         //     return { success: false, tokens: this.capacity };
         // }
-        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+        await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
         return {
             success: true,
             tokens: this.capacity - updatedUserWindow.currentTokens,
