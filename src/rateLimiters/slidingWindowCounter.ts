@@ -144,7 +144,7 @@ class SlidingWindowCounter implements RateLimiter {
 
             // # of tokens present in rolling & previous window
             previousRollingTokens = Math.floor(
-                updatedUserWindow.previousTokens! * rollingWindowProportion
+                updatedUserWindow.previousTokens * rollingWindowProportion
             );
         }
 
@@ -185,7 +185,7 @@ class SlidingWindowCounter implements RateLimiter {
             previousRollingTokens === tokensNeededFromPreviousWindow
                 ? rollingWindowProportionSeconds
                 : rollingWindowProportionSeconds *
-                  ((previousTokens! - tokensNeededFromPreviousWindow) / previousRollingTokens);
+                  ((previousTokens - tokensNeededFromPreviousWindow) / previousRollingTokens);
         // tokens needed from the current window for the request to pass
         const tokensNeededFromCurrentWindow = tokensNeeded - tokensNeededFromPreviousWindow;
         // time needed to wait to aquire the from the current window tfor the request to pass
