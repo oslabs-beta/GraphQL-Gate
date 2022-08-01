@@ -23,9 +23,10 @@ export interface RedisBucket {
     tokens: number;
     timestamp: number;
 }
+
 export interface RedisWindow {
     currentTokens: number;
-    previousTokens?: number;
+    previousTokens: number;
     fixedWindowStart: number;
 }
 
