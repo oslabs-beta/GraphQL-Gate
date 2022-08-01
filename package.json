@@ -4,6 +4,7 @@
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "index.js",
     "type": "module",
+    "files": ["src"],
     "scripts": {
         "test": "jest --passWithNoTests --coverage --detectOpenHandles",
         "lint": "eslint src test",
@@ -16,7 +17,16 @@
         "type": "git",
         "url": "git+https://github.com/oslabs-beta/graph-beaver.git"
     },
-    "keywords": ["graphql", "graphqlgate", "rate-limiting", "throttling","query", "express", "complexity", "analysis"],
+    "keywords": [
+        "graphql",
+        "graphqlgate",
+        "rate-limiting",
+        "throttling",
+        "query",
+        "express",
+        "complexity",
+        "analysis"
+    ],
     "author": "Evan McNeely, Stephan Halarewicz, Flora Yufei Wu, Jon Dewey, Milos Popovic",
     "license": "ISC",
     "bugs": {
