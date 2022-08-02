@@ -19,7 +19,7 @@ script:
 jobs:
     include:
         - stage: npm release
-            node_js: "17"
+            node_js: "16"
             script: echo "Deploying to npm ..."
             deploy:
                 on:
