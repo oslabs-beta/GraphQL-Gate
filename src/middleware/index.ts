@@ -4,11 +4,7 @@ import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
-import {
-    ExpressMiddlewareConfig,
-    ExpressMiddlewareSet,
-    RequestWithVariables,
-} from '../@types/expressMiddleware';
+import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
 import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
 import ASTParser from '../analysis/ASTParser';
