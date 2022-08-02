@@ -1017,6 +1017,33 @@ describe('Test getQueryTypeComplexity function', () => {
                 // 1 query + 1 hero
                 expect(queryParser.processQuery(parse(query))).toBe(2);
             });
+
+            test('and other directive are ignored', () => {
+                query = `query { 
+                    hero(episode: EMPIRE) { 
+                        id, name 
+                    } 
+                    human(id: 1) @ignore(if: true) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                // 1 query + 1 hero + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(3);
+                query = `query { 
+                    hero(episode: EMPIRE) { 
+                        id, name 
+                    } 
+                    human(id: 1) @includes(when: false) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                // 1 query + 1 hero
+                expect(queryParser.processQuery(parse(query))).toBe(3);
+            });
         });
 
         describe('with nested lists', () => {
