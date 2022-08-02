@@ -122,7 +122,11 @@ function parseObjectFields(
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
                             fieldAdded = true;
-                            if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
+                            if (
+                                dir.arguments &&
+                                dir.arguments[0].value.kind === Kind.INT &&
+                                Number(dir.arguments[0].value.value) >= 0
+                            ) {
                                 result.fields[field] = {
                                     resolveTo: listType.toString().toLocaleLowerCase(),
                                     weight: Number(dir.arguments[0].value.value),
@@ -180,8 +184,8 @@ function parseObjectFields(
                     }
                 });
 
-                // TODO: check for enforceUnbounded List
-                // if an unbounded list has no @listCost directive attached
+                // throw an error if an unbounded list has no @listCost directive attached or slicing arguments
+                // and the enforceBoundedLists configuration option is sent to true
                 if (fieldAdded === false && enforceBoundedLists) {
                     throw new Error(
                         `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, or limit query results with ${KEYWORDS}`
