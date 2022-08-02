@@ -117,7 +117,7 @@ For queries that return a list, the complexity can be determined by providing a 
 
 1. Slicing arguments: lists must be bounded by one integer slicing argument in order to calculate the complexity for the field. This package supports the slicing arguments `first`, `last` and `limit`. The complexity of the list will be the value passed as the argument to the field.
 
-2. Directives: First, `@listCost` must be defined in your schema with `directive @listCost(cost: Int!) on FIELD_DEFINITION`. Then, on any unbounded list field, add `@listCost(cost: Int)` and pass into `Int` the complexity you want applied whenever the list is queried.
+2. Directives: First, `@listCost` must be defined in your schema with `directive @listCost(cost: Int!) on FIELD_DEFINITION`. Then, on any unbounded list field, add `@listCost(cost: Int)` and replace `Int` with the complexity you want applied whenever the list is queried.
 
 (Note: Slicing arguments are preferred! `@listCost` is in place for any reason slicing arguments cannot be used.)
 
