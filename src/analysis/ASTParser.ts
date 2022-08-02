@@ -65,6 +65,8 @@ class ASTParser {
         if (node.arguments && typeof typeWeight === 'function') {
             // FIXME: May never happen but what if weight is a function and arguments don't exist
             calculatedWeight += typeWeight([...node.arguments], this.variables, selectionsCost);
+        } else if (typeof typeWeight === 'number') {
+            calculatedWeight += typeWeight + selectionsCost;
         } else {
             calculatedWeight += this.typeWeights[typeName].weight + selectionsCost;
         }

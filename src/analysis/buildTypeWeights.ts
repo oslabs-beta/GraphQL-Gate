@@ -122,12 +122,12 @@ function parseObjectFields(
                 if (directives && directives.length > 0) {
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
+                            fieldAdded = true;
                             if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
                                 result.fields[field] = {
                                     resolveTo: listType.toString().toLocaleLowerCase(),
                                     weight: Number(dir.arguments[0].value.value),
                                 };
-                                fieldAdded = true;
                             } else {
                                 throw new SyntaxError(`@listCost directive improperly configured`);
                             }
@@ -180,9 +180,10 @@ function parseObjectFields(
                         };
                     }
                 });
+
+                // TODO: check for enforceUnbounded List
+                // if an unbounded list has no @listCost directive attached
                 if (fieldAdded === false) {
-                    // TODO: check for enforceUnbounded List
-                    // if an unbounded list has no @listCost directive attached
                     throw new Error(
                         `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
                                             or limit query results with ${KEYWORDS}`
