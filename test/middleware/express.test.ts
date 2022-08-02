@@ -17,6 +17,7 @@ let complexRequest: Partial<Request>;
 let mockResponse: Partial<Response>;
 let nextFunction: NextFunction = jest.fn();
 const schema: GraphQLSchema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION         
                 type Query {
                     hero(episode: Episode): Character
                     reviews(episode: Episode!, first: Int): [Review]
@@ -33,20 +34,20 @@ const schema: GraphQLSchema = buildSchema(`
                 interface Character {
                     id: ID!
                     name: String!
-                    friends: [Character]
+                    friends: [Character] @listCost(cost: 10)
                     appearsIn: [Episode]!
                 }
                 type Human implements Character {
                     id: ID!
                     name: String!
                     homePlanet: String
-                    friends: [Character]
+                    friends: [Character] @listCost(cost: 10)
                     appearsIn: [Episode]!
                 }
                 type Droid implements Character {
                     id: ID!
                     name: String!
-                    friends: [Character]
+                    friends: [Character] @listCost(cost: 10)
                     primaryFunction: String
                     appearsIn: [Episode]!
                 }
@@ -130,7 +131,8 @@ describe('Express Middleware tests', () => {
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'LEAKY_BUCKET',
-                            options: { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
+                            refillRate: 1,
+                            capacity: 10, // FIXME: Replace with valid params
                         },
                     })
                 ).not.toThrow();
@@ -141,7 +143,8 @@ describe('Express Middleware tests', () => {
                     expressGraphQLRateLimiter(schema, {
                         rateLimiter: {
                             type: 'FIXED_WINDOW',
-                            options: { capacity: 1, windowSize: 1000 },
+                            capacity: 1,
+                            windowSize: 1000,
                         },
                     })
                 ).not.toThrow();
