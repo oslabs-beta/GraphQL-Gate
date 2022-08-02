@@ -19,31 +19,45 @@ export default function setupRateLimiter(
     client: Redis,
     keyExpiry: number
 ) {
-    switch (rateLimiter.type) {
-        case 'TOKEN_BUCKET':
-            return new TokenBucket(rateLimiter.capacity, rateLimiter.refillRate, client, keyExpiry);
-            break;
-        case 'LEAKY_BUCKET':
-            throw new Error('Leaky Bucket algonithm has not be implemented.');
-        case 'FIXED_WINDOW':
-            return new FixedWindow(rateLimiter.capacity, rateLimiter.windowSize, client, keyExpiry);
-        case 'SLIDING_WINDOW_LOG':
-            return new SlidingWindowLog(
-                rateLimiter.windowSize,
-                rateLimiter.capacity,
-                client,
-                keyExpiry
-            );
-        case 'SLIDING_WINDOW_COUNTER':
-            return new SlidingWindowCounter(
-                rateLimiter.windowSize,
-                rateLimiter.capacity,
-                client,
-                keyExpiry
-            );
-            break;
-        default:
-            // typescript should never let us invoke this function with anything other than the options above
-            throw new Error('Selected rate limiting algorithm is not suppported');
+    try {
+        switch (rateLimiter.type) {
+            case 'TOKEN_BUCKET':
+                return new TokenBucket(
+                    rateLimiter.capacity,
+                    rateLimiter.refillRate,
+                    client,
+                    keyExpiry
+                );
+                break;
+            case 'LEAKY_BUCKET':
+                throw new Error('Leaky Bucket algonithm has not be implemented.');
+            case 'FIXED_WINDOW':
+                return new FixedWindow(
+                    rateLimiter.capacity,
+                    rateLimiter.windowSize,
+                    client,
+                    keyExpiry
+                );
+            case 'SLIDING_WINDOW_LOG':
+                return new SlidingWindowLog(
+                    rateLimiter.windowSize,
+                    rateLimiter.capacity,
+                    client,
+                    keyExpiry
+                );
+            case 'SLIDING_WINDOW_COUNTER':
+                return new SlidingWindowCounter(
+                    rateLimiter.windowSize,
+                    rateLimiter.capacity,
+                    client,
+                    keyExpiry
+                );
+                break;
+            default:
+                // typescript should never let us invoke this function with anything other than the options above
+                throw new Error('Selected rate limiting algorithm is not suppported');
+        }
+    } catch (err) {
+        throw new Error(`Error in expressGraphQLRateLimiter setting up rate-limiter: ${err}`);
     }
 }

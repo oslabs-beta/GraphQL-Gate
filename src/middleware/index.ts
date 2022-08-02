@@ -46,11 +46,15 @@ export default function expressGraphQLRateLimiter(
         enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
         depthLimit: middlewareConfig.depthLimit || Infinity,
     };
+    if (middlewareSetup.depthLimit <= 1) {
+        throw new Error(
+            `Error in expressGraphQLRateLimiter: depthLimit cannot be less than or equal to 1`
+        );
+    }
     /**
      * build the type weight object, create the redis client and instantiate the ratelimiter
      * before returning the express middleware that calculates query complexity and throttles the requests
      */
-    // FIXME: Error handling
     const typeWeightObject = buildTypeWeightsFromSchema(
         schema,
         middlewareSetup.typeWeights,

@@ -9,9 +9,13 @@ const clients: Redis[] = [];
 export function connect(options: RedisOptions): Redis {
     // TODO: Figure out what other options we should set (timeouts, etc)
     // TODO: pass on connection error
-    const client: Redis = new Redis(options);
-    clients.push(client);
-    return client;
+    try {
+        const client: Redis = new Redis(options);
+        clients.push(client);
+        return client;
+    } catch (err) {
+        throw new Error(`Error in expressGraphQLRateLimiter when connecting to redis: ${err}`);
+    }
 }
 
 /**

@@ -417,22 +417,28 @@ function buildTypeWeightsFromSchema(
     typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig,
     enforceBoundedLists = false
 ): TypeWeightObject {
-    if (!schema) throw new Error('Missing Argument: schema is required');
+    try {
+        if (!schema) throw new Error('Missing Argument: schema is required');
 
-    //  Merge the provided type weights with the default to account for missing values
-    const typeWeights: TypeWeightSet = {
-        ...defaultTypeWeightsConfig,
-        ...typeWeightsConfig,
-    };
+        //  Merge the provided type weights with the default to account for missing values
+        const typeWeights: TypeWeightSet = {
+            ...defaultTypeWeightsConfig,
+            ...typeWeightsConfig,
+        };
 
-    // Confirm that any custom weights are non-negative
-    Object.entries(typeWeights).forEach((value: [string, number]) => {
-        if (value[1] < 0) {
-            throw new Error(`Type weights cannot be negative. Received: ${value[0]}: ${value[1]} `);
-        }
-    });
+        // Confirm that any custom weights are non-negative
+        Object.entries(typeWeights).forEach((value: [string, number]) => {
+            if (value[1] < 0) {
+                throw new Error(
+                    `Type weights cannot be negative. Received: ${value[0]}: ${value[1]} `
+                );
+            }
+        });
 
-    return parseTypes(schema, typeWeights, enforceBoundedLists);
+        return parseTypes(schema, typeWeights, enforceBoundedLists);
+    } catch (err) {
+        throw new Error(`Error in expressGraphQLRateLimiter when parsing schema object: ${err}`);
+    }
 }
 
 export default buildTypeWeightsFromSchema;
