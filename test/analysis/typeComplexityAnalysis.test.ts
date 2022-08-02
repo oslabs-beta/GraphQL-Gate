@@ -855,7 +855,7 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         // TODO: refine complexity analysis to consider directives includes and skip
-        xdescribe('with directives @includes and @skip', () => {
+        describe('with directives @includes and @skip', () => {
             test('@includes on interfaces', () => {
                 query = `
                     query {
@@ -990,7 +990,7 @@ describe('Test getQueryTypeComplexity function', () => {
             test('with arguments and varibales', () => {
                 variables = { directive: false };
                 queryParser = new ASTParser(typeWeights, variables);
-                query = `query (directive: $Boolean!){ 
+                query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
                         id, name 
                     } 
@@ -1002,8 +1002,9 @@ describe('Test getQueryTypeComplexity function', () => {
                 }`;
                 // 1 query + 1 hero + 1 human
                 expect(queryParser.processQuery(parse(query))).toBe(3);
-
-                query = `query (directive: $Boolean!){ 
+                variables = { directive: true };
+                queryParser = new ASTParser(typeWeights, variables);
+                query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
                         id, name 
                     } 

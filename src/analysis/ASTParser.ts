@@ -4,7 +4,9 @@ import {
     SelectionSetNode,
     DefinitionNode,
     Kind,
+    DirectiveNode,
     SelectionNode,
+    getArgumentValues,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 /**
@@ -139,42 +141,70 @@ class ASTParser {
         }
     }
 
+    directiveCheck(directive: DirectiveNode): boolean {
+        // let directive;
+        // if (directives) [directive] = directives;
+        if (directive?.arguments) {
+            const argument = directive.arguments[0];
+            const argumentHasVariables =
+                argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
+
+            let directiveArgumentValue;
+            if (argument.value.kind === Kind.BOOLEAN) {
+                directiveArgumentValue = Boolean(argument.value.value);
+            } else if (argumentHasVariables) {
+                directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
+            }
+
+            return (
+                (directive.name.value === 'include' && directiveArgumentValue === true) ||
+                (directive.name.value === 'skip' && directiveArgumentValue === false)
+            );
+        }
+        return true;
+    }
+
     private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
-        this.depth += 1;
-        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-        // check the kind property against the set of selection nodes that are possible
-        if (node.kind === Kind.FIELD) {
-            // call the function that handle field nodes
-            complexity += this.fieldNode(node, parentName.toLowerCase());
-        } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-            // add complexity and depth from fragment cache
-            const { complexity: fragComplexity, depth: fragDepth } =
-                this.fragmentCache[node.name.value];
-            complexity += fragComplexity;
-            this.depth += fragDepth;
-            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-            this.depth -= fragDepth;
-
-            // This is a leaf
-            // need to parse fragment definition at root and get the result here
-        } else if (node.kind === Kind.INLINE_FRAGMENT) {
-            const { typeCondition } = node;
-
-            // named type is the type from which inner fields should be take
-            // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
-            const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
-
-            // TODO: Handle directives like @include and @skip
-            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
-            this.depth -= 1;
-            complexity += this.selectionSetNode(node.selectionSet, namedType);
+        const directive = node.directives;
+        if (directive && this.directiveCheck(directive[0])) {
             this.depth += 1;
-        } else {
-            throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
-        }
+            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+            // check the kind property against the set of selection nodes that are possible
+            if (node.kind === Kind.FIELD) {
+                // call the function that handle field nodes
+                complexity += this.fieldNode(node, parentName.toLowerCase());
+            } else if (node.kind === Kind.FRAGMENT_SPREAD) {
+                // add complexity and depth from fragment cache
+                const { complexity: fragComplexity, depth: fragDepth } =
+                    this.fragmentCache[node.name.value];
+                complexity += fragComplexity;
+                this.depth += fragDepth;
+                if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+                this.depth -= fragDepth;
 
-        this.depth -= 1;
+                // This is a leaf
+                // need to parse fragment definition at root and get the result here
+            } else if (node.kind === Kind.INLINE_FRAGMENT) {
+                const { typeCondition } = node;
+
+                // named type is the type from which inner fields should be take
+                // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
+                const namedType = typeCondition
+                    ? typeCondition.name.value.toLowerCase()
+                    : parentName;
+
+                // TODO: Handle directives like @include and @skip
+                // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
+                this.depth -= 1;
+                complexity += this.selectionSetNode(node.selectionSet, namedType);
+                this.depth += 1;
+            } else {
+                throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
+            }
+
+            this.depth -= 1;
+        }
         return complexity;
     }
 
