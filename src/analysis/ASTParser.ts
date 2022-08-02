@@ -165,13 +165,12 @@ class ASTParser {
             // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
             const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
 
-            // TODO: Handle directives like @include
+            // TODO: Handle directives like @include and @skip
             // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
             this.depth -= 1;
             complexity += this.selectionSetNode(node.selectionSet, namedType);
             this.depth += 1;
         } else {
-            // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
 
@@ -239,12 +238,12 @@ class ASTParser {
                 complexity: fragmentComplexity,
                 depth: this.maxDepth - 1, // subtract one from the calculated depth of the fragment to correct for the additional depth the fragment ads to the query when used
             };
-        } else {
-            // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
-            // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
-            // TypeSystemExtensionNode(Schema, Type);
-            throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
-        }
+        } // else {
+        //     // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
+        //     // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
+        //     // TypeSystemExtensionNode(Schema, Type);
+        //     throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
+        // }
         return complexity;
     }
 

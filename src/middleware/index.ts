@@ -21,7 +21,6 @@ import ASTParser from '../analysis/ASTParser';
  *      , "depthLimit: number" will block queries with deeper nesting than the specified depth. Will not block queries by depth by default
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
- * FIXME: How about the specific GraphQLError?
  * @throws Error
  */
 export default function expressGraphQLRateLimiter(

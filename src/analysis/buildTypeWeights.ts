@@ -190,7 +190,7 @@ function parseObjectFields(
                 }
             }
         } else {
-            // ? what else can get through here
+            // FIXME what else can get through here
             throw new Error(`ERROR: buildTypeWeight: Unsupported field type: ${fieldType}`);
         }
     });
