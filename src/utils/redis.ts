@@ -8,13 +8,9 @@ const clients: Redis[] = [];
  */
 export function connect(options: RedisOptions): Redis {
     // TODO: Figure out what other options we should set (timeouts, etc)
-    try {
-        const client: Redis = new Redis(options); // Default port is 6379 automatically
-        clients.push(client);
-        return client;
-    } catch (err) {
-        throw new Error(`Error in expressGraphQLRateLimiter when connecting to redis: ${err}`);
-    }
+    const client: Redis = new Redis(options); // Default port is 6379 automatically
+    clients.push(client);
+    return client;
 }
 
 /**

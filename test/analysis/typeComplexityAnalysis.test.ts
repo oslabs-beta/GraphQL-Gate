@@ -871,7 +871,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }
                     }`;
-                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                expect(mockCharacterFriendsFunction).toHaveBeenCalledTimes(0);
                 // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
                 expect(queryParser.processQuery(parse(query))).toBe(5);
 
@@ -909,7 +909,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }
                     }`;
-                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                expect(mockCharacterFriendsFunction).toHaveBeenCalledTimes(0);
                 // Query 1 + 1 hero = 2
                 expect(queryParser.processQuery(parse(query))).toBe(2);
 

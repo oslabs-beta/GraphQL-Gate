@@ -54,7 +54,7 @@ export const defaultTypeWeightsConfig: TypeWeightSet = {
  * @param {(GraphQLObjectType | GraphQLInterfaceType)} type
  * @param {TypeWeightObject} typeWeightObject
  * @param {TypeWeightSet} typeWeights
- * @param enforceBoundedLists
+ * @param {boolean} enforceBoundedLists
  * @return {*}  {Type}
  */
 function parseObjectFields(
