@@ -278,33 +278,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // FIXME: need to figure out how to handle this situation. Skip for now.
-        // The field 'friends' returns a list of an unknown number of objects.
-        xtest('fields returning lists of objects of indeterminate size', () => {
-            schema = buildSchema(`
-                type Human {
-                    id: ID!
-                    name: String!
-                    homePlanet: String
-                    friends: [Human]
-                }
-            `);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                human: {
-                    weight: 1,
-                    fields: {
-                        id: { weight: 0 },
-                        name: { weight: 0 },
-                        hamePlanet: { weight: 0 },
-                        friends: {
-                            resolvesTo: 'human',
-                            weight: expect.any(Function),
-                        },
-                    },
-                },
-            });
-        });
-
         // TODO: Write tests for connection pagination convention
         xtest('connections pagination convention', () => {
             schema = buildSchema(`
@@ -602,6 +575,83 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        describe('fields return list of objects of indeterminate size...', () => {
+            // the field 'humans' on Query returns an unbounded list
+            test('on query definitions', () => {
+                schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                type Human {
+                    id: ID!
+                }
+                type Query {
+                    humans: [Human] @listCost(cost: 10)
+                }
+            `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                        },
+                    },
+                    query: {
+                        weight: 1,
+                        fields: {
+                            humans: { weight: 10, resolveTo: 'human' },
+                        },
+                    },
+                });
+            });
+
+            // The field 'friends' returns a list of an unknown number of objects.
+            test('on object types', () => {
+                schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                type Human {
+                    id: ID!
+                    friends: [Human] @listCost(cost: 10)
+                }
+            `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            friends: {
+                                resolveTo: 'human',
+                                weight: 10,
+                            },
+                        },
+                    },
+                });
+            });
+
+            // this test is just in place to make sure additional directives don't cause errors
+            test(' with multiple directives', () => {
+                schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                directive @testDirective(test: Int!) on FIELD_DEFINITION
+                directive @testDirective2(test: Int!) on FIELD_DEFINITION
+                type Human {
+                    id: ID!
+                    friends: [Human] @testDirective2(test: 10) @listCost(cost: 10) @testDirective(test: 10)
+                }
+            `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            friends: {
+                                resolveTo: 'human',
+                                weight: 10,
+                            },
+                        },
+                    },
+                });
+            });
+        });
+
         describe('union types with ...', () => {
             test('lists of union types and scalars', () => {
                 schema = buildSchema(`
@@ -831,10 +881,9 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     },
                 });
             });
-        });
 
-        test('Unions with no fields overlapping', () => {
-            schema = buildSchema(`
+            test('Unions with no fields overlapping', () => {
+                schema = buildSchema(`
             union SearchResult = Human | Droid
             type Human{
                 name: String
@@ -845,29 +894,30 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 id: String
             }
             `);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                searchresult: {
-                    weight: 1,
-                    fields: {},
-                },
-                human: {
-                    weight: 1,
-                    fields: {
-                        name: { weight: 0 },
-                        homePlanet: { weight: 0 },
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {},
                     },
-                },
-                droid: {
-                    weight: 1,
-                    fields: {
-                        primaryFunction: { weight: 0 },
-                        id: { weight: 0 },
+                    human: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                        },
                     },
-                },
+                    droid: {
+                        weight: 1,
+                        fields: {
+                            primaryFunction: { weight: 0 },
+                            id: { weight: 0 },
+                        },
+                    },
+                });
             });
         });
 
-        describe('Not null operator (!) is used', () => {
+        describe('Not null operators (!) used', () => {
             test('on a scalar, enum or object type', () => {
                 schema = buildSchema(`
                 type Human{
@@ -1017,12 +1067,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 });
             });
         });
-
-        // TODO: Tests should be written to account for the additional scenarios possible in a schema
-        // Mutation type
-        // Input types (a part of mutations?)
-        // Subscription type
     });
+
+    // TODO: Tests should be written to account for the additional scenarios possible in a schema
+    // Subscription type
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
         let expectedOutput: TestTypeWeightObject;

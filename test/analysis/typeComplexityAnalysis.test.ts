@@ -3,13 +3,15 @@ import ASTParser from '../../src/analysis/ASTParser';
 import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
- * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
+ * Here is the schema that creates the following 'typeWeightsObject' used for the tests
  * 
+    directive @listCost(cost: Int!) on FIELD_DEFINITION
+
     type Query {
         hero(episode: Episode): Character
         heroUnion(episode: Episode): SearchResult
         reviews(episode: Episode!, first: Int): [Review]
-        search(text: String): [SearchResult]
+        search(text: String): [SearchResult] @listCost(cost: 10)
         character(id: ID!): Character
         droid(id: ID!): Droid
         human(id: ID!): Human
@@ -148,7 +150,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     },
                     search: {
                         resolveTo: 'searchresult',
-                        weight: jest.fn(), // FIXME: Unbounded list result
+                        weight: 10,
                     },
                     character: {
                         resolveTo: 'character',
@@ -242,7 +244,12 @@ describe('Test getQueryTypeComplexity function', () => {
             searchresult: {
                 // union type
                 weight: 1,
-                fields: {},
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    friends: { resolveTo: 'character', weight: mockWeightFunction },
+                    appearsIn: { resolveTo: 'episode' },
+                },
             },
             scalars: {
                 weight: 1, // object weight is 1, all scalar feilds have weight 0
@@ -852,18 +859,15 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
-        /**
-         * FIXME: handle lists of unknown size. change the expected result Once we figure out the implementation.
-         */
-        xtest('with lists of unknown size', () => {
+        test('with lists of unknown size', () => {
             query = `
             query { 
-                search(text: 'hi') { 
+                search(text: "hi") { 
                     id
                     name
                 }
             }`;
-            expect(queryParser.processQuery(parse(query))).toBe(false); // ?
+            expect(queryParser.processQuery(parse(query))).toBe(11);
         });
 
         test('with lists determined by arguments and variables', () => {
