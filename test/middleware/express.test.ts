@@ -283,7 +283,7 @@ describe('Express Middleware tests', () => {
                         refillRate: 1,
                         capacity: 20,
                     },
-                    depthLimit: 2,
+                    depthLimit: 3,
                 });
 
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
@@ -496,6 +496,7 @@ describe('Express Middleware tests', () => {
                                 }
                             } `,
                         },
+                        ip: '1100',
                     };
 
                     expect(nextFunction).not.toBeCalled();

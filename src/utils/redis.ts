@@ -10,7 +10,7 @@ export function connect(options: RedisOptions): Redis {
     // TODO: Figure out what other options we should set (timeouts, etc)
     // TODO: pass on connection error
     try {
-        const client: Redis = new Redis(options);
+        const client: Redis = new Redis(options); // Default port is 6379 automatically
         clients.push(client);
         return client;
     } catch (err) {

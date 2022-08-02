@@ -13,16 +13,16 @@ import ASTParser from '../analysis/ASTParser';
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
  * @param {GraphQLSchema} schema GraphQLSchema object
  * @param {ExpressMiddlewareConfig} middlewareConfig
- *      /// "ratelimiter" must be explicitly specified in the setup of the middleware.
- *      /// "redis" connection options (https://ioredis.readthedocs.io/en/stable/API/#new_Redis) and an optional "keyExpiry" property (defaults to 24h)
- *      /// "typeWeights" optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, query: 1, object: 1, scalar/enum: 0, connection: 2}
- *      /// "dark: true" will run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality. Defaults to false
- *      /// "enforceBoundedLists: true" will throw an error if any lists in the schema are not constrained by slicing arguments: Defaults to false
- *      /// "depthLimit: number" will block queries with deeper nesting than the specified depth. Will not block queries by depth by default
+ *      , "ratelimiter" must be explicitly specified in the setup of the middleware.
+ *      , "redis" connection options (https://ioredis.readthedocs.io/en/stable/API/#new_Redis) and an optional "keyExpiry" property (defaults to 24h)
+ *      , "typeWeights" optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, query: 1, object: 1, scalar/enum: 0, connection: 2}
+ *      , "dark: true" will run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality. Defaults to false
+ *      , "enforceBoundedLists: true" will throw an error if any lists in the schema are not constrained by slicing arguments: Defaults to false
+ *      , "depthLimit: number" will block queries with deeper nesting than the specified depth. Will not block queries by depth by default
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
  * FIXME: How about the specific GraphQLError?
- * @throws ValidationError if GraphQL Schema is invalid.
+ * @throws Error
  */
 export default function expressGraphQLRateLimiter(
     schema: GraphQLSchema,
@@ -46,34 +46,38 @@ export default function expressGraphQLRateLimiter(
         enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
         depthLimit: middlewareConfig.depthLimit || Infinity,
     };
-    if (middlewareSetup.depthLimit <= 1) {
+
+    /** No query can have a depth of less than 2 */
+    if (middlewareSetup.depthLimit <= 2) {
         throw new Error(
             `Error in expressGraphQLRateLimiter: depthLimit cannot be less than or equal to 1`
         );
     }
-    /**
-     * build the type weight object, create the redis client and instantiate the ratelimiter
-     * before returning the express middleware that calculates query complexity and throttles the requests
-     */
+
+    /** Build the type weight object, create the redis client and instantiate the ratelimiter */
     const typeWeightObject = buildTypeWeightsFromSchema(
         schema,
         middlewareSetup.typeWeights,
         middlewareSetup.enforceBoundedLists
     );
-    const redisClient = connect(middlewareSetup.redis.options); // Default port is 6379 automatically
+    const redisClient = connect(middlewareSetup.redis.options);
     const rateLimiter = setupRateLimiter(
         middlewareSetup.rateLimiter,
         redisClient,
         middlewareSetup.redis.keyExpiry
     );
 
-    // stores request IDs to be processed
-    const requestQueue: { [index: string]: string[] } = {};
-
-    // Manages processing of event queue
+    /**
+     * We are using a queue and event emitter to handle situations where a user has two concurrent requests being processed.
+     * The trailing request will be added to the queue to and await the prior request processing by the rate-limiter
+     * This will maintain the consistency and accuracy of the cache when under load from one user
+     */
+    // stores request IDs for each user in an array to be processed
+    const requestQueues: { [index: string]: string[] } = {};
+    // Manages processing of requests queue
     const requestEvents = new EventEmitter();
 
-    // Resolves the promise created by throttledProcess
+    // processes requests (by resolving  promises) that have been throttled by throttledProcess
     async function processRequestResolver(
         userId: string,
         timestamp: number,
@@ -83,11 +87,11 @@ export default function expressGraphQLRateLimiter(
     ) {
         try {
             const response = await rateLimiter.processRequest(userId, timestamp, tokens);
-            requestQueue[userId] = requestQueue[userId].slice(1);
-            // trigger the next event
+            requestQueues[userId] = requestQueues[userId].slice(1);
             resolve(response);
-            requestEvents.emit(requestQueue[userId][0]);
-            if (requestQueue[userId].length === 0) delete requestQueue[userId];
+            // trigger the next event and delete the request queue for this user if there are no more requests to process
+            requestEvents.emit(requestQueues[userId][0]);
+            if (requestQueues[userId].length === 0) delete requestQueues[userId];
         } catch (err) {
             reject(err);
         }
@@ -112,13 +116,13 @@ export default function expressGraphQLRateLimiter(
         // Alternatively use crypto.randomUUID() to generate a random uuid
         const requestId = `${timestamp}${tokens}`;
 
-        if (!requestQueue[userId]) {
-            requestQueue[userId] = [];
+        if (!requestQueues[userId]) {
+            requestQueues[userId] = [];
         }
-        requestQueue[userId].push(requestId);
+        requestQueues[userId].push(requestId);
 
         return new Promise((resolve, reject) => {
-            if (requestQueue[userId].length > 1) {
+            if (requestQueues[userId].length > 1) {
                 requestEvents.once(requestId, async () => {
                     await processRequestResolver(userId, timestamp, tokens, resolve, reject);
                 });
@@ -128,6 +132,7 @@ export default function expressGraphQLRateLimiter(
         });
     }
 
+    /** Rate-limiting middleware */
     return async (
         req: Request,
         res: Response,
@@ -145,9 +150,9 @@ export default function expressGraphQLRateLimiter(
         const ip: string = req.ips ? req.ips[0] : req.ip;
 
         const queryAST = parse(query);
-        // validate the query against the schema. The GraphQL validation function returns an array of errors.
+        // validate the query against the schema. returns an array of errors.
         const validationErrors = validate(schema, queryAST);
-        // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
+        // return the errors to the client if the array has length. otherwise there are no errors
         if (validationErrors.length > 0) {
             res.status(400).json({ errors: validationErrors });
         }
@@ -156,8 +161,6 @@ export default function expressGraphQLRateLimiter(
         const queryComplexity = queryParser.processQuery(queryAST);
 
         try {
-            // process the request and conditinoally respond to client with status code 429 or
-            // pass the request onto the next middleware function
             const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
@@ -172,11 +175,17 @@ export default function expressGraphQLRateLimiter(
                     queryParser.maxDepth >= middlewareSetup.depthLimit,
                 depth: queryParser.maxDepth,
             };
+            /** The three conditions for returning a status code 429 are
+             * 1. rate-limiter blocked the request
+             * 2. query exceeded the depth limit
+             * 3. the middleware is configured not to run in dark mode
+             */
             if (
                 (!rateLimiterResponse.success ||
                     queryParser.maxDepth > middlewareSetup.depthLimit) &&
                 !middlewareSetup.dark
             ) {
+                // a Retry-After header of Infinity means the request will never be accepted
                 return res
                     .status(429)
                     .set({
