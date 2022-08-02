@@ -136,8 +136,9 @@ export default function expressGraphQLRateLimiter(
         const requestTimestamp = new Date().valueOf();
         const { query, variables }: { query: string; variables: any } = req.body;
         if (!query) {
-            // FIXME: Throw an error here? Code currently passes this on to whatever is next
-            console.log('There is no query on the request');
+            console.error(
+                'Error in expressGraphQLRateLimiter: There is no query on the request. Rate-Limiting skipped'
+            );
             return next();
         }
         // check for a proxied ip address before using the ip address on request
@@ -189,7 +190,10 @@ export default function expressGraphQLRateLimiter(
             }
             return next();
         } catch (err) {
-            // todo: refactor error handling
+            // log the error to the console and pass the request onto the next middleware.
+            console.error(
+                `Error in expressGraphQLRateLimiter processing query. Rate limiting is skipped: ${err}`
+            );
             return next(err);
         }
     };
