@@ -117,7 +117,7 @@ For queries that return a list, the complexity can be determined by providing a 
 
 1. Slicing arguments: lists must be bounded by one integer slicing argument in order to calculate the complexity for the field. This package supports the slicing arguments `first`, `last` and `limit`. The complexity of the list will be the value passed as the argument to the field.
 
-2. Directives: First, `@listCost` must be defined in your schema with `directive @listCost(cost: Int!) on FIELD_DEFINITION`. Then, on any unbounded list field, add `@listCost(cost: Int)` and replace `Int` with the complexity you want applied whenever the list is queried.
+2. Directives: To use directives, `@listCost` must be defined in your schema with `directive @listCost(cost: Int!) on FIELD_DEFINITION`. Then, on any unbounded list field, add `@listCost(cost: <Int>)` where `<Int>` is the complexity you want applied to the list when queried.
 
 (Note: Slicing arguments are preferred! `@listCost` is in place for any reason slicing arguments cannot be used.)
 
@@ -133,22 +133,21 @@ Requests for each user are processed sequentially by the rate limiter.
 
 Example (with default weights):
 
-```javascript
-query { //  1 (complexity)
-   hero (episode: EMPIRE) { // 1
-      name // 0
-      id // 0
-      friends (first: 3) { // 3
-         name // 0
-         id // 0
+```graphql
+query {   # 1 query 
+   hero (episode: EMPIRE) {   # 1 object 
+      name   # 0 scalar
+      id   # 0 scalar
+      friends (first: 3) {   # 3 objects
+         name   # 0 scalar
+         id   # 0 scalar
       }
    }
-   reviews(episode: EMPIRE, limit: 5) { // 5
-      stars // stars 0
-      commentary // commentary 0
+   reviews (episode: EMPIRE, limit: 5) { #   5 objects
+      stars   # 0 scalar
+      commentary   # 0 scalar
    }
-}
-// total complexity of 10
+} # total complexity of 10
 ```
 
 ## <a name="response"></a> Response
