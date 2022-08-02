@@ -5,11 +5,13 @@ import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 /** 
  * Here is the schema that creates the following 'typeWeightsObject' used for the tests
  * 
+    directive @listCost(cost: Int!) on FIELD_DEFINITION
+
     type Query {
         hero(episode: Episode): Character
         heroUnion(episode: Episode): SearchResult
         reviews(episode: Episode!, first: Int): [Review]
-        search(text: String): [SearchResult]
+        search(text: String): [SearchResult] @listCost(cost: 10)
         character(id: ID!): Character
         droid(id: ID!): Droid
         human(id: ID!): Human
@@ -136,7 +138,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     },
                     search: {
                         resolveTo: 'searchresult',
-                        weight: 10, // FIXME: Unbounded list result
+                        weight: 10,
                     },
                     character: {
                         resolveTo: 'character',
@@ -795,20 +797,6 @@ describe('Test getQueryTypeComplexity function', () => {
                     expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(7);
                 });
             });
-        });
-
-        /**
-         * FIXME: handle lists of unknown size. change the expected result Once we figure out the implementation.
-         */
-        xtest('with lists of unknown size', () => {
-            query = `
-            query { 
-                search(text: 'hi') { 
-                    id
-                    name
-                }
-            }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
         test('with lists determined by arguments and variables', () => {
