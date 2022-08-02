@@ -51,7 +51,11 @@ export default function expressGraphQLRateLimiter(
      * before returning the express middleware that calculates query complexity and throttles the requests
      */
     // FIXME: Error handling
-    const typeWeightObject = buildTypeWeightsFromSchema(schema, middlewareSetup.typeWeights);
+    const typeWeightObject = buildTypeWeightsFromSchema(
+        schema,
+        middlewareSetup.typeWeights,
+        middlewareSetup.enforceBoundedLists
+    );
     const redisClient = connect(middlewareSetup.redis.options); // Default port is 6379 automatically
     const rateLimiter = setupRateLimiter(
         middlewareSetup.rateLimiter,

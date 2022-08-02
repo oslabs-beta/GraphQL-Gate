@@ -13,7 +13,6 @@ import {
     isObjectType,
     isScalarType,
     isUnionType,
-    isInputType,
     Kind,
     ValueNode,
     GraphQLUnionType,
@@ -49,20 +48,20 @@ export const defaultTypeWeightsConfig: TypeWeightSet = {
     query: DEFAULT_QUERY_WEIGHT,
 };
 
-// FIXME: What about Interface defaults
-
 /**
  * Parses the fields on an object type (query, object, interface) and returns field weights in type weight object format
  *
  * @param {(GraphQLObjectType | GraphQLInterfaceType)} type
  * @param {TypeWeightObject} typeWeightObject
  * @param {TypeWeightSet} typeWeights
+ * @param enforceBoundedLists
  * @return {*}  {Type}
  */
 function parseObjectFields(
     type: GraphQLObjectType | GraphQLInterfaceType,
     typeWeightObject: TypeWeightObject,
-    typeWeights: TypeWeightSet
+    typeWeights: TypeWeightSet,
+    enforceBoundedLists: boolean
 ): Type {
     let result: Type;
     switch (type.name) {
@@ -183,7 +182,7 @@ function parseObjectFields(
 
                 // TODO: check for enforceUnbounded List
                 // if an unbounded list has no @listCost directive attached
-                if (fieldAdded === false) {
+                if (fieldAdded === false && enforceBoundedLists) {
                     throw new Error(
                         `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
                                             or limit query results with ${KEYWORDS}`
@@ -355,9 +354,14 @@ function parseUnionTypes(
  * and built in types that begin with '__' and outputs a new TypeWeightObject
  * @param schema
  * @param typeWeights
+ * @param enforceBoundedLists
  * @returns
  */
-function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeightObject {
+function parseTypes(
+    schema: GraphQLSchema,
+    typeWeights: TypeWeightSet,
+    enforceBoundedLists: boolean
+): TypeWeightObject {
     const typeMap: ObjMap<GraphQLNamedType> = schema.getTypeMap();
 
     const result: TypeWeightObject = {};
@@ -373,7 +377,12 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
         if (!type.startsWith('__')) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type and it's associated fields to the result
-                result[typeName] = parseObjectFields(currentType, result, typeWeights);
+                result[typeName] = parseObjectFields(
+                    currentType,
+                    result,
+                    typeWeights,
+                    enforceBoundedLists
+                );
             } else if (isEnumType(currentType)) {
                 result[typeName] = {
                     fields: {},
@@ -400,11 +409,13 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
  *  - validate that the typeWeightsConfig parameter has no negative values (throw an error if it does)
  *
  * @param schema
+ * @param enforceBoundedLists Defaults to false
  * @param typeWeightsConfig Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  */
 function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
-    typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig
+    typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig,
+    enforceBoundedLists = false
 ): TypeWeightObject {
     if (!schema) throw new Error('Missing Argument: schema is required');
 
@@ -421,7 +432,7 @@ function buildTypeWeightsFromSchema(
         }
     });
 
-    return parseTypes(schema, typeWeights);
+    return parseTypes(schema, typeWeights, enforceBoundedLists);
 }
 
 export default buildTypeWeightsFromSchema;
