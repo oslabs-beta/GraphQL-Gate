@@ -283,7 +283,7 @@ describe('Express Middleware tests', () => {
                         refillRate: 1,
                         capacity: 20,
                     },
-                    depthLimit: 1,
+                    depthLimit: 2,
                 });
 
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
