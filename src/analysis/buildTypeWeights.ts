@@ -113,12 +113,12 @@ function parseObjectFields(
                     resolveTo: listType.toString().toLocaleLowerCase(),
                 };
             } else {
-                // if the @listCost directive is given for the field,
-                // apply the cost argument's value to the field's weight
-                const directives = fields[field].astNode?.directives;
                 // fieldAdded is a boolean flag to check if we have added a something to the typeweight object for this field.
                 // if we reach end of the list and fieldAdded is false, we have an unbounded list.
                 let fieldAdded = false;
+                // if the @listCost directive is given for the field,
+                // apply the cost argument's value to the field's weight
+                const directives = fields[field].astNode?.directives;
                 if (directives && directives.length > 0) {
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
@@ -189,9 +189,6 @@ function parseObjectFields(
                     );
                 }
             }
-        } else if (isNonNullType(fieldType)) {
-            // TODO: Implment non-null types
-            // not throwing and error since it causes typeWeight tests to break
         } else {
             // ? what else can get through here
             throw new Error(`ERROR: buildTypeWeight: Unsupported field type: ${fieldType}`);
