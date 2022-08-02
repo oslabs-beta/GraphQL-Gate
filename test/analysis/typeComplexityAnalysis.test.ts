@@ -855,7 +855,7 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         // TODO: refine complexity analysis to consider directives includes and skip
-        describe('with directives @includes and @skip', () => {
+        xdescribe('with directives @includes and @skip', () => {
             test('@includes on interfaces', () => {
                 query = `
                     query {
@@ -1018,7 +1018,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 expect(queryParser.processQuery(parse(query))).toBe(2);
             });
 
-            test('and other directive are ignored', () => {
+            xtest('and other directive are ignored', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
                         id, name 

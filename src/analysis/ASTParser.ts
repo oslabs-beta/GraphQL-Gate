@@ -178,45 +178,43 @@ class ASTParser {
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
-        const directive = node.directives;
-        if (directive && this.directiveCheck(directive[0])) {
-            this.depth += 1;
+        // const directive = node.directives;
+        // if (directive && this.directiveCheck(directive[0])) {
+        this.depth += 1;
+        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+        // check the kind property against the set of selection nodes that are possible
+        if (node.kind === Kind.FIELD) {
+            // call the function that handle field nodes
+            complexity += this.fieldNode(node, parentName.toLowerCase());
+        } else if (node.kind === Kind.FRAGMENT_SPREAD) {
+            // add complexity and depth from fragment cache
+            const { complexity: fragComplexity, depth: fragDepth } =
+                this.fragmentCache[node.name.value];
+            complexity += fragComplexity;
+            this.depth += fragDepth;
             if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-            // check the kind property against the set of selection nodes that are possible
-            if (node.kind === Kind.FIELD) {
-                // call the function that handle field nodes
-                complexity += this.fieldNode(node, parentName.toLowerCase());
-            } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-                // add complexity and depth from fragment cache
-                const { complexity: fragComplexity, depth: fragDepth } =
-                    this.fragmentCache[node.name.value];
-                complexity += fragComplexity;
-                this.depth += fragDepth;
-                if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-                this.depth -= fragDepth;
+            this.depth -= fragDepth;
 
-                // This is a leaf
-                // need to parse fragment definition at root and get the result here
-            } else if (node.kind === Kind.INLINE_FRAGMENT) {
-                const { typeCondition } = node;
+            // This is a leaf
+            // need to parse fragment definition at root and get the result here
+        } else if (node.kind === Kind.INLINE_FRAGMENT) {
+            const { typeCondition } = node;
 
-                // named type is the type from which inner fields should be take
-                // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
-                const namedType = typeCondition
-                    ? typeCondition.name.value.toLowerCase()
-                    : parentName;
+            // named type is the type from which inner fields should be take
+            // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
+            const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
 
-                // TODO: Handle directives like @include and @skip
-                // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
-                this.depth -= 1;
-                complexity += this.selectionSetNode(node.selectionSet, namedType);
-                this.depth += 1;
-            } else {
-                throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
-            }
-
+            // TODO: Handle directives like @include and @skip
+            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
             this.depth -= 1;
+            complexity += this.selectionSetNode(node.selectionSet, namedType);
+            this.depth += 1;
+        } else {
+            throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
+
+        this.depth -= 1;
+        // }
         return complexity;
     }
 
