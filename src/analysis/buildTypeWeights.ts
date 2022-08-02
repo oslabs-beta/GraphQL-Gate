@@ -19,7 +19,6 @@ import {
     GraphQLUnionType,
     GraphQLFieldMap,
     isInputObjectType,
-    GraphQLDirective,
 } from 'graphql';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
@@ -117,21 +116,20 @@ function parseObjectFields(
                 // if the @listCost directive is given for the field,
                 // apply the cost argument's value to the field's weight
                 const directives = fields[field].astNode?.directives;
-
+                // fieldAdded is a boolean flag to check if we have added a something to the typeweight object for this field.
+                // if we reach end of the list and fieldAdded is false, we have an unbounded list.
+                let fieldAdded = false;
                 if (directives && directives.length > 0) {
-                    // eslint-disable-next-line consistent-return
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
-                            if (dir.arguments && dir.arguments[0])
+                            if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
                                 result.fields[field] = {
                                     resolveTo: listType.toString().toLocaleLowerCase(),
-                                    weight: Number(
-                                        // ts-error:  'value does not exist on type ConstValueNode'
-                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                                        // @ts-ignore
-                                        dir.arguments[0].value.value
-                                    ),
+                                    weight: Number(dir.arguments[0].value.value),
                                 };
+                                fieldAdded = true;
+                            }
+                            throw new SyntaxError(`@listCost directive improperly configured`);
                         }
                     });
                 }
@@ -142,6 +140,7 @@ function parseObjectFields(
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
+                        fieldAdded = true;
                         result.fields[field] = {
                             resolveTo: listType.toString().toLocaleLowerCase(),
                             weight: (
@@ -174,16 +173,20 @@ function parseObjectFields(
                                 if (arg.defaultValue) {
                                     return Number(arg.defaultValue) * (selectionsCost + weight);
                                 }
-
-                                // FIXME: The list is unbounded. Return the object weight for
-                                throw new Error(
-                                    `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
-                                            or limit query results with ${KEYWORDS}`
-                                );
+                                // if there is no argument or default value, return 0 complexity
+                                return 1;
                             },
                         };
                     }
                 });
+                if (fieldAdded === false) {
+                    // TODO: check for enforceUnbounded List
+                    // if an unbounded list has no @listCost directive attached
+                    throw new Error(
+                        `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
+                                            or limit query results with ${KEYWORDS}`
+                    );
+                }
             }
         } else if (isNonNullType(fieldType)) {
             // TODO: Implment non-null types
