@@ -141,14 +141,20 @@ class ASTParser {
         }
     }
 
+    /**
+     * Return true if:
+     * 1. there is no directive
+     * 2. there is a directive named inlcude and the value is true
+     * 3. there is a directive named skip and the value is false
+     */
     directiveCheck(directive: DirectiveNode): boolean {
-        // let directive;
-        // if (directives) [directive] = directives;
         if (directive?.arguments) {
+            // get the first argument
             const argument = directive.arguments[0];
+            // ensure the argument name is 'if'
             const argumentHasVariables =
                 argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
-
+            // access the value of the argument depending on whether it is passed as a variable or not
             let directiveArgumentValue;
             if (argument.value.kind === Kind.BOOLEAN) {
                 directiveArgumentValue = Boolean(argument.value.value);
@@ -166,6 +172,12 @@ class ASTParser {
 
     private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
+        /**
+         * process this node if:
+         * 1. there is no directive
+         * 2. there is a directive named inlcude and the value is true
+         * 3. there is a directive named skip and the value is false
+         */
         const directive = node.directives;
         if (directive && this.directiveCheck(directive[0])) {
             this.depth += 1;
