@@ -5,11 +5,12 @@
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "test": "jest --passWithNoTests --coverage",
+        "test": "jest --passWithNoTests --coverage --detectOpenHandles",
         "lint": "eslint src test",
         "lint:fix": "eslint --fix src test @types",
         "prettier": "prettier --write .",
-        "prepare": "husky install"
+        "prepare": "husky install",
+        "build": "tsc"
     },
     "repository": {
         "type": "git",

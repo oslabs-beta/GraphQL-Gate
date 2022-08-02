@@ -46,6 +46,25 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
+        test('a single mutation type', () => {
+            schema = buildSchema(`
+                type Mutation {
+                    name: String
+                    email: String
+                }
+            `);
+
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                mutation: {
+                    weight: 10,
+                    fields: {
+                        name: { weight: 0 },
+                        email: { weight: 0 },
+                    },
+                },
+            });
+        });
+
         test('multiple types', () => {
             schema = buildSchema(`
                 type Query {
@@ -211,6 +230,201 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     weight: 0,
                     fields: {},
                 },
+            });
+        });
+
+        test('interface types', () => {
+            schema = buildSchema(`
+                interface Character {
+                    id: ID!
+                    name: String!                    
+                }
+            
+                type Human implements Character {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                }
+            
+                type Droid implements Character {
+                    id: ID!
+                    name: String!                
+                    primaryFunction: String
+                }`);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                character: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                    },
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        homePlanet: { weight: 0 },
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        primaryFunction: { weight: 0 },
+                    },
+                },
+            });
+        });
+
+        // FIXME: need to figure out how to handle this situation. Skip for now.
+        // The field 'friends' returns a list of an unknown number of objects.
+        xtest('fields returning lists of objects of indeterminate size', () => {
+            schema = buildSchema(`
+                type Human {
+                    id: ID!
+                    name: String!
+                    homePlanet: String
+                    friends: [Human]
+                }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                human: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        hamePlanet: { weight: 0 },
+                        friends: {
+                            resolvesTo: 'human',
+                            weight: expect.any(Function),
+                        },
+                    },
+                },
+            });
+        });
+
+        // TODO: Write tests for connection pagination convention
+        xtest('connections pagination convention', () => {
+            schema = buildSchema(`
+            type Query {
+                hero(id: ID): Character
+            }
+            type Character {
+                id: ID!
+                name: String!
+                friends(first: Int): [Character]
+                friendsConnection(first: Int, after: ID): FriendsConnection!
+            }
+            type FriendsConnection {
+                totalCount: Int
+                edges: [FriendsEdge]
+                friends: [Character]
+                pageInfo: PageInfo!
+            }
+            type FriendsEdge {
+                cursor: ID!
+                node: Character
+            }
+            type PageInfo {
+                startCursor: ID
+                endCursor: ID
+                hasNextPage: Boolean!
+            }
+            `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                query: {
+                    weight: 1,
+                    fields: {
+                        hero: { resolveTo: 'character' },
+                    },
+                },
+                character: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                        friends: { resolveTo: 'character', weight: expect.any(Function) },
+                        friendsConnection: { resolveTo: 'friendsConnection' },
+                    },
+                },
+                friendsConnection: {
+                    weight: 2,
+                    fields: {
+                        totalCount: { weight: 0 },
+                        // edges: {resolveTo: } //TODO: finish spec'ing out how the typeweight object should look for connections
+                    },
+                },
+                friendsEdge: {},
+                pageInfo: {},
+            });
+        });
+
+        describe('mutation types...', () => {
+            test('a mutation type and a query type', () => {
+                schema = buildSchema(`
+                    type Query {
+                        name: String
+                        email: String
+                    }   
+                
+                    type Mutation {
+                        name: String
+                        email: String
+                    }
+                `);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    mutation: {
+                        weight: 10,
+                        fields: {
+                            name: { weight: 0 },
+                            email: { weight: 0 },
+                        },
+                    },
+                    query: {
+                        weight: 1,
+                        fields: {
+                            name: { weight: 0 },
+                            email: { weight: 0 },
+                        },
+                    },
+                });
+            });
+
+            test('a mutation type an input type', () => {
+                schema = buildSchema(`
+                type Mutation {
+                    login(user: UserInput!): User
+                }
+                type User{
+                    id: ID!
+                    email: String!
+                    password: String!
+                }
+                input UserInput {
+                    email: String!
+                    password: String!
+                }
+                `);
+
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    mutation: {
+                        weight: 10,
+                        fields: {
+                            login: { resolveTo: 'user' },
+                        },
+                    },
+                    user: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            email: { weight: 0 },
+                            password: { weight: 0 },
+                        },
+                    },
+                });
             });
         });
 
@@ -486,13 +700,14 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                             },
                         },
                     },
-                    human: {
+                    droid: {
                         weight: 1,
                         fields: {
-                            id: { weight: 0 },
-                            friends: {
-                                resolveTo: 'human',
-                                weight: 10,
+                            name: { weight: 0 },
+                            primaryFunction: { weight: 0 },
+                            search: {
+                                resolveTo: 'searchresult',
+                                weight: expect.any(Function),
                             },
                         },
                     },
@@ -502,23 +717,29 @@ describe('Test buildTypeWeightsFromSchema function', () => {
 
         test('interface types', () => {
             schema = buildSchema(`
+                union SearchResult = Human | Droid
                 interface Character {
                     id: ID!
                     name: String!                    
                 }
-            
                 type Human implements Character {
                     id: ID!
                     name: String!
                     homePlanet: String
                 }
-            
                 type Droid implements Character {
                     id: ID!
                     name: String!                
                     primaryFunction: String
                 }`);
             expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                searchresult: {
+                    weight: 1,
+                    fields: {
+                        id: { weight: 0 },
+                        name: { weight: 0 },
+                    },
+                },
                 character: {
                     weight: 1,
                     fields: {
@@ -529,24 +750,152 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 human: {
                     weight: 1,
                     fields: {
-                        id: { weight: 0 },
                         name: { weight: 0 },
                         homePlanet: { weight: 0 },
+                        id: { weight: 0 },
                     },
                 },
                 droid: {
                     weight: 1,
                     fields: {
-                        id: { weight: 0 },
                         name: { weight: 0 },
                         primaryFunction: { weight: 0 },
+                        id: { weight: 0 },
                     },
                 },
             });
         });
 
-        describe('union types', () => {
-            test('union types', () => {
+        test('object types', () => {
+            schema = buildSchema(`
+                    union SearchResult = Human | Droid
+                    type Human{
+                        name: String
+                        homePlanet: String
+                        info: Info
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Droid {
+                        name: String
+                        primaryFunction: String
+                        info: Info
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Info {
+                        height: Int
+                    }
+                    `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                searchresult: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                        info: { resolveTo: 'info' },
+                    },
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        homePlanet: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                        info: { resolveTo: 'info' },
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        primaryFunction: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                        info: { resolveTo: 'info' },
+                    },
+                },
+                info: {
+                    weight: 1,
+                    fields: {
+                        height: { weight: 0 },
+                    },
+                },
+            });
+        });
+
+        test('enum types', () => {
+            schema = buildSchema(`
+                    union SearchResult = Human | Droid
+                    type Human{
+                        name: String
+                        homePlanet: String
+                        episode: Episode
+                        search(first: Int!): [SearchResult]
+                    }
+                    type Droid {
+                        name: String
+                        primaryFunction: String
+                        episode: Episode
+                        search(first: Int!): [SearchResult]
+                    }
+                    enum Episode {
+                        NEWHOPE
+                        EMPIRE
+                        JEDI
+                    }
+                    `);
+            expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                searchresult: {
+                    weight: 1,
+                    fields: {
+                        episode: { resolveTo: 'episode' },
+                        name: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                    },
+                },
+                human: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        homePlanet: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                        episode: { resolveTo: 'episode' },
+                    },
+                },
+                droid: {
+                    weight: 1,
+                    fields: {
+                        name: { weight: 0 },
+                        primaryFunction: { weight: 0 },
+                        search: {
+                            resolveTo: 'searchresult',
+                            weight: expect.any(Function),
+                        },
+                        episode: { resolveTo: 'episode' },
+                    },
+                },
+                episode: {
+                    weight: 0,
+                    fields: {},
+                },
+            });
+        });
+
+        describe('union types with ...', () => {
+            test('lists of union types and scalars', () => {
                 schema = buildSchema(`
                     union SearchResult = Human | Droid
                     type Human{
@@ -581,30 +930,46 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                             },
                         },
                     },
-                    droid: {
+                });
+            });
+
+            test('Unions with no fields overlapping', () => {
+                schema = buildSchema(`
+            union SearchResult = Human | Droid
+            type Human{
+                name: String
+                homePlanet: String
+            }
+            type Droid {
+                primaryFunction: String
+                id: String
+            }
+            `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    searchresult: {
+                        weight: 1,
+                        fields: {},
+                    },
+                    human: {
                         weight: 1,
                         fields: {
                             name: { weight: 0 },
+                            homePlanet: { weight: 0 },
+                        },
+                    },
+                    droid: {
+                        weight: 1,
+                        fields: {
                             primaryFunction: { weight: 0 },
-                            search: {
-                                resolveTo: 'searchresult',
-                                weight: expect.any(Function),
-                            },
+                            id: { weight: 0 },
                         },
                     },
                 });
             });
 
-            xtest('additional test cases for ...', () => {
-                // TODO: unions with non-null types
-                // unions with lists of non-null types
-                // lists with > 2 levels of nesting (may need to add these for lists on other types as well)
-            });
-        });
-
-        xdescribe('Not null operator (!) is used', () => {
-            test('on a scalar, enum or object type', () => {
-                schema = buildSchema(`
+            describe('Not null operator (!) is used', () => {
+                test('on a scalar, enum or object type', () => {
+                    schema = buildSchema(`
                 type Human{
                     homePlanet: String!
                     age: Int!
@@ -622,44 +987,44 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 }
                 `);
 
-                expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                    human: {
-                        weight: 1,
-                        fields: {
-                            homePlanet: {
-                                weight: 0,
-                            },
-                            age: {
-                                weight: 0,
-                            },
-                            isHero: {
-                                weight: 0,
-                            },
-                            droids: {
-                                resolveTo: 'droid',
-                            },
-                            episode: {
-                                resolveTo: 'episode',
-                            },
-                        },
-                    },
-                    droid: {
-                        weight: 1,
-                        fields: {
-                            primaryFunction: {
-                                weight: 0,
+                    expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                        human: {
+                            weight: 1,
+                            fields: {
+                                homePlanet: {
+                                    weight: 0,
+                                },
+                                age: {
+                                    weight: 0,
+                                },
+                                isHero: {
+                                    weight: 0,
+                                },
+                                droids: {
+                                    resolveTo: 'droid',
+                                },
+                                episode: {
+                                    resolveTo: 'episode',
+                                },
                             },
                         },
-                    },
-                    episode: {
-                        weight: 0,
-                        fields: {},
-                    },
+                        droid: {
+                            weight: 1,
+                            fields: {
+                                primaryFunction: {
+                                    weight: 0,
+                                },
+                            },
+                        },
+                        episode: {
+                            weight: 0,
+                            fields: {},
+                        },
+                    });
                 });
-            });
 
-            test('on list types', () => {
-                schema = buildSchema(`
+                test('on list types', () => {
+                    schema = buildSchema(`
                 type Planet{
                     droids(first: Int!): [Droid]!
                     heroDroids(first: Int!): [Droid!]
@@ -669,40 +1034,95 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     primaryFunction: String
                 }`);
 
-                expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                    planet: {
-                        weight: 1,
-                        fields: {
-                            droids: {
-                                resolveTo: 'droid',
-                                weight: expect.any(Function),
-                            },
-                            heroDroids: {
-                                resolveTo: 'droid',
-                                weight: expect.any(Function),
-                            },
-                            villainDroids: {
-                                resolveTo: 'droid',
-                                weight: expect.any(Function),
-                            },
-                        },
-                    },
-                    droid: {
-                        weight: 1,
-                        fields: {
-                            primaryFunction: {
-                                weight: 0,
+                    expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                        planet: {
+                            weight: 1,
+                            fields: {
+                                droids: {
+                                    resolveTo: 'droid',
+                                    weight: expect.any(Function),
+                                },
+                                heroDroids: {
+                                    resolveTo: 'droid',
+                                    weight: expect.any(Function),
+                                },
+                                villainDroids: {
+                                    resolveTo: 'droid',
+                                    weight: expect.any(Function),
+                                },
                             },
                         },
-                    },
+                        droid: {
+                            weight: 1,
+                            fields: {
+                                primaryFunction: {
+                                    weight: 0,
+                                },
+                            },
+                        },
+                    });
+                });
+
+                test('on union types', () => {
+                    schema = buildSchema(`
+                union SearchResult = Human | Droid
+                type Human{
+                    age: Int!
+                    name: String
+                    homePlanet: String
+                    search(first: Int!): [SearchResult!]!
+                }
+                type Droid {
+                    age: Int!
+                    name: String
+                    primaryFunction: String!
+                    search(first: Int!): [SearchResult!]!
+                }`);
+                    expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                        searchresult: {
+                            weight: 1,
+                            fields: {
+                                name: { weight: 0 },
+                                age: { weight: 0 },
+                                search: {
+                                    resolveTo: 'searchresult',
+                                    weight: expect.any(Function),
+                                },
+                            },
+                        },
+                        human: {
+                            weight: 1,
+                            fields: {
+                                name: { weight: 0 },
+                                age: { weight: 0 },
+                                homePlanet: { weight: 0 },
+                                search: {
+                                    resolveTo: 'searchresult',
+                                    weight: expect.any(Function),
+                                },
+                            },
+                        },
+                        droid: {
+                            weight: 1,
+                            fields: {
+                                name: { weight: 0 },
+                                age: { weight: 0 },
+                                primaryFunction: { weight: 0 },
+                                search: {
+                                    resolveTo: 'searchresult',
+                                    weight: expect.any(Function),
+                                },
+                            },
+                        },
+                    });
                 });
             });
-        });
 
-        // TODO: Tests should be written to account for the additional scenarios possible in a schema
-        // Mutation type
-        // Input types (a part of mutations?)
-        // Subscription type
+            // TODO: Tests should be written to account for the additional scenarios possible in a schema
+            // Mutation type
+            // Input types (a part of mutations?)
+            // Subscription type
+        });
     });
 
     describe('changes "type weight object" type weights with user configuration of...', () => {
@@ -713,6 +1133,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                 type Query {
                     user(id: ID!): User
                     movie(id: ID!): Movie
+                }
+
+                type Mutation {
+                    updateUser(id: ID!, password: String!): User
                 }
                 
                 type User {
@@ -736,6 +1160,12 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                         user: { resolveTo: 'user' },
                     },
                 },
+                mutation: {
+                    weight: 10,
+                    fields: {
+                        updateUser: { resolveTo: 'user' },
+                    },
+                },
                 user: {
                     weight: 1,
                     fields: {
@@ -754,11 +1184,20 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         });
 
         // this is only if we choose to have 'query' as its own property (seperate from object types) in the user configuration options
-        xtest('query parameter', () => {
+        test('query parameter', () => {
             const typeWeightObject = buildTypeWeightsFromSchema(schema, {
                 query: 2,
             });
             expectedOutput.query.weight = 2;
+
+            expect(typeWeightObject).toEqual(expectedOutput);
+        });
+
+        test('mutation parameter', () => {
+            const typeWeightObject = buildTypeWeightsFromSchema(schema, {
+                mutation: 20,
+            });
+            expectedOutput.mutation.weight = 20;
 
             expect(typeWeightObject).toEqual(expectedOutput);
         });
@@ -798,8 +1237,6 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             expect(typeWeightObject).toEqual(expectedOutput);
         });
 
-        // TODO: Tests should be written for the remaining configuration options
-        // mutations
         // connections
         // subscriptions
     });
