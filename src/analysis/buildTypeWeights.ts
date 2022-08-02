@@ -118,19 +118,16 @@ function parseObjectFields(
                 const directives = fields[field].astNode?.directives;
 
                 if (directives && directives.length > 0) {
-                    // eslint-disable-next-line consistent-return
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
-                            if (dir.arguments && dir.arguments[0])
+                            if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
                                 result.fields[field] = {
                                     resolveTo: listType.toString().toLocaleLowerCase(),
-                                    weight: Number(
-                                        // ts-error:  'value does not exist on type ConstValueNode'
-                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                                        // @ts-ignore
-                                        dir.arguments[0].value.value
-                                    ),
+                                    weight: Number(dir.arguments[0].value.value),
                                 };
+                                return result;
+                            } else
+                                throw new SyntaxError(`@listCost directive improperly configured`);
                         }
                     });
                 }
@@ -176,7 +173,7 @@ function parseObjectFields(
                                     return Number(arg.defaultValue) * (selectionsCost + weight);
                                 }
 
-                                // FIXME: The list is unbounded. Return the object weight for
+                                // if an unbounded list has no @listCost directive attached
                                 throw new Error(
                                     `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
                                             or limit query results with ${KEYWORDS}`

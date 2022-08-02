@@ -388,9 +388,10 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        // the field 'humans' on Query returns an unbounded list
-        test('query definitions returning lists of indeterminate size', () => {
-            schema = buildSchema(`
+        describe('lists of objects of indeterminate size...', () => {
+            // the field 'humans' on Query returns an unbounded list
+            test('query definition with @listCost directive', () => {
+                schema = buildSchema(`
                 directive @listCost(cost: Int!) on FIELD_DEFINITION
                 type Human {
                     id: ID!
@@ -399,67 +400,103 @@ describe('Test buildTypeWeightsFromSchema function', () => {
                     humans: [Human] @listCost(cost: 10)
                 }
             `);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                human: {
-                    weight: 1,
-                    fields: {
-                        id: { weight: 0 },
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                        },
                     },
-                },
-                query: {
-                    weight: 1,
-                    fields: {
-                        humans: { weight: 10, resolveTo: 'human' },
+                    query: {
+                        weight: 1,
+                        fields: {
+                            humans: { weight: 10, resolveTo: 'human' },
+                        },
                     },
-                },
+                });
             });
-        });
 
-        // The field 'friends' returns a list of an unknown number of objects.
-        test('fields returning lists of objects of indeterminate size', () => {
-            schema = buildSchema(`
+            // The field 'friends' returns a list of an unknown number of objects.
+            test('field with @listCost directive', () => {
+                schema = buildSchema(`
                 directive @listCost(cost: Int!) on FIELD_DEFINITION
                 type Human {
                     id: ID!
                     friends: [Human] @listCost(cost: 10)
                 }
             `);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                human: {
-                    weight: 1,
-                    fields: {
-                        id: { weight: 0 },
-                        friends: {
-                            resolveTo: 'human',
-                            weight: 10,
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            friends: {
+                                resolveTo: 'human',
+                                weight: 10,
+                            },
                         },
                     },
-                },
+                });
             });
-        });
 
-        // this test is just in place to make sure additional directives don't cause errors
-        test('fields returning lists of objects of indeterminate size with multiple directives', () => {
-            schema = buildSchema(`
+            // this test is just in place to make sure additional directives don't cause errors
+            test('field with multiple directives', () => {
+                schema = buildSchema(`
                 directive @listCost(cost: Int!) on FIELD_DEFINITION
                 directive @testDirective(test: Int!) on FIELD_DEFINITION
                 directive @testDirective2(test: Int!) on FIELD_DEFINITION
                 type Human {
                     id: ID!
-                    friends: [Human] @testDirective2(test: 10) @listCost(cost: 10) @testDirective(test: 10)
+                    friends: [Human] @testDirective2(test: 99) @listCost(cost: 10) @testDirective(test: 99)
                 }
             `);
-            expect(buildTypeWeightsFromSchema(schema)).toEqual({
-                human: {
-                    weight: 1,
-                    fields: {
-                        id: { weight: 0 },
-                        friends: {
-                            resolveTo: 'human',
-                            weight: 10,
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            friends: {
+                                resolveTo: 'human',
+                                weight: 10,
+                            },
                         },
                     },
-                },
+                });
+            });
+
+            // makes sure that splicing takes priority over directives
+            test('query with both splicing args and @listCost directive', () => {
+                schema = buildSchema(`
+                directive @listCost(cost: Int!) on FIELD_DEFINITION
+                type Query {
+                    humans(first: Int): [Human] @listCost(cost: 10)
+                }
+                type Human {
+                    id: ID!
+                    friends: [Human] @listCost(cost: 10)
+                }
+            `);
+                expect(buildTypeWeightsFromSchema(schema)).toEqual({
+                    query: {
+                        weight: 1,
+                        fields: {
+                            humans: {
+                                resolveTo: 'human',
+                                weight: expect.any(Function),
+                            },
+                        },
+                    },
+                    human: {
+                        weight: 1,
+                        fields: {
+                            id: { weight: 0 },
+                            friends: {
+                                resolveTo: 'human',
+                                weight: 10,
+                            },
+                        },
+                    },
+                });
             });
         });
 

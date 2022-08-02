@@ -799,6 +799,19 @@ describe('Test getQueryTypeComplexity function', () => {
             });
         });
 
+        /**
+         * Leaving this test in for future refinements to unbound list handling
+         */
+        xtest('with lists of unknown size', () => {
+            query = `query { 
+                search(text: 'hi') { 
+                    id
+                    name
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11);
+        });
+
         test('with lists determined by arguments and variables', () => {
             query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
             mockWeightFunction.mockReturnValueOnce(3);
