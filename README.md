@@ -72,7 +72,7 @@ app.use(
         - `options: RedisOptions` | [ioredis configuration options](https://github.com/luin/ioredis) | defaults to standard ioredis connection options (`localhost:6379`)
         - `keyExpiry: number` (ms) | custom expiry of keys in redis cache | defaults to 24 hours
 
-    - `typeWeights: TypeWeightObject`
+    - <a name="typeWeights"></a>`typeWeights: TypeWeightObject`
 
         - `mutation: number` | assigned weight to mutations | defaults to 10
         - `query: number` | assigned weight of a query | defaults to 1
@@ -81,7 +81,7 @@ app.use(
 
     - `depthLimit: number` | throttle queies by the depth of the nested stucture | defaults to `Infinity` (ie. no limit)
     - `enforceBoundedLists: boolean` | if true, an error will be thrown if any lists types are not bound by slicing arguments [`first`, `last`, `limit`] or directives | defaults to `false`
-    - `dark: boolean` | if true, the package will calculate complexity, depth and tokens but not throttle any queries. Use this to dark launch the package and monitor what would happen if rate limiting was added to yaur application
+    - `dark: boolean` | if true, the package will calculate complexity, depth and tokens but not throttle any queries. Use this to dark launch the package and monitor the rate limiter's impact without limiting user requests. 
 
     All configuration options
 
@@ -113,27 +113,27 @@ app.use(
     
 ## <a name="lists"></a> Notes on Lists
 
-The complexity for list types can be set in the schema with the use of directives, or in the query by the varibales passed to the field as slicing arguments.
+For queries that return a list, the complexity can be determined with schema directives, or by providing a slicing argument to the query (`first`, `last`, `limit).
 
-1. Slicing arguments: lists must be bounded by one integer slicing argument in order to calculate the comlexity for the field. This package supports the slicing arguments `first`, `last` and `limit`. The complexity of the list will be the value passed as the argument to the field.
+1. Slicing arguments: lists must be bounded by one integer slicing argument in order to calculate the complexity for the field. This package supports the slicing arguments `first`, `last` and `limit`. The complexity of the list will be the value passed as the argument to the field.
 
 2. Directives: ... TODO ...
    
 
 ## <a name="how-it-works"></a> How It Works
 
-Rate-limiting is done by IP address.
+Requests are rate-limited based on the IP address associated with the request.
 
-On server start, the GraphQL (GQL) schema is parsed to build an object that maps GQL types/fields to values corresponding to the weights assigned to each GQL type/field. This object is used internally to cross reference the fields queried by the user with the weight to apply that field when totaling the overall complexity of the query. 
+On server start, the GraphQL (GQL) schema is parsed to build an object that maps GQL types/fields to their corresponding weights. Type weights can be provided during <a href="typeWeights">initial configuration</a>. When a request is received, this object is used to cross reference the fields queried by the user and compute the complexity of each field. The total complexity of the request is the sum of these values.  
 
-For each request, the query is parsed and traversed to total the overall complexity of the query based on the type/field weights configured on setup. This is done statically (before any resolvers are called) to estimate the upper bound of response size of the request - a proxy for the work done by the server to build the response. The total complexity is then used to allow/block the request based on popular rate-limiting algorithms.
+Complexity is determined, statically (before any resolvers are called) to estimate the upper bound of the response size - a proxy for the work done by the server to build the response. The total complexity is then used to allow/block the request based on popular rate-limiting algorithms.
 
-If a user sends two request simustaneously, the trailing request will wait for the first one to complete any asyncronous work before being processed.
+Requests for each user are processed sequentially by the rate limiter. 
 
 Example (with default weights):
 
 ```javascript
-query { //  1
+query { //  1 (complexity)
    hero (episode: EMPIRE) { // 1
       name // 0
       id // 0
@@ -152,13 +152,13 @@ query { //  1
 
 ## <a name="response"></a> Response
 
-1. Blocked Requests: blocked requests recieve a response with, 
+1. <b>Blocked Requests</b>: blocked requests recieve a response with, 
 
-   -  status of `429` for ` Too Many Requests` 
+   -  status of `429` for `Too Many Requests` 
    -  `Retry-After` header with a value of the time to wait in seconds before the request would be approved (`Infinity` if the complexity is greater than rate-limiting capacity). 
-   -  A JSON response with the `tokens` available, `complexity` of the query, `depth` of the query, `success` of the query set to `false`, and the `timestamp` of the request in ms
+   -  A JSON response with the `tokens` available, `complexity` of the query, `depth` of the query, `success` of the query set to `false`, and the UNIX `timestamp` of the request
    
-2. Successful Requests: successful request are passed onto the next function in the middleware chain with the following properties saved to `res.locals`
+2. <b>Successful Requests</b>: successful requests are passed onto the next function in the middleware chain with the following properties saved to `res.locals`
 
 ```javascript
 {
@@ -179,12 +179,13 @@ query { //  1
 
 ## <a name="future-development"></a> Future Development
 
--   the ability to use this package with other caching technologies or libraries
--   implement "resolve complexity analysis" for queries
--   implement leaky bucket algorithm for rate-limiting
--   experiment with performance improvements
+-   Ability to use this package with other caching technologies or libraries
+-   Implement "resolve complexity analysis" for queries
+-   Implement leaky bucket algorithm for rate-limiting
+-   Experiment with performance improvements
     -   caching optimization
--   ensure connection pagination conventions can be accuratly acconuted for in comprlexity analysis 
+-   Ensure connection pagination conventions can be accuratly acconuted for in complexity analysis 
+-   Ability to use middleware with other server frameworks
 
 ## <a name="contributions"></a> Contributions
 
