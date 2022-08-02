@@ -158,9 +158,9 @@ function parseObjectFields(
                                 const weight = isCompositeType(listType)
                                     ? typeWeightObject[listType.name.toLowerCase()].weight
                                     : typeWeights.scalar; // Note this includes enums
+                                let multiplier = 1;
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
-                                    let multiplier = 1;
                                     if (Kind.INT === node.kind) {
                                         multiplier = Number(node.value || arg.defaultValue);
                                     }
@@ -169,16 +169,13 @@ function parseObjectFields(
                                             variables[node.name.value] || arg.defaultValue
                                         );
                                     }
-                                    return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
-                                }
-
-                                // if there is no argument provided with the query, check the schema for a default
-                                if (arg.defaultValue) {
-                                    return Number(arg.defaultValue) * (selectionsCost + weight);
+                                } else if (arg.defaultValue) {
+                                    // if there is no argument provided with the query, check the schema for a default
+                                    multiplier = Number(arg.defaultValue);
                                 }
                                 // if there is no argument or default value, return 0 complexity
-                                return 1;
+                                return multiplier * (selectionsCost + weight);
                             },
                         };
                     }
