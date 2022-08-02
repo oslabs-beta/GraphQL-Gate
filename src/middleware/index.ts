@@ -4,7 +4,11 @@ import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
-import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
+import {
+    ExpressMiddlewareConfig,
+    ExpressMiddlewareSet,
+    RequestWithVariables,
+} from '../@types/expressMiddleware';
 import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
 import ASTParser from '../analysis/ASTParser';
@@ -138,7 +142,16 @@ export default function expressGraphQLRateLimiter(
         next: NextFunction
     ): Promise<void | Response<any, Record<string, any>>> => {
         const requestTimestamp = new Date().valueOf();
-        const { query, variables }: { query: string; variables: any } = req.body;
+        // access the query and variables passed to the server in the body or query string
+        let query;
+        let variables;
+        if (req.query) {
+            query = req.query.query;
+            variables = req.query.variables;
+        } else if (req.body) {
+            query = req.body.query;
+            variables = req.body.variables;
+        }
         if (!query) {
             console.error(
                 'Error in expressGraphQLRateLimiter: There is no query on the request. Rate-Limiting skipped'
