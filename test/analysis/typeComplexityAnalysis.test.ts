@@ -661,26 +661,6 @@ describe('Test getQueryTypeComplexity function', () => {
                     expect(queryParser.processQuery(parse(query))).toBe(22);
                 });
 
-                xtest('that include a directive', () => {
-                    query = `
-                        query {
-                            hero(episode: EMPIRE) {
-                                ...@include(if: true) {
-                                    name
-                                    friends(first: 3) {
-                                        name
-                                    }
-                                }
-                                ... on Human {
-                                    homePlanet
-                                }
-                            }
-                        }`;
-                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
-                    // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
-                    expect(queryParser.processQuery(parse(query))).toBe(5);
-                });
-
                 test('and multiple fragments apply to the selection set', () => {
                     query = `
                         query {
@@ -814,7 +794,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     expect(queryParser.processQuery(parse(query))).toBe(5);
                 });
 
-                xtest('that include a directive', () => {
+                xtest('that include the "include" directive', () => {
                     query = `
                         query {
                             hero(episode: EMPIRE) {
@@ -832,6 +812,24 @@ describe('Test getQueryTypeComplexity function', () => {
                     mockCharacterFriendsFunction.mockReturnValueOnce(3);
                     // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
                     expect(queryParser.processQuery(parse(query))).toBe(5);
+
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ...@include(if: false) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
+                    expect(queryParser.processQuery(parse(query))).toBe(2);
                 });
 
                 test('and multiple fragments apply to the selection set', () => {
@@ -1105,25 +1103,6 @@ describe('Test getQueryTypeComplexity function', () => {
                 }
             }`;
             mockDroidFriendsFunction.mockReturnValueOnce(1);
-            queryParser.processQuery(parse(query));
-            expect(queryParser.maxDepth).toBe(3);
-        });
-
-        xtest('with inline fragments that contain an directive', () => {
-            query = `
-            query {
-                hero(episode: EMPIRE) {
-                    ...@include(if: true) {
-                        name
-                        friends(first: 3) {
-                            name
-                        }
-                    }
-                    ... on Human {
-                        homePlanet
-                    }
-                }
-            }`;
             queryParser.processQuery(parse(query));
             expect(queryParser.maxDepth).toBe(3);
         });
