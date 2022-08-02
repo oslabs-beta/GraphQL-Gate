@@ -128,8 +128,9 @@ function parseObjectFields(
                                     weight: Number(dir.arguments[0].value.value),
                                 };
                                 fieldAdded = true;
+                            } else {
+                                throw new SyntaxError(`@listCost directive improperly configured`);
                             }
-                            throw new SyntaxError(`@listCost directive improperly configured`);
                         }
                     });
                 }
