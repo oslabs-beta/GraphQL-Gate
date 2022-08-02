@@ -1226,7 +1226,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         beforeEach(() => {
             schema = buildSchema(`
                 type Query {
-                    user: User
+                    user: [User]
                     movie: Movie
                 }
                 
@@ -1255,6 +1255,12 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             );
             expect(() => buildTypeWeightsFromSchema(schema, { scalar: -1 })).toThrowError(
                 'negative'
+            );
+        });
+
+        test('there is an unbounded list and user chooses to enforce bounded lists', () => {
+            expect(() => buildTypeWeightsFromSchema(schema, {}, true)).toThrowError(
+                'ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, or limit query results with first,last,limit'
             );
         });
 

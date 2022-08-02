@@ -255,7 +255,7 @@ describe('Express Middleware tests', () => {
                 expect(mockResponse.locals?.graphqlGate.success).toBe(false);
             });
 
-            xtest('can be configured to throw an error for unbounded lists', () => {
+            test('can be configured to throw an error for unbounded lists', () => {
                 const unboundedSchema = `
                 Query {
                     biglist: [List]

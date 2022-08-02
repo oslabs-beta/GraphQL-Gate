@@ -184,8 +184,7 @@ function parseObjectFields(
                 // if an unbounded list has no @listCost directive attached
                 if (fieldAdded === false && enforceBoundedLists) {
                     throw new Error(
-                        `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
-                                            or limit query results with ${KEYWORDS}`
+                        `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, or limit query results with ${KEYWORDS}`
                     );
                 }
             }
