@@ -3,13 +3,15 @@ import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
 import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
- * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
+ * Here is the schema that creates the following 'typeWeightsObject' used for the tests
  * 
+    directive @listCost(cost: Int!) on FIELD_DEFINITION
+
     type Query {
         hero(episode: Episode): Character
         heroUnion(episode: Episode): SearchResult
         reviews(episode: Episode!, first: Int): [Review]
-        search(text: String): [SearchResult]
+        search(text: String): [SearchResult] @listCost(cost: 10)
         character(id: ID!): Character
         droid(id: ID!): Droid
         human(id: ID!): Human
@@ -146,7 +148,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     },
                     search: {
                         resolveTo: 'searchresult',
-                        weight: jest.fn(), // FIXME: Unbounded list result
+                        weight: 10,
                     },
                     character: {
                         resolveTo: 'character',
@@ -848,17 +850,16 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         /**
-         * FIXME: handle lists of unknown size. change the expected result Once we figure out the implementation.
+         * Leaving this test in for future refinements to unbound list handling
          */
         xtest('with lists of unknown size', () => {
-            query = `
-            query { 
+            query = `query { 
                 search(text: 'hi') { 
                     id
                     name
                 }
             }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11);
         });
 
         test('with lists determined by arguments and variables', () => {

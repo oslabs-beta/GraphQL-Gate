@@ -15,7 +15,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/oslabs-beta/graph-beaver.git"
+        "url": "git+https://github.com/oslabs-beta/graphql-gate.git"
     },
     "keywords": [
         "graphql",
@@ -64,6 +64,7 @@
         "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
     },
     "dependencies": {
+        "@graphql-tools/utils": "^8.8.0",
         "graphql": "^16.5.0",
         "ioredis": "^5.0.5"
     }
