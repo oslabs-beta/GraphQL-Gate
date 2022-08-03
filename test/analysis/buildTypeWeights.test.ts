@@ -602,7 +602,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             });
         });
 
-        describe('lists of objects of indeterminate size...', () => {
+        xdescribe('lists of objects of indeterminate size...', () => {
             // the field 'humans' on Query returns an unbounded list
             test('query definition with @listCost directive', () => {
                 schema = buildSchema(`
@@ -895,7 +895,7 @@ describe('Test buildTypeWeightsFromSchema function', () => {
         });
 
         describe('union types with ...', () => {
-            test('lists of union types and scalars', () => {
+            xtest('lists of union types and scalars', () => {
                 schema = buildSchema(`
                     union SearchResult = Human | Droid
                     type Human{
