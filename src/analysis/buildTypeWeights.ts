@@ -13,7 +13,6 @@ import {
     isObjectType,
     isScalarType,
     isUnionType,
-    isInputType,
     Kind,
     ValueNode,
     GraphQLUnionType,
@@ -49,20 +48,20 @@ export const defaultTypeWeightsConfig: TypeWeightSet = {
     query: DEFAULT_QUERY_WEIGHT,
 };
 
-// FIXME: What about Interface defaults
-
 /**
  * Parses the fields on an object type (query, object, interface) and returns field weights in type weight object format
  *
  * @param {(GraphQLObjectType | GraphQLInterfaceType)} type
  * @param {TypeWeightObject} typeWeightObject
  * @param {TypeWeightSet} typeWeights
+ * @param {boolean} enforceBoundedLists
  * @return {*}  {Type}
  */
 function parseObjectFields(
     type: GraphQLObjectType | GraphQLInterfaceType,
     typeWeightObject: TypeWeightObject,
-    typeWeights: TypeWeightSet
+    typeWeights: TypeWeightSet,
+    enforceBoundedLists: boolean
 ): Type {
     let result: Type;
     switch (type.name) {
@@ -113,20 +112,28 @@ function parseObjectFields(
                     resolveTo: listType.toString().toLocaleLowerCase(),
                 };
             } else {
+                // fieldAdded is a boolean flag to check if we have added a something to the typeweight object for this field.
+                // if we reach end of the list and fieldAdded is false, we have an unbounded list.
+                let fieldAdded = false;
                 // if the @listCost directive is given for the field,
                 // apply the cost argument's value to the field's weight
                 const directives = fields[field].astNode?.directives;
-
                 if (directives && directives.length > 0) {
                     directives.forEach((dir) => {
                         if (dir.name.value === 'listCost') {
-                            if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
+                            fieldAdded = true;
+                            if (
+                                dir.arguments &&
+                                dir.arguments[0].value.kind === Kind.INT &&
+                                Number(dir.arguments[0].value.value) >= 0
+                            ) {
                                 result.fields[field] = {
                                     resolveTo: listType.toString().toLocaleLowerCase(),
                                     weight: Number(dir.arguments[0].value.value),
                                 };
+                            } else {
+                                throw new SyntaxError(`@listCost directive improperly configured`);
                             }
-                            throw new SyntaxError(`@listCost directive improperly configured`);
                         }
                     });
                 }
@@ -137,6 +144,7 @@ function parseObjectFields(
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
+                        fieldAdded = true;
                         result.fields[field] = {
                             resolveTo: listType.toString().toLocaleLowerCase(),
                             weight: (
@@ -150,9 +158,9 @@ function parseObjectFields(
                                 const weight = isCompositeType(listType)
                                     ? typeWeightObject[listType.name.toLowerCase()].weight
                                     : typeWeights.scalar; // Note this includes enums
+                                let multiplier = 1;
                                 if (limitArg) {
                                     const node: ValueNode = limitArg.value;
-                                    let multiplier = 1;
                                     if (Kind.INT === node.kind) {
                                         multiplier = Number(node.value || arg.defaultValue);
                                     }
@@ -161,30 +169,28 @@ function parseObjectFields(
                                             variables[node.name.value] || arg.defaultValue
                                         );
                                     }
-                                    return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
+                                } else if (arg.defaultValue) {
+                                    // if there is no argument provided with the query, check the schema for a default
+                                    multiplier = Number(arg.defaultValue);
                                 }
-
-                                // if there is no argument provided with the query, check the schema for a default
-                                if (arg.defaultValue) {
-                                    return Number(arg.defaultValue) * (selectionsCost + weight);
-                                }
-
-                                // if an unbounded list has no @listCost directive attached
-                                throw new Error(
-                                    `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
-                                            or limit query results with ${KEYWORDS}`
-                                );
+                                // if there is no argument or defaultValue, multiplier will still be one, effectively making list size equel to 1 as a last resort
+                                return multiplier * (selectionsCost + weight);
                             },
                         };
                     }
                 });
+
+                // throw an error if an unbounded list has no @listCost directive attached or slicing arguments
+                // and the enforceBoundedLists configuration option is sent to true
+                if (fieldAdded === false && enforceBoundedLists) {
+                    throw new Error(
+                        `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, or limit query results with ${KEYWORDS}`
+                    );
+                }
             }
-        } else if (isNonNullType(fieldType)) {
-            // TODO: Implment non-null types
-            // not throwing and error since it causes typeWeight tests to break
         } else {
-            // ? what else can get through here
+            // FIXME what else can get through here
             throw new Error(`ERROR: buildTypeWeight: Unsupported field type: ${fieldType}`);
         }
     });
@@ -348,9 +354,14 @@ function parseUnionTypes(
  * and built in types that begin with '__' and outputs a new TypeWeightObject
  * @param schema
  * @param typeWeights
+ * @param enforceBoundedLists
  * @returns
  */
-function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeightObject {
+function parseTypes(
+    schema: GraphQLSchema,
+    typeWeights: TypeWeightSet,
+    enforceBoundedLists: boolean
+): TypeWeightObject {
     const typeMap: ObjMap<GraphQLNamedType> = schema.getTypeMap();
 
     const result: TypeWeightObject = {};
@@ -366,7 +377,12 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
         if (!type.startsWith('__')) {
             if (isObjectType(currentType) || isInterfaceType(currentType)) {
                 // Add the type and it's associated fields to the result
-                result[typeName] = parseObjectFields(currentType, result, typeWeights);
+                result[typeName] = parseObjectFields(
+                    currentType,
+                    result,
+                    typeWeights,
+                    enforceBoundedLists
+                );
             } else if (isEnumType(currentType)) {
                 result[typeName] = {
                     fields: {},
@@ -393,28 +409,36 @@ function parseTypes(schema: GraphQLSchema, typeWeights: TypeWeightSet): TypeWeig
  *  - validate that the typeWeightsConfig parameter has no negative values (throw an error if it does)
  *
  * @param schema
+ * @param enforceBoundedLists Defaults to false
  * @param typeWeightsConfig Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  */
 function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
-    typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig
+    typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig,
+    enforceBoundedLists = false
 ): TypeWeightObject {
-    if (!schema) throw new Error('Missing Argument: schema is required');
+    try {
+        if (!schema) throw new Error('Missing Argument: schema is required');
 
-    //  Merge the provided type weights with the default to account for missing values
-    const typeWeights: TypeWeightSet = {
-        ...defaultTypeWeightsConfig,
-        ...typeWeightsConfig,
-    };
+        //  Merge the provided type weights with the default to account for missing values
+        const typeWeights: TypeWeightSet = {
+            ...defaultTypeWeightsConfig,
+            ...typeWeightsConfig,
+        };
 
-    // Confirm that any custom weights are non-negative
-    Object.entries(typeWeights).forEach((value: [string, number]) => {
-        if (value[1] < 0) {
-            throw new Error(`Type weights cannot be negative. Received: ${value[0]}: ${value[1]} `);
-        }
-    });
+        // Confirm that any custom weights are non-negative
+        Object.entries(typeWeights).forEach((value: [string, number]) => {
+            if (value[1] < 0) {
+                throw new Error(
+                    `Type weights cannot be negative. Received: ${value[0]}: ${value[1]} `
+                );
+            }
+        });
 
-    return parseTypes(schema, typeWeights);
+        return parseTypes(schema, typeWeights, enforceBoundedLists);
+    } catch (err) {
+        throw new Error(`Error in expressGraphQLRateLimiter when parsing schema object: ${err}`);
+    }
 }
 
 export default buildTypeWeightsFromSchema;
