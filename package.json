@@ -4,7 +4,9 @@
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "src/middleware/index.ts",
     "type": "module",
-    "files": ["src"],
+    "files": [
+        "src"
+    ],
     "scripts": {
         "test": "jest --passWithNoTests --coverage --detectOpenHandles",
         "lint": "eslint src test",
@@ -64,7 +66,6 @@
         "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
     },
     "dependencies": {
-        "@graphql-tools/utils": "^8.8.0",
         "graphql": "^16.5.0",
         "ioredis": "^5.0.5"
     }
