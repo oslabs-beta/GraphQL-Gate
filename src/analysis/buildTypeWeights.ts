@@ -125,9 +125,8 @@ function parseObjectFields(
                                     resolveTo: listType.toString().toLocaleLowerCase(),
                                     weight: Number(dir.arguments[0].value.value),
                                 };
-                                return result;
-                            } else
-                                throw new SyntaxError(`@listCost directive improperly configured`);
+                            }
+                            throw new SyntaxError(`@listCost directive improperly configured`);
                         }
                     });
                 }
