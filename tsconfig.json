@@ -36,12 +36,11 @@
     "include": [
         "src/**/*.ts",
         "src/**/*.js",
-        "test/**/*.ts",
-        "test/**/*.js"
     ],
     "exclude": [
         "node_modules",
         "**/*.spec.ts",
-        "dist"
+        "dist",
+        "test"
     ]
 }
