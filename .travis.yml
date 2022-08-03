@@ -19,7 +19,6 @@ script:
 deploy:
     on:
         branch: main
-        tags: true
     skip_cleanup: false
     provider: npm
     email: $NPM_EMAIL_ADDRESS

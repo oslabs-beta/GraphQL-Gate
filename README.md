@@ -26,7 +26,7 @@
 Install the package
 
 ```
-npm i graphqlgate
+npm i graphql-limiter
 ```
 
 Import the package and add the rate-limiting middlleware to the Express middleware chain before the GraphQL server.
@@ -35,7 +35,7 @@ NOTE: a Redis server instance will need to be started in order for the limiter t
 
 ```javascript
 // import package
-import expressGraphQLRateLimiter from 'graphqlgate';
+import expressGraphQLRateLimiter from 'graphql-limiter';
 
 /**
  * Import other dependencies
