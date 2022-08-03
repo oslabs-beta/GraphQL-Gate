@@ -1,8 +1,13 @@
+import 'ts-jest';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
 import * as ioredis from 'ioredis';
 
 import { expressRateLimiter as expressRateLimitMiddleware } from '../../src/middleware/index';
+import * as redis from '../../src/utils/redis';
+
+// jest.mock('../../src/utils/redis');
+const mockConnect = jest.spyOn(redis, 'connect');
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');
@@ -16,7 +21,6 @@ const schema: GraphQLSchema = buildSchema(`
                 type Query {
                     hero(episode: Episode): Character
                     reviews(episode: Episode!, first: Int): [Review]
-                    search(text: String): [SearchResult]
                     character(id: ID!): Character
                     droid(id: ID!): Droid
                     human(id: ID!): Human
@@ -52,7 +56,6 @@ const schema: GraphQLSchema = buildSchema(`
                     stars: Int!
                     commentary: String
                 }
-                union SearchResult = Human | Droid
                 type Scalars {
                     num: Int,
                     id: ID,
@@ -67,9 +70,12 @@ const schema: GraphQLSchema = buildSchema(`
                 }
             `);
 
-xdescribe('Express Middleware tests', () => {
+describe('Express Middleware tests', () => {
+    afterEach(() => {
+        redis.shutdown();
+    });
     describe('Middleware is configurable...', () => {
-        describe('...successfully connects to redis using standard connection options', () => {
+        xdescribe('...successfully connects to redis using standard connection options', () => {
             beforeEach(() => {
                 // TODO: Setup mock redis store.
             });
@@ -96,7 +102,7 @@ xdescribe('Express Middleware tests', () => {
         describe('...Can be configured to use a valid algorithm', () => {
             test('... Token Bucket', () => {
                 // FIXME: Is it possible to check which algorithm was chosen beyond error checking?
-                expect(
+                expect(() =>
                     expressRateLimitMiddleware(
                         'TOKEN_BUCKET',
                         { refillRate: 1, bucketSize: 10 },
@@ -107,7 +113,7 @@ xdescribe('Express Middleware tests', () => {
             });
 
             xtest('...Leaky Bucket', () => {
-                expect(
+                expect(() =>
                     expressRateLimitMiddleware(
                         'LEAKY_BUCKET',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
@@ -118,7 +124,7 @@ xdescribe('Express Middleware tests', () => {
             });
 
             xtest('...Fixed Window', () => {
-                expect(
+                expect(() =>
                     expressRateLimitMiddleware(
                         'FIXED_WINDOW',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
@@ -129,7 +135,7 @@ xdescribe('Express Middleware tests', () => {
             });
 
             xtest('...Sliding Window', () => {
-                expect(
+                expect(() =>
                     expressRateLimitMiddleware(
                         'SLIDING_WINDOW_LOG',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
@@ -140,7 +146,7 @@ xdescribe('Express Middleware tests', () => {
             });
 
             xtest('...Sliding Window Counter', () => {
-                expect(
+                expect(() =>
                     expressRateLimitMiddleware(
                         'SLIDING_WINDOW_COUNTER',
                         { refillRate: 1, bucketSize: 10 }, // FIXME: Replace with valid params
@@ -151,16 +157,16 @@ xdescribe('Express Middleware tests', () => {
             });
         });
 
-        test('Throw an error for invalid schemas', () => {
+        xtest('Throw an error for invalid schemas', () => {
             const invalidSchema: GraphQLSchema = buildSchema(`{Query {name}`);
 
-            expect(
+            expect(() =>
                 expressRateLimitMiddleware('TOKEN_BUCKET', {}, invalidSchema, { path: '' })
             ).toThrowError('ValidationError');
         });
 
-        test('Throw an error in unable to connect to redis', () => {
-            expect(
+        xtest('Throw an error in unable to connect to redis', () => {
+            expect(async () =>
                 expressRateLimitMiddleware(
                     'TOKEN_BUCKET',
                     { bucketSize: 10, refillRate: 1 },
@@ -173,162 +179,215 @@ xdescribe('Express Middleware tests', () => {
 
     describe('Middleware is Functional', () => {
         // Before each test configure a new middleware amd mock req, res objects.
+        let ip = 0;
         beforeAll(() => {
             jest.useFakeTimers('modern');
+            mockConnect.mockImplementation(() => new RedisMock());
         });
 
         afterAll(() => {
             jest.useRealTimers();
+            jest.clearAllTimers();
+            jest.clearAllMocks();
         });
 
-        beforeEach(() => {
-            middleware = expressRateLimitMiddleware(
+        beforeEach(async () => {
+            middleware = await expressRateLimitMiddleware(
                 'TOKEN_BUCKET',
                 { refillRate: 1, bucketSize: 10 },
                 schema,
                 {}
             );
             mockRequest = {
-                query: {
+                body: {
                     // complexity should be 2 (1 Query + 1 Scalar)
-                    query: `Query {
-                    scalars: {
-                        num
-                    }
-                `,
+                    query: `query {
+                        scalars {
+                            num
+                        }
+                    }`,
                 },
-                ip: '123.456',
+                ip: `${(ip += 1)}`,
             };
 
             mockResponse = {
                 json: jest.fn(),
                 send: jest.fn(),
                 sendStatus: jest.fn(),
+                status: jest.fn().mockReturnThis(),
                 locals: {},
             };
 
             complexRequest = {
                 // complexity should be 10 if 'first' is accounted for.
                 // Query: 1, droid: 1, reviews 8: 1)
-                query: {
-                    query: `Query {
+                body: {
+                    query: `query {
                         droid(id: 1) {
                             name
                         }
-                        reviews(episode: 'NEWHOPE', first: 8) {
-                            episode 
+                        reviews(episode: NEWHOPE, first: 8) {
+                            episode
                             stars
                             commentary
                         }
-                `,
+                    } `,
                 },
+                ip: `${ip + 100}`,
             };
             nextFunction = jest.fn();
         });
 
         describe('Adds expected properties to res.locals', () => {
-            test('Adds UNIX timestamp and complexity', () => {
-                const expectedResponse = {
-                    locals: {},
+            test('Adds UNIX timestamp and complexity', async () => {
+                jest.useRealTimers();
+                await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                jest.useFakeTimers();
+                const expected = {
+                    complexity: expect.any(Number),
+                    timestamp: expect.any(Number),
+                    tokens: expect.any(Number),
                 };
 
-                middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                expect(mockResponse.locals?.graphqlGate).toEqual(expected);
+                expect(mockResponse.locals?.graphqlGate.complexity).toBeGreaterThanOrEqual(0);
 
-                expect(mockResponse.locals).toHaveProperty('complexity');
-                expect(mockResponse.locals?.complexity).toBeInstanceOf('number');
-                expect(mockResponse.locals?.complexity).toBeGreaterThanOrEqual(0);
-
-                expect(mockResponse.locals).toHaveProperty('timestamp');
-                expect(mockResponse.locals?.timestamp).toBeInstanceOf('number');
                 // confirm that this is timestamp +/- 5 minutes of now.
                 const now: number = Date.now().valueOf();
-                const diff: number = Math.abs(now - (mockResponse.locals?.timestamp || 0));
-                expect(diff).toBeLessThan(5 * 60);
+                const diff: number = Math.abs(
+                    now - (mockResponse.locals?.graphqlGate.timestamp || 0)
+                );
+                expect(diff).toBeLessThan(5 * 60 * 1000);
             });
         });
 
         describe('Correctly limits requests', () => {
             describe('Allows requests', () => {
-                test('...a single request', () => {
+                test('...a single request', async () => {
                     // successful request calls next without any arguments.
-                    middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                    await middleware(
+                        mockRequest as Request,
+                        mockResponse as Response,
+                        nextFunction
+                    );
                     expect(nextFunction).toBeCalledTimes(1);
                     expect(nextFunction).toBeCalledWith();
                 });
 
-                test('Multiple valid requests at > 1 second intervals', () => {
+                test('Multiple valid requests at > 10 second intervals', async () => {
+                    const requests = [];
                     for (let i = 0; i < 3; i++) {
-                        const next: NextFunction = jest.fn();
-                        middleware(complexRequest as Request, mockResponse as Response, next);
-                        expect(next).toBeCalledTimes(1);
-                        expect(next).toBeCalledWith();
-
-                        // advance the timers by 1 second for the next request
-                        jest.advanceTimersByTime(1000);
+                        requests.push(
+                            middleware(
+                                complexRequest as Request,
+                                mockResponse as Response,
+                                nextFunction
+                            )
+                        );
+                        // advance the timers by 10 seconds for the next request
+                        jest.advanceTimersByTime(10000);
+                    }
+                    await Promise.all(requests);
+                    expect(nextFunction).toBeCalledTimes(3);
+                    for (let i = 1; i <= 3; i++) {
+                        expect(nextFunction).nthCalledWith(i);
                     }
                 });
 
-                test('Multiple valid requests at within one second', () => {
-                    for (let i = 0; i < 3; i++) {
-                        const next: NextFunction = jest.fn();
-                        middleware(complexRequest as Request, mockResponse as Response, next);
-                        expect(next).toBeCalledTimes(1);
-                        expect(next).toBeCalledWith();
+                test('Multiple valid requests at within one second', async () => {
+                    const requests = [];
 
-                        // advance the timers by 1 second for the next request
+                    for (let i = 0; i < 3; i++) {
+                        // Send 3 queries of complexity 2. These should all succeed
+                        requests.push(
+                            middleware(
+                                mockRequest as Request,
+                                mockResponse as Response,
+                                nextFunction
+                            )
+                        );
+
+                        // advance the timers by 20 miliseconds for the next request
                         jest.advanceTimersByTime(20);
                     }
+                    await Promise.all(requests);
+                    expect(nextFunction).toBeCalledTimes(3);
+                    expect(nextFunction).toBeCalledWith();
                 });
             });
 
             describe('BLOCKS requests', () => {
-                test('A single request that exceeds capacity', () => {
+                test('A single request that exceeds capacity', async () => {
+                    nextFunction = jest.fn();
+
                     const blockedRequest: Partial<Request> = {
                         // complexity should be 12 if 'first' is accounted for.
                         // scalars: 1, droid: 1, reviews (10 * (1 Review, 0 episode))
-                        query: {
-                            query: `Query {
-                            scalars: {
-                                num
-                            }
-                            droid(id: 1) {
-                                name
-                            }
-                            reviews(episode: 'NEWHOPE', first: 10) {
-                                episode 
-                                stars
-                                commentary
-                            }
-                        `,
+                        body: {
+                            query: `query {
+                                scalars {
+                                    num
+                                }
+                                droid(id: 1) {
+                                    name
+                                }
+                                reviews(episode: NEWHOPE, first: 10) {
+                                    episode
+                                    stars
+                                    commentary
+                                }
+                            } `,
                         },
                     };
 
-                    middleware(blockedRequest as Request, mockResponse as Response, nextFunction);
-                    expect(mockResponse.statusCode).toBe(429);
+                    expect(nextFunction).not.toBeCalled();
+                    await middleware(
+                        blockedRequest as Request,
+                        mockResponse as Response,
+                        nextFunction
+                    );
+                    expect(mockResponse.status).toHaveBeenCalledWith(429);
                     expect(nextFunction).not.toBeCalled();
 
                     // FIXME: There are multiple functions to send a response
                     // json, send html, sendStatus etc. How do we check at least one was called
-                    expect(mockResponse.send).toBeCalled();
+                    expect(mockResponse.json).toBeCalled();
                 });
 
-                test('Multiple queries that exceed token limit', () => {
+                test('Multiple queries that exceed token limit', async () => {
+                    const requests = [];
+
                     for (let i = 0; i < 5; i++) {
                         // Send 5 queries of complexity 2. These should all succeed
-                        middleware(mockRequest as Request, mockResponse as Response, nextFunction);
+                        requests.push(
+                            middleware(
+                                mockRequest as Request,
+                                mockResponse as Response,
+                                nextFunction
+                            )
+                        );
 
                         // advance the timers by 20 miliseconds for the next request
                         jest.advanceTimersByTime(20);
                     }
 
+                    await Promise.all(requests);
                     // Send a 6th request that should be blocked.
                     const next: NextFunction = jest.fn();
-                    middleware(mockRequest as Request, mockResponse as Response, next);
-                    expect(mockResponse.statusCode).toBe(429);
+
+                    const lastRequest = middleware(
+                        mockRequest as Request,
+                        mockResponse as Response,
+                        next
+                    );
+
+                    await lastRequest;
+
+                    expect(mockResponse.status).toHaveBeenCalledWith(429);
                     expect(next).not.toBeCalled();
 
                     // FIXME: See above comment on sending responses
-                    expect(mockResponse.send).toBeCalled();
+                    expect(mockResponse.json).toBeCalled();
                 });
             });
         });

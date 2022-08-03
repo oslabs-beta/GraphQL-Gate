@@ -1,7 +1,11 @@
-export interface Fields {
-    [index: string]: FieldWeight;
+export interface Field {
+    resolveTo?: string;
+    weight?: FieldWeight;
 }
-export type WeightFunction = (args: ArgumentNode[]) => number;
+export interface Fields {
+    [index: string]: Field;
+}
+export type WeightFunction = (args: ArgumentNode[], variables, selectionsCost: number) => number;
 export type FieldWeight = number | WeightFunction;
 export interface Type {
     readonly weight: number;
@@ -17,3 +21,22 @@ export interface TypeWeightConfig {
     scalar?: number;
     connection?: number;
 }
+export interface TypeWeightSet {
+    mutation: number;
+    query: number;
+    object: number;
+    scalar: number;
+    connection: number;
+}
+type Variables = {
+    [index: string]: readonly unknown;
+};
+
+// Type for use when getting fields for union types
+type FieldMap = {
+    [index: string]: {
+        type: GraphQLOutputType;
+        weight?: FieldWeight;
+        resolveTo?: string;
+    };
+};

@@ -1,6 +1,6 @@
 import { DocumentNode } from 'graphql';
-import { TypeWeightObject } from '../@types/buildTypeWeights';
-import { documentNode } from './ASTnodefunctions';
+import { TypeWeightObject, Variables } from '../@types/buildTypeWeights';
+import ASTParser from './ASTParser';
 
 /**
  * Calculate the complexity for the query by recursivly traversing through the query AST,
@@ -9,16 +9,17 @@ import { documentNode } from './ASTnodefunctions';
  * TO DO: extend the functionality to work for mutations and subscriptions and directives
  *
  * @param {string} queryAST
- * @param {any | undefined} varibales
+ * @param {Variables} variables
  * @param {TypeWeightObject} typeWeights
  */
 function getQueryTypeComplexity(
     queryAST: DocumentNode,
-    variables: any | undefined,
+    variables: Variables,
     typeWeights: TypeWeightObject
 ): number {
     let complexity = 0;
-    complexity += documentNode(queryAST, typeWeights, variables);
+    const parser = new ASTParser(typeWeights, variables);
+    complexity += parser.documentNode(queryAST);
     return complexity;
 }
 

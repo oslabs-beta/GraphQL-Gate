@@ -1,19 +1,20 @@
-import { ArgumentNode } from 'graphql/language';
 import { parse } from 'graphql';
 import getQueryTypeComplexity from '../../src/analysis/typeComplexityAnalysis';
-import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
+import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
 
 /** 
  * Here is the schema that creates the followning 'typeWeightsObject' used for the tests
  * 
     type Query {
         hero(episode: Episode): Character
+        heroUnion(episode: Episode): SearchResult
         reviews(episode: Episode!, first: Int): [Review]
         search(text: String): [SearchResult]
         character(id: ID!): Character
         droid(id: ID!): Droid
         human(id: ID!): Human
         scalars: Scalars
+        nonNull: [Droid!]!
     }    
 
     enum Episode {
@@ -27,6 +28,7 @@ import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
         name: String!
         friends(first: Int): [Character]
         appearsIn: [Episode]!
+        scalarList(first: Int): [Int]
     }
 
     type Human implements Character {
@@ -34,6 +36,7 @@ import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
         name: String!
         homePlanet: String
         friends(first: Int): [Character]
+        humanFriends(first: Int): [Human]
         appearsIn: [Episode]!
     }
 
@@ -64,19 +67,29 @@ import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
 
     type Test {
         name: String,
-        variable: Scalars
+        scalars: Scalars
     }
+
+    type Mutation {
+        createReview(episode: Episode, review: ReviewInput!): Review
+    }
+
+    input ReviewInput {
+        stars: Int!
+        commentary: String
+    }
+    
+
 
  *   
  * TODO: extend this schema to include mutations, subscriptions and pagination
  * 
-    type Mutation {
-        createReview(episode: Episode, review: ReviewInput!): Review
-    }
+
     type Subscription {
         reviewAdded(episode: Episode): Review
     }
-    type FriendsConnection {
+
+        type FriendsConnection {
         totalCount: Int
         edges: [FriendsEdge]
         friends: [Character]
@@ -97,84 +110,174 @@ import { TypeWeightObject } from '../../src/@types/buildTypeWeights';
     to character, human and droid
 */
 
+// Mocks typed with <result, arg array>
+let mockWeightFunction: jest.Mock<number, []>;
+let mockHumanFriendsFunction: jest.Mock<number, []>;
+let mockDroidFriendsFunction: jest.Mock<number, []>;
+let mockCharacterFriendsFunction: jest.Mock<number, []>;
+let nonNullMockWeightFunction: jest.Mock<number, []>;
+
 // this object is created by the schema above for use in all the tests below
-const typeWeights: TypeWeightObject = {
-    query: {
-        // object type
-        weight: 1,
-        fields: {
-            // FIXME: update the function def that is supposed te be here to match implementation
-            // FIXME: add the function definition for the 'search' field which returns a list
-            reviews: (args: ArgumentNode[]): number => 10,
-        },
-    },
-    episode: {
-        // enum
-        weight: 0,
-        fields: {},
-    },
-    character: {
-        // interface
-        weight: 1,
-        fields: {
-            id: 0,
-            name: 0,
-            // FIXME: add the function definition for the 'friends' field which returns a list
-        },
-    },
-    human: {
-        // implements an interface
-        weight: 1,
-        fields: {
-            id: 0,
-            name: 0,
-            homePlanet: 0,
-        },
-    },
-    droid: {
-        // implements an interface
-        weight: 1,
-        fields: {
-            id: 0,
-            name: 0,
-        },
-    },
-    review: {
-        weight: 1,
-        fields: {
-            stars: 0,
-            commentary: 0,
-        },
-    },
-    searchResult: {
-        // union type
-        weight: 1,
-        fields: {},
-    },
-    scalars: {
-        weight: 1, // object weight is 1, all scalar feilds have weight 0
-        fields: {
-            num: 0,
-            id: 0,
-            float: 0,
-            bool: 0,
-            string: 0,
-        },
-    },
-    test: {
-        weight: 1,
-        fields: {
-            name: 0,
-        },
-    },
-};
+let typeWeights: TypeWeightObject;
 
 describe('Test getQueryTypeComplexity function', () => {
+    beforeEach(() => {
+        // Reset mocks before each test to avoid errors when running tests in parallel
+        mockWeightFunction = jest.fn();
+        mockHumanFriendsFunction = jest.fn();
+        mockDroidFriendsFunction = jest.fn();
+        mockCharacterFriendsFunction = jest.fn();
+        nonNullMockWeightFunction = jest.fn();
+
+        typeWeights = {
+            query: {
+                // object type
+                weight: 1,
+                fields: {
+                    reviews: {
+                        resolveTo: 'review',
+                        weight: mockWeightFunction,
+                    },
+                    hero: {
+                        resolveTo: 'character',
+                    },
+                    heroUnion: {
+                        resolveTo: 'searchresult',
+                    },
+                    search: {
+                        resolveTo: 'searchresult',
+                        weight: jest.fn(), // FIXME: Unbounded list result
+                    },
+                    character: {
+                        resolveTo: 'character',
+                    },
+                    droid: {
+                        resolveTo: 'droid',
+                    },
+                    human: {
+                        resolveTo: 'human',
+                    },
+                    scalars: {
+                        resolveTo: 'scalars',
+                    },
+                    nonNull: {
+                        resolveTo: 'droid',
+                        weight: nonNullMockWeightFunction,
+                    },
+                },
+            },
+            mutation: {
+                weight: 10,
+                fields: {
+                    createReview: { resolveTo: 'review' },
+                },
+            },
+            episode: {
+                // enum
+                weight: 0,
+                fields: {},
+            },
+            character: {
+                // interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockCharacterFriendsFunction,
+                    },
+                    humanFriends: {
+                        resolveTo: 'human',
+                        weight: mockHumanFriendsFunction,
+                    },
+                    scalarList: {
+                        weight: 0,
+                    },
+                },
+            },
+            human: {
+                // implements an interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    homePlanet: { weight: 0 },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockHumanFriendsFunction,
+                    },
+                    humanFriends: {
+                        resolveTo: 'human',
+                        weight: mockHumanFriendsFunction,
+                    },
+                },
+            },
+            droid: {
+                // implements an interface
+                weight: 1,
+                fields: {
+                    id: { weight: 0 },
+                    name: { weight: 0 },
+                    appearsIn: { resolveTo: 'episode' },
+                    primaryFunction: { weight: 0 },
+                    friends: {
+                        resolveTo: 'character',
+                        weight: mockDroidFriendsFunction,
+                    },
+                },
+            },
+            review: {
+                weight: 1,
+                fields: {
+                    episode: { resolveTo: 'episode' },
+                    stars: { weight: 0 },
+                    commentary: { weight: 0 },
+                },
+            },
+            searchresult: {
+                // union type
+                weight: 1,
+                fields: {},
+            },
+            scalars: {
+                weight: 1, // object weight is 1, all scalar feilds have weight 0
+                fields: {
+                    num: { weight: 0 },
+                    id: { weight: 0 },
+                    float: { weight: 0 },
+                    bool: { weight: 0 },
+                    string: { weight: 0 },
+                    test: { resolveTo: 'test' },
+                },
+            },
+            test: {
+                weight: 1,
+                fields: {
+                    name: { weight: 0 },
+                    scalars: { resolveTo: 'scalars' },
+                },
+            },
+        };
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
     let query = '';
-    let variables: any | undefined;
+    let variables: Variables = {};
+
     describe('Calculates the correct type complexity for queries', () => {
         test('with one feild', () => {
             query = `query { scalars { num } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
+        });
+
+        xtest('with one with capital first letter for field', () => {
+            query = `query { Scalars { num } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + Scalars 1
         });
 
@@ -203,50 +306,545 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + scalar 1
         });
 
-        xtest('with arguments and variables', () => {
+        test('with arguments and variables', () => {
             query = `query { hero(episode: EMPIRE) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
-            query = `query { human(id: 1) { id, name, appearsIn } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3); // Query 1 + human/character 1 + appearsIn/episode
+            query = `query { human(id: 1) { id, name, homePlanet } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + human/character 1
             // argument passed in as a variable
             variables = { ep: 'EMPIRE' };
-            query = `query varibaleQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
+            query = `query variableQuery ($ep: Episode){ hero(episode: $ep) { id, name } }`;
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1
         });
 
-        xtest('with fragments', () => {
-            query = `
-            query {
-                leftComparison: hero(episode: EMPIRE) {
-                  ...comparisonFields
+        describe('with fragments', () => {
+            test('that have a complexity of zero', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
                 }
-                rightComparison: hero(episode: JEDI) {
-                  ...comparisonFields
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                }`;
+                // Query 1 + 2*(appearsIn/episode 0 + name/string 0)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+            });
+
+            test('that contain an object and a non-zero complexity', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
                 }
-              }
-              
-              fragment comparisonFields on Character {
-                name
-                appearsIn
-              }
-            }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // Query 1 + 2*(character 1 + appearsIn/episode 1)
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: 3) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+            });
+
+            test('that use a variable', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: $first) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+            });
+
+            test('recalculates fragment complexity for individual queries', () => {
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                    friends(first: 3) {
+                        name
+                    }
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + appearsIn/episode 0 + 3 * friends/character 1)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(9);
+
+                query = `
+                query {
+                    leftComparison: hero(episode: EMPIRE) {
+                    ...comparisonFields
+                    }
+                    rightComparison: hero(episode: JEDI) {
+                    ...comparisonFields
+                    }
+                }
+                
+                fragment comparisonFields on Character {
+                    name
+                    appearsIn
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                variables = { first: 3 };
+                // Query 1 + 2*(character 1 + 0 selectionCost)
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(3);
+            });
         });
 
-        xtest('with inline fragments', () => {
-            query = `
-            query {
-                hero(episode: EMPIRE) {
-                    name
-                    ... on Droid {
-                        primaryFunction
-                    }
-                    ... on Human {
-                        homeplanet
-                    }
-                }
-            }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2); // Query 1 + hero/character 1)
+        describe('with inline fragments', () => {
+            describe('on union types', () => {
+                let unionTypeWeights: TypeWeightObject;
+                let mockHumanCharacterFriendsFunction: jest.Mock<number, []>;
+                beforeEach(() => {
+                    // type Query {
+                    //     hero(episode: Episode): Character
+                    // }
+                    // type Character = Human | Droid
+                    //
+                    // type Human  {
+                    //     name: String!
+                    //     homePlanet: String
+                    //     friends(first: Int): [Character]
+                    //     humanFriends(first: Int): [Human]
+                    // }
+                    //
+                    // type Droid implements Character {
+                    //     name: String!
+                    //     primaryFunction: String
+                    //     friends(first: Int): [Character]
+                    // }
+                    mockHumanCharacterFriendsFunction = jest.fn();
+                    unionTypeWeights = {
+                        query: {
+                            weight: 1,
+                            fields: {
+                                hero: {
+                                    resolveTo: 'character',
+                                },
+                            },
+                        },
+                        character: {
+                            weight: 1,
+                            fields: {
+                                name: {
+                                    weight: 0,
+                                },
+                                friends: {
+                                    resolveTo: 'character',
+                                    weight: mockCharacterFriendsFunction,
+                                },
+                            },
+                        },
+                        human: {
+                            weight: 1,
+                            fields: {
+                                name: { weight: 0 },
+                                homePlanet: { weight: 0 },
+                                friends: {
+                                    resolveTo: 'character',
+                                    weight: mockHumanCharacterFriendsFunction,
+                                },
+                                humanFriends: {
+                                    resolveTo: 'human',
+                                    weight: mockHumanFriendsFunction,
+                                },
+                            },
+                        },
+                        droid: {
+                            weight: 1,
+                            fields: {
+                                name: { weight: 0 },
+                                primaryFunction: { weight: 0 },
+                                friends: {
+                                    resolveTo: 'character',
+                                    weight: mockDroidFriendsFunction,
+                                },
+                            },
+                        },
+                    };
+                });
+                test('that have a complexity of zero', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        2
+                    );
+                });
+
+                test('that have differing complexities', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: 1) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero + max(Droid 2, Human 3) = 5
+                    mockHumanCharacterFriendsFunction.mockReturnValueOnce(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(1);
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        5
+                    );
+                });
+
+                test('that contain an object and a non-zero complexity', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                friends(first: 3) {
+                                    name
+                                }
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + 3 friends/character
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        5
+                    );
+                });
+
+                test('that use a variable', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: $first) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockDroidFriendsFunction.mockReturnValueOnce(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        5
+                    );
+                });
+
+                test('that do not have a TypeCondition', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ... {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + max(Character 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(5);
+                });
+
+                test('that have greater than 2  levels of nesting', () => {
+                    query = `
+                    query {
+                        hero(episode: EMPIRE) {
+                            name
+                            ... on Droid {
+                                primaryFunction
+                                friends(first: 5) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                            ... on Human {
+                                homePlanet
+                                friends(first: 5) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }
+                    }`;
+                    mockCharacterFriendsFunction.mockReturnValue(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(20);
+                    mockHumanFriendsFunction.mockReturnValueOnce(20);
+                    // Query 1 + 1 hero + 3 friends/character
+                    expect(getQueryTypeComplexity(parse(query), variables, unionTypeWeights)).toBe(
+                        22
+                    );
+                });
+
+                xtest('that include a directive', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ...@include(if: true) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(5);
+                });
+
+                test('and multiple fragments apply to the selection set', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ...@include(if: true) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    humanFriends(first: 2) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    mockHumanFriendsFunction.mockReturnValueOnce(2);
+                    // Query 1 + 1 hero + ...Character 3 + ...Human 2 = 7
+                    expect(getQueryTypeComplexity(parse(query), {}, unionTypeWeights)).toBe(7);
+                });
+            });
+
+            describe('on interface types', () => {
+                test('that have a complexity of zero', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(2);
+                });
+
+                test('that have differing complexities', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: 2) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    // Query 1 + 1 hero + max(Droid 0, Human 3) = 5
+                    mockHumanFriendsFunction.mockReturnValueOnce(3);
+                    mockDroidFriendsFunction.mockReturnValueOnce(2);
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that contain an object and a non-zero complexity', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                friends(first: 3) {
+                                    name
+                                }
+                                ... on Droid {
+                                    primaryFunction
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + 3 friends/character
+                    mockHumanFriendsFunction.mockReturnValueOnce(3);
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that use a variable', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                name
+                                ... on Droid {
+                                    primaryFunction
+                                    friends(first: $first) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockDroidFriendsFunction.mockReturnValueOnce(3);
+                    variables = { first: 3 };
+                    // Query 1 + 1 hero + max(Droid 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5);
+                });
+
+                test('that do not have a TypeCondition', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ... {
+                                    name
+                                    scalarList(first: 1)
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + max(Character 3, Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(5);
+                });
+
+                xtest('that include a directive', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ...@include(if: true) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    homePlanet
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
+                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(5);
+                });
+
+                test('and multiple fragments apply to the selection set', () => {
+                    query = `
+                        query {
+                            hero(episode: EMPIRE) {
+                                ...@include(if: true) {
+                                    name
+                                    friends(first: 3) {
+                                        name
+                                    }
+                                }
+                                ... on Human {
+                                    humanFriends(first: 2) {
+                                        name
+                                    }
+                                }
+                            }
+                        }`;
+                    mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                    mockHumanFriendsFunction.mockReturnValueOnce(2);
+                    // Query 1 + 1 hero + ...Character 3 + ...Human 2 = 7
+                    expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(7);
+                });
+            });
         });
 
         /**
@@ -263,28 +861,46 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(false); // ?
         });
 
-        xtest('with lists detrmined by arguments and variables', () => {
-            query = `Query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
-            variables = { first: 3 };
-            query = `Query queryVaribales($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(4); // 1 Query + 3 reviews
+        test('with lists determined by arguments and variables', () => {
+            query = `query {reviews(episode: EMPIRE, first: 3) { stars, commentary } }`;
+            mockWeightFunction.mockReturnValueOnce(3);
+            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(mockWeightFunction.mock.calls.length).toBe(1);
+            expect(mockWeightFunction.mock.calls[0].length).toBe(3); // calling  with arguments and variables
+
+            variables = { first: 4 };
+            mockWeightFunction.mockReturnValueOnce(4);
+            query = `query queryVariables($first: Int) {reviews(episode: EMPIRE, first: $first) { stars, commentary } }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 reviews
+            expect(mockWeightFunction.mock.calls.length).toBe(2);
+            expect(mockWeightFunction.mock.calls[1].length).toBe(3); // calling  with arguments and variables
         });
 
-        xtest('with nested lists', () => {
-            query = `
-            query { 
-                human(id: 1) { 
-                    name, 
-                    friends(first: 5) { 
-                        name, 
-                        friends(first: 3){ 
-                            name 
-                        } 
-                    } 
-                }
-            }`;
-            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(17); // 1 Query + 1 human/character +  (5 friends/character X 3 friends/characters)
+        test('with bounded lists including non-null operators', () => {
+            query = `query {nonNull(episode: EMPIRE, first: 3) { name, id } }`;
+            nonNullMockWeightFunction.mockReturnValueOnce(3);
+            expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(4); // 1 Query + 3 reviews
+            expect(nonNullMockWeightFunction.mock.calls.length).toBe(1);
+            expect(nonNullMockWeightFunction.mock.calls[0].length).toBe(3);
+        });
+
+        describe('with nested lists', () => {
+            test('and simple nesting', () => {
+                query = `query { human(id: 1) { name, friends(first: 5) { name, friends(first: 3){ name }}}} `;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                mockHumanFriendsFunction.mockReturnValueOnce(20);
+                expect(getQueryTypeComplexity(parse(query), {}, typeWeights)).toBe(22); // 1 Query + 1 human/character +  (5 friends/character X (1 friend + 3 friends/characters))
+                expect(mockCharacterFriendsFunction.mock.calls.length).toBe(1);
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
+            });
+
+            test('and inner scalar lists', () => {
+                query = `
+                query { human(id: 1) { name, friends(first: 5) { name, scalarList(first: 3)} }}`;
+                mockHumanFriendsFunction.mockReturnValueOnce(5);
+                expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(7); // 1 Query + 1 human/character + 5 friends/character + 0 scalarList
+                expect(mockHumanFriendsFunction.mock.calls.length).toBe(1);
+            });
         });
 
         xtest('accounting for __typename feild', () => {
@@ -305,10 +921,51 @@ describe('Test getQueryTypeComplexity function', () => {
             expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(5); // 1 Query + 4 search results
         });
 
-        // todo: directives @skip, @include and custom directives
+        // TODO: create tests for an implementation of the connection pagination convention -- need soln for unbounded lists
+        xdescribe('connection pagination convention', () => {});
+
+        // TODO: directives @skip, @include and custom directives
     });
 
-    xdescribe('Calculates the correct type complexity for mutations', () => {});
+    describe('Calculates the correct type complexity for mutations', () => {
+        test('simple mutation', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) {
+                    stars
+                    commentary
+                    episode
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+        });
+
+        test('mutation with no feilds queried', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) 
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(11); // Mutation 10 + review 1
+        });
+
+        test('mutation and query definitons', () => {
+            variables = { review: { stars: 5, commentary: 'good' } };
+            query = `mutation createReviewMutation($review: ReviewInput!) { 
+                createReview(episode: Empire, review: $review) {
+                    stars
+                    commentary
+                    episode
+                }
+            }
+            
+            query {
+                hero(episode: EMPIRE) {
+                    name
+                }
+            }`;
+            expect(getQueryTypeComplexity(parse(query), variables, typeWeights)).toBe(13); // Mutation 10 + review 1 + query 1 + character 1
+        });
+    });
 
     xdescribe('Calculates the correct type complexity for subscriptions', () => {});
 });
