@@ -1,9 +1,28 @@
 language: node_js
 node_js:
     - 16
+    - 17
+    # - 18  
+
+# run test for the above node versions for branches dev and main
 branches:
     only:
         - dev
+        - main
+# scripts to run for each test
 script:
+    - echo "Running tests against $(node -v) ..."
     - 'npm run lint'
     - 'npm run test'
+    - 'npm run build'
+# specify a job to run 
+deploy:
+    on:
+        branch: main
+        tags: true
+    skip_cleanup: false
+    provider: npm
+    email: $NPM_EMAIL_ADDRESS
+    api_key: $NPM_API_KEY
+
+
