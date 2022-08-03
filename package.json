@@ -1,6 +1,6 @@
 {
     "name": "graphql-limiter",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "./dist/middleware/index.js",
     "types": "./dist/middleware/index.d.ts",
