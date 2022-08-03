@@ -1,3 +1,5 @@
+import { ArgumentNode, GraphQLOutputType } from 'graphql';
+
 export interface Field {
     resolveTo?: string;
     weight?: FieldWeight;
@@ -5,7 +7,11 @@ export interface Field {
 export interface Fields {
     [index: string]: Field;
 }
-export type WeightFunction = (args: ArgumentNode[], variables, selectionsCost: number) => number;
+export type WeightFunction = (
+    args: ArgumentNode[],
+    variables: Variables,
+    selectionsCost: number
+) => number;
 export type FieldWeight = number | WeightFunction;
 export interface Type {
     readonly weight: number;
@@ -29,7 +35,7 @@ export interface TypeWeightSet {
     connection: number;
 }
 type Variables = {
-    [index: string]: readonly unknown;
+    [index: string]: unknown;
 };
 
 // Type for use when getting fields for union types

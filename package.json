@@ -2,10 +2,12 @@
     "name": "graphql-limiter",
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
-    "main": "./dist/middleware/index.js",
-    "types": "./dist/middleware/index.d.ts",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "type": "module",
-    "files": ["dist"],
+    "files": [
+        "dist"
+    ],
     "scripts": {
         "test": "jest --passWithNoTests --coverage --detectOpenHandles",
         "lint": "eslint src test",

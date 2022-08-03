@@ -21,7 +21,7 @@ import {
 } from 'graphql';
 import { ObjMap } from 'graphql/jsutils/ObjMap';
 import { GraphQLSchema } from 'graphql/type/schema';
-import {
+import type {
     TypeWeightConfig,
     TypeWeightSet,
     TypeWeightObject,
@@ -29,7 +29,7 @@ import {
     Type,
     Fields,
     FieldMap,
-} from '../@types/buildTypeWeights';
+} from '../../@types/buildTypeWeights';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 

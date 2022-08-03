@@ -1,49 +1,35 @@
 {
     "compilerOptions": {
-        "module": "ES2015",
-        "moduleResolution": "node",
-        "strict": true,
-        "removeComments": false,
-        "preserveConstEnums": true,
-        "sourceMap": true,
-        "target": "es5",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
-        ],
-        "allowJs": true,
-        "skipLibCheck": true,
+        "module": "es6",
         "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "forceConsistentCasingInFileNames": true,
-        "noFallthroughCasesInSwitch": true,
-        "resolveJsonModule": true,
-        "isolatedModules": true,
-        "noEmit": false,
-        "typeRoots": [
-            "src/@types",
-            "node_modules/@types"
-        ],
+        "target": "es6",
+        "noImplicitAny": true,
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "outDir": "dist",
+        "declaration": true,
+        "declarationDir": "dist",
+        "baseUrl": ".",
+        "paths": {
+            "*": [
+                "node_modules/*"
+            ]
+        },
         "types": [
             "node",
             "jest"
         ],
-        "outDir": "dist",
-        "declaration": true,
-        "declarationDir": "dist",
+        "lib": [
+            "es2020",
+        ]
     },
     "include": [
-        "src/**/*.ts",
-        "src/**/*.js",
-        "test/**/*.ts",
-        "test/**/*.js"
+        "src/*",
+        "@types"
     ],
     "exclude": [
+        "dist",
         "node_modules",
-        "**/*.spec.ts",
-        "test",
-        "dist"
+        "src/tests"
     ]
 }
-

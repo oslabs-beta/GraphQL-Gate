@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiter, RateLimiterResponse, RedisBucket, RedisLog } from '../@types/rateLimit';
+import { RateLimiter, RateLimiterResponse, RedisBucket, RedisLog } from '../../@types/rateLimit';
 
 /**
  * The SlidingWindowLog instance of a RateLimiter limits requests based on a unique user ID.

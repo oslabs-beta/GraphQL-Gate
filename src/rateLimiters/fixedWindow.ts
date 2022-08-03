@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiter, RateLimiterResponse, FixedWindow as Window } from '../@types/rateLimit';
+import { RateLimiter, RateLimiterResponse, FixedWindow as Window } from '../../@types/rateLimit';
 
 /**
  * The FixedWindow instance of a RateLimiter limits requests based on a unique user ID and a fixed time window.

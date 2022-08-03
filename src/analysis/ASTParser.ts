@@ -8,7 +8,7 @@ import {
     SelectionNode,
     getArgumentValues,
 } from 'graphql';
-import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
+import { FieldWeight, TypeWeightObject, Variables } from '../../@types/buildTypeWeights';
 /**
  * The AST node functions call each other following the nested structure below
  * Each function handles a specific GraphQL AST node type

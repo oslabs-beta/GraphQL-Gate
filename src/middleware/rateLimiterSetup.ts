@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiterConfig } from '../@types/rateLimit';
+import { RateLimiterConfig } from '../../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
 import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
 import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
