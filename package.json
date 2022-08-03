@@ -1,6 +1,6 @@
 {
-    "name": "graphqlgate",
-    "version": "1.0.0",
+    "name": "graphql-limiter",
+    "version": "1.0.2",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
