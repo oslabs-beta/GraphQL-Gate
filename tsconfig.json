@@ -40,7 +40,6 @@
         "test/**/*.js"
     ],
     "exclude": [
-        "src/utils/__mocks__",
         "node_modules",
         "**/*.spec.ts",
         "test",

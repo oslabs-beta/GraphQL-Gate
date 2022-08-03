@@ -1,3 +1,8 @@
 **/*
-!dist/**/*
+dist/utils/__mock__
+!dist/analysis/*
+!dist/middleware/*
+!dist/rateLimiters/*
+!dist/utils/*
+!dist/*
 !package.json
