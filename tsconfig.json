@@ -29,7 +29,9 @@
             "node",
             "jest"
         ],
-        "outDir": "build/"
+        "outDir": "dist",
+        "declaration": true,
+        "declarationDir": "dist",
     },
     "include": [
         "src/**/*.ts",
@@ -39,6 +41,9 @@
     ],
     "exclude": [
         "node_modules",
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "test",
+        "dist"
     ]
 }
+
