@@ -4,7 +4,9 @@ import {
     SelectionSetNode,
     DefinitionNode,
     Kind,
+    DirectiveNode,
     SelectionNode,
+    getArgumentValues,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 /**
@@ -30,14 +32,20 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
 class ASTParser {
     typeWeights: TypeWeightObject;
 
+    depth: number;
+
+    maxDepth: number;
+
     variables: Variables;
 
-    fragmentCache: { [index: string]: number };
+    fragmentCache: { [index: string]: { complexity: number; depth: number } };
 
     constructor(typeWeights: TypeWeightObject, variables: Variables) {
         this.typeWeights = typeWeights;
         this.variables = variables;
         this.fragmentCache = {};
+        this.depth = 0;
+        this.maxDepth = 0;
     }
 
     private calculateCost(
@@ -59,6 +67,8 @@ class ASTParser {
         if (node.arguments && typeof typeWeight === 'function') {
             // FIXME: May never happen but what if weight is a function and arguments don't exist
             calculatedWeight += typeWeight([...node.arguments], this.variables, selectionsCost);
+        } else if (typeof typeWeight === 'number') {
+            calculatedWeight += typeWeight + selectionsCost;
         } else {
             calculatedWeight += this.typeWeights[typeName].weight + selectionsCost;
         }
@@ -67,7 +77,7 @@ class ASTParser {
         return complexity;
     }
 
-    fieldNode(node: FieldNode, parentName: string): number {
+    private fieldNode(node: FieldNode, parentName: string): number {
         try {
             let complexity = 0;
             const parentType = this.typeWeights[parentName];
@@ -78,7 +88,7 @@ class ASTParser {
             }
             let typeName: string | undefined;
             let typeWeight: FieldWeight | undefined;
-
+            if (node.name.value === '__typename') return complexity;
             if (node.name.value in this.typeWeights) {
                 // node is an object type n the typeWeight root
                 typeName = node.name.value;
@@ -131,14 +141,60 @@ class ASTParser {
         }
     }
 
-    selectionNode(node: SelectionNode, parentName: string): number {
+    /**
+     * Return true if:
+     * 1. there is no directive
+     * 2. there is a directive named inlcude and the value is true
+     * 3. there is a directive named skip and the value is false
+     */
+    directiveCheck(directive: DirectiveNode): boolean {
+        if (directive?.arguments) {
+            // get the first argument
+            const argument = directive.arguments[0];
+            // ensure the argument name is 'if'
+            const argumentHasVariables =
+                argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
+            // access the value of the argument depending on whether it is passed as a variable or not
+            let directiveArgumentValue;
+            if (argument.value.kind === Kind.BOOLEAN) {
+                directiveArgumentValue = Boolean(argument.value.value);
+            } else if (argumentHasVariables) {
+                directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
+            }
+
+            return (
+                (directive.name.value === 'include' && directiveArgumentValue === true) ||
+                (directive.name.value === 'skip' && directiveArgumentValue === false)
+            );
+        }
+        return true;
+    }
+
+    private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
+        /**
+         * process this node if:
+         * 1. there is no directive
+         * 2. there is a directive named inlcude and the value is true
+         * 3. there is a directive named skip and the value is false
+         */
+        // const directive = node.directives;
+        // if (directive && this.directiveCheck(directive[0])) {
+        this.depth += 1;
+        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
         // check the kind property against the set of selection nodes that are possible
         if (node.kind === Kind.FIELD) {
             // call the function that handle field nodes
             complexity += this.fieldNode(node, parentName.toLowerCase());
         } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-            complexity += this.fragmentCache[node.name.value];
+            // add complexity and depth from fragment cache
+            const { complexity: fragComplexity, depth: fragDepth } =
+                this.fragmentCache[node.name.value];
+            complexity += fragComplexity;
+            this.depth += fragDepth;
+            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+            this.depth -= fragDepth;
+
             // This is a leaf
             // need to parse fragment definition at root and get the result here
         } else if (node.kind === Kind.INLINE_FRAGMENT) {
@@ -148,16 +204,21 @@ class ASTParser {
             // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
             const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
 
-            // TODO: Handle directives like @include
+            // TODO: Handle directives like @include and @skip
+            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
+            this.depth -= 1;
             complexity += this.selectionSetNode(node.selectionSet, namedType);
+            this.depth += 1;
         } else {
-            // FIXME: Consider removing this check. SelectionNodes cannot have any other kind in the current spec.
             throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
         }
+
+        this.depth -= 1;
+        // }
         return complexity;
     }
 
-    selectionSetNode(node: SelectionSetNode, parentName: string): number {
+    private selectionSetNode(node: SelectionSetNode, parentName: string): number {
         let complexity = 0;
         let maxFragmentComplexity = 0;
         // iterate shrough the 'selections' array on the seletion set node
@@ -185,7 +246,7 @@ class ASTParser {
         return complexity + maxFragmentComplexity;
     }
 
-    definitionNode(node: DefinitionNode): number {
+    private definitionNode(node: DefinitionNode): number {
         let complexity = 0;
         // check the kind property against the set of definiton nodes that are possible
         if (node.kind === Kind.OPERATION_DEFINITION) {
@@ -207,25 +268,26 @@ class ASTParser {
             // Duplicate fragment names are not allowed by the GraphQL spec and an error is thrown if used.
             const fragmentName = node.name.value;
 
-            if (this.fragmentCache[fragmentName]) return this.fragmentCache[fragmentName];
-
             const fragmentComplexity = this.selectionSetNode(
                 node.selectionSet,
                 namedType.toLowerCase()
             );
 
             // Don't count fragment complexity in the node's complexity. Only when fragment is used.
-            this.fragmentCache[fragmentName] = fragmentComplexity;
-        } else {
-            // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
-            // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
-            // TypeSystemExtensionNode(Schema, Type);
-            throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
-        }
+            this.fragmentCache[fragmentName] = {
+                complexity: fragmentComplexity,
+                depth: this.maxDepth - 1, // subtract one from the calculated depth of the fragment to correct for the additional depth the fragment ads to the query when used
+            };
+        } // else {
+        //     // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
+        //     // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
+        //     // TypeSystemExtensionNode(Schema, Type);
+        //     throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
+        // }
         return complexity;
     }
 
-    documentNode(node: DocumentNode): number {
+    private documentNode(node: DocumentNode): number {
         let complexity = 0;
         // sort the definitions array by kind so that fragments are always parsed first.
         // Fragments must be parsed first so that their complexity is available to other nodes.
@@ -237,6 +299,10 @@ class ASTParser {
             complexity += this.definitionNode(sortedDefinitions[i]);
         }
         return complexity;
+    }
+
+    processQuery(queryAST: DocumentNode): number {
+        return this.documentNode(queryAST);
     }
 }
 

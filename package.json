@@ -1,8 +1,8 @@
 {
-    "name": "graphqlgate",
+    "name": "graphql-limiter",
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
-    "main": "index.js",
+    "main": "src/middleware/index.ts",
     "type": "module",
     "files": ["src"],
     "scripts": {
@@ -64,6 +64,7 @@
         "*.{js,ts,css,md}": "prettier --write --ignore-unknown"
     },
     "dependencies": {
+        "@graphql-tools/utils": "^8.8.0",
         "graphql": "^16.5.0",
         "ioredis": "^5.0.5"
     }

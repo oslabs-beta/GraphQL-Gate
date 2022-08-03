@@ -1,59 +1,82 @@
 import EventEmitter from 'events';
-
 import { parse, validate } from 'graphql';
-import { RedisOptions } from 'ioredis';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
-import getQueryTypeComplexity from '../analysis/typeComplexityAnalysis';
-import { RateLimiterOptions, RateLimiterSelection, RateLimiterResponse } from '../@types/rateLimit';
-import { TypeWeightConfig } from '../@types/buildTypeWeights';
+import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
+import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
-
-// FIXME: Will the developer be responsible for first parsing the schema from a file?
-// Can consider accepting a string representing a the filepath to a schema
-// FIXME: Should a 429 status be sent by default or do we allow the user to handle blocked requests?
+import ASTParser from '../analysis/ASTParser';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
- * @param {RateLimiterSelection} rateLimiter Specify rate limiting algorithm to be used
- * @param {RateLimiterOptions} options Specify the appropriate options for the selected rateLimiter
  * @param {GraphQLSchema} schema GraphQLSchema object
- * @param {RedisClientOptions} RedisOptions ioredis connection options https://ioredis.readthedocs.io/en/stable/API/#new_Redis
- * @param {TypeWeightConfig} typeWeightConfig Optional type weight configuration for the GraphQL Schema.
- * Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
+ * @param {ExpressMiddlewareConfig} middlewareConfig
+ *      , "ratelimiter" must be explicitly specified in the setup of the middleware.
+ *      , "redis" connection options (https://ioredis.readthedocs.io/en/stable/API/#new_Redis) and an optional "keyExpiry" property (defaults to 24h)
+ *      , "typeWeights" optional type weight configuration for the GraphQL Schema. Developers can override default typeWeights. Defaults to {mutation: 10, query: 1, object: 1, scalar/enum: 0, connection: 2}
+ *      , "dark: true" will run the package in "dark mode" to monitor queries and rate limiting data before implementing rate limitng functionality. Defaults to false
+ *      , "enforceBoundedLists: true" will throw an error if any lists in the schema are not constrained by slicing arguments: Defaults to false
+ *      , "depthLimit: number" will block queries with deeper nesting than the specified depth. Will not block queries by depth by default
  * @returns {RequestHandler} express middleware that computes the complexity of req.query and calls the next middleware
  * if the query is allowed or sends a 429 status if the request is blocked
- * FIXME: How about the specific GraphQLError?
- * @throws ValidationError if GraphQL Schema is invalid.
+ * @throws Error
  */
-export function expressRateLimiter(
-    rateLimiterAlgo: RateLimiterSelection,
-    rateLimiterOptions: RateLimiterOptions,
+export default function expressGraphQLRateLimiter(
     schema: GraphQLSchema,
-    redisClientOptions: RedisOptions,
-    typeWeightConfig: TypeWeightConfig = defaultTypeWeightsConfig
+    middlewareConfig: ExpressMiddlewareConfig
 ): RequestHandler {
     /**
-     * build the type weight object, create the redis client and instantiate the ratelimiter
-     * before returning the express middleware that calculates query complexity and throttles the requests
+     * Setup the middleware configuration with a passed in and default values
+     * - redis "keyExpiry" defaults to 1 day (in ms)
+     * - "typeWeights" defaults to defaultTypeWeightsConfig
+     * - "dark" and "enforceBoundedLists" default to false
+     * - "depthLimit" defaults to Infinity
      */
-    // TODO: Throw ValidationError if schema is invalid
-    const typeWeightObject = buildTypeWeightsFromSchema(schema, typeWeightConfig);
+    const middlewareSetup: ExpressMiddlewareSet = {
+        rateLimiter: middlewareConfig.rateLimiter,
+        typeWeights: { ...defaultTypeWeightsConfig, ...middlewareConfig.typeWeights },
+        redis: {
+            keyExpiry: middlewareConfig.redis?.keyExpiry || 86400000,
+            options: { ...middlewareConfig.redis?.options },
+        },
+        dark: middlewareConfig.dark || false,
+        enforceBoundedLists: middlewareConfig.enforceBoundedLists || false,
+        depthLimit: middlewareConfig.depthLimit || Infinity,
+    };
 
-    // TODO: Throw error if connection is unsuccessful
-    const redisClient = connect(redisClientOptions); // Default port is 6379 automatically
-    const rateLimiter = setupRateLimiter(rateLimiterAlgo, rateLimiterOptions, redisClient);
+    /** No query can have a depth of less than 2 */
+    if (middlewareSetup.depthLimit <= 2) {
+        throw new Error(
+            `Error in expressGraphQLRateLimiter: depthLimit cannot be less than or equal to 1`
+        );
+    }
 
-    // stores request IDs to be processed
-    const requestQueue: { [index: string]: string[] } = {};
+    /** Build the type weight object, create the redis client and instantiate the ratelimiter */
+    const typeWeightObject = buildTypeWeightsFromSchema(
+        schema,
+        middlewareSetup.typeWeights,
+        middlewareSetup.enforceBoundedLists
+    );
+    const redisClient = connect(middlewareSetup.redis.options);
+    const rateLimiter = setupRateLimiter(
+        middlewareSetup.rateLimiter,
+        redisClient,
+        middlewareSetup.redis.keyExpiry
+    );
 
-    // Manages processing of event queue
+    /**
+     * We are using a queue and event emitter to handle situations where a user has two concurrent requests being processed.
+     * The trailing request will be added to the queue to and await the prior request processing by the rate-limiter
+     * This will maintain the consistency and accuracy of the cache when under load from one user
+     */
+    // stores request IDs for each user in an array to be processed
+    const requestQueues: { [index: string]: string[] } = {};
+    // Manages processing of requests queue
     const requestEvents = new EventEmitter();
 
-    // Resolves the promise created by throttledProcess
+    // processes requests (by resolving  promises) that have been throttled by throttledProcess
     async function processRequestResolver(
         userId: string,
         timestamp: number,
@@ -63,11 +86,11 @@ export function expressRateLimiter(
     ) {
         try {
             const response = await rateLimiter.processRequest(userId, timestamp, tokens);
-            requestQueue[userId] = requestQueue[userId].slice(1);
-            // trigger the next event
+            requestQueues[userId] = requestQueues[userId].slice(1);
             resolve(response);
-            requestEvents.emit(requestQueue[userId][0]);
-            if (requestQueue[userId].length === 0) delete requestQueue[userId];
+            // trigger the next event and delete the request queue for this user if there are no more requests to process
+            requestEvents.emit(requestQueues[userId][0]);
+            if (requestQueues[userId].length === 0) delete requestQueues[userId];
         } catch (err) {
             reject(err);
         }
@@ -92,13 +115,13 @@ export function expressRateLimiter(
         // Alternatively use crypto.randomUUID() to generate a random uuid
         const requestId = `${timestamp}${tokens}`;
 
-        if (!requestQueue[userId]) {
-            requestQueue[userId] = [];
+        if (!requestQueues[userId]) {
+            requestQueues[userId] = [];
         }
-        requestQueue[userId].push(requestId);
+        requestQueues[userId].push(requestId);
 
         return new Promise((resolve, reject) => {
-            if (requestQueue[userId].length > 1) {
+            if (requestQueues[userId].length > 1) {
                 requestEvents.once(requestId, async () => {
                     await processRequestResolver(userId, timestamp, tokens, resolve, reject);
                 });
@@ -108,64 +131,87 @@ export function expressRateLimiter(
         });
     }
 
+    /** Rate-limiting middleware */
     return async (
         req: Request,
         res: Response,
         next: NextFunction
     ): Promise<void | Response<any, Record<string, any>>> => {
         const requestTimestamp = new Date().valueOf();
-        const { query, variables }: { query: string; variables: any } = req.body;
+        // access the query and variables passed to the server in the body or query string
+        let query;
+        let variables;
+        if (req.query) {
+            query = req.query.query;
+            variables = req.query.variables;
+        } else if (req.body) {
+            query = req.body.query;
+            variables = req.body.variables;
+        }
         if (!query) {
-            // FIXME: Throw an error here? Code currently passes this on to whatever is next
-            console.log('There is no query on the request');
+            console.error(
+                'Error in expressGraphQLRateLimiter: There is no query on the request. Rate-Limiting skipped'
+            );
             return next();
         }
-        /**
-         * There are numerous ways to get the ip address off of the request object.
-         * - the header 'x-forward-for' will hold the originating ip address if a proxy is placed infront of the server. This would be commen for a production build.
-         * - req.ips wwill hold an array of ip addresses in'x-forward-for' header. client is likely at index zero
-         * - req.ip will have the ip address
-         * - req.socket.remoteAddress is an insatnce of net.socket which is used as another method of getting the ip address
-         *
-         * req.ip and req.ips will worx in express but not with other frameworks
-         */
         // check for a proxied ip address before using the ip address on request
         const ip: string = req.ips ? req.ips[0] : req.ip;
 
-        // FIXME: this will only work with type complexity
         const queryAST = parse(query);
-        // validate the query against the schema. The GraphQL validation function returns an array of errors.
+        // validate the query against the schema. returns an array of errors.
         const validationErrors = validate(schema, queryAST);
-        // check if the length of the returned GraphQL Errors array is greater than zero. If it is, there were errors. Call next so that the GraphQL server can handle those.
+        // return the errors to the client if the array has length. otherwise there are no errors
         if (validationErrors.length > 0) {
-            // FIXME: Customize this error to throw the GraphQLError
-            return next(Error('invalid query'));
+            res.status(400).json({ errors: validationErrors });
         }
 
-        const queryComplexity = getQueryTypeComplexity(queryAST, variables, typeWeightObject);
+        const queryParser = new ASTParser(typeWeightObject, variables);
+        const queryComplexity = queryParser.processQuery(queryAST);
+
         try {
-            // process the request and conditinoally respond to client with status code 429 or
-            // pass the request onto the next middleware function
             const rateLimiterResponse = await throttledProcess(
                 ip,
                 requestTimestamp,
                 queryComplexity
             );
-            if (!rateLimiterResponse.success) {
-                // TODO: add a header 'Retry-After' with the time to wait untill next query will succeed
-                // FIXME: send information about query complexity, tokens, etc, to the client on rejected query
-                return res.status(429).json({ graphqlGate: rateLimiterResponse });
-            }
             res.locals.graphqlGate = {
                 timestamp: requestTimestamp,
                 complexity: queryComplexity,
                 tokens: rateLimiterResponse.tokens,
+                success:
+                    rateLimiterResponse.success &&
+                    queryParser.maxDepth >= middlewareSetup.depthLimit,
+                depth: queryParser.maxDepth,
             };
+            /** The three conditions for returning a status code 429 are
+             * 1. rate-limiter blocked the request
+             * 2. query exceeded the depth limit
+             * 3. the middleware is configured not to run in dark mode
+             */
+            if (
+                (!rateLimiterResponse.success ||
+                    queryParser.maxDepth > middlewareSetup.depthLimit) &&
+                !middlewareSetup.dark
+            ) {
+                // a Retry-After header of Infinity means the request will never be accepted
+                return res
+                    .status(429)
+                    .set({
+                        'Retry-After': `${
+                            queryParser.maxDepth > middlewareSetup.depthLimit
+                                ? Infinity
+                                : rateLimiterResponse.retryAfter
+                        }`,
+                    })
+                    .json(res.locals.graphqlgate);
+            }
             return next();
         } catch (err) {
+            // log the error to the console and pass the request onto the next middleware.
+            console.error(
+                `Error in expressGraphQLRateLimiter processing query. Rate limiting is skipped: ${err}`
+            );
             return next(err);
         }
     };
 }
-
-export default expressRateLimiter;
