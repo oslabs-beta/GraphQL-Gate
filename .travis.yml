@@ -2,7 +2,7 @@ language: node_js
 node_js:
     - 16
     - 17
-    - 18
+    # - 18  
 
 # run test for the above node versions for branches dev and main
 branches:
