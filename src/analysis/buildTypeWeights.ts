@@ -113,6 +113,25 @@ function parseObjectFields(
                     resolveTo: listType.toString().toLocaleLowerCase(),
                 };
             } else {
+                // if the @listCost directive is given for the field,
+                // apply the cost argument's value to the field's weight
+                const directives = fields[field].astNode?.directives;
+
+                if (directives && directives.length > 0) {
+                    directives.forEach((dir) => {
+                        if (dir.name.value === 'listCost') {
+                            if (dir.arguments && dir.arguments[0].value.kind === Kind.INT) {
+                                result.fields[field] = {
+                                    resolveTo: listType.toString().toLocaleLowerCase(),
+                                    weight: Number(dir.arguments[0].value.value),
+                                };
+                            }
+                            throw new SyntaxError(`@listCost directive improperly configured`);
+                        }
+                    });
+                }
+
+                // if no directive is supplied to list field
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
@@ -145,14 +164,16 @@ function parseObjectFields(
                                     return multiplier * (selectionsCost + weight);
                                     // ? what else can get through here
                                 }
+
                                 // if there is no argument provided with the query, check the schema for a default
                                 if (arg.defaultValue) {
                                     return Number(arg.defaultValue) * (selectionsCost + weight);
                                 }
 
-                                // FIXME: The list is unbounded. Return the object weight for
+                                // if an unbounded list has no @listCost directive attached
                                 throw new Error(
-                                    `ERROR: buildTypeWeights: Unbouned list complexity not supported. Query results should be limited with ${KEYWORDS}`
+                                    `ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, 
+                                            or limit query results with ${KEYWORDS}`
                                 );
                             },
                         };
