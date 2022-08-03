@@ -174,7 +174,7 @@ function parseObjectFields(
                                     // if there is no argument provided with the query, check the schema for a default
                                     multiplier = Number(arg.defaultValue);
                                 }
-                                // if there is no argument or default value, return 0 complexity
+                                // if there is no argument or defaultValue, multiplier will still be one, effectively making list size equel to 1 as a last resort
                                 return multiplier * (selectionsCost + weight);
                             },
                         };
