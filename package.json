@@ -1,11 +1,10 @@
 {
-    "name": "graphql-limiter",
+    "name": "graphqlgate",
     "version": "1.0.0",
     "description": "A GraphQL rate limiting library using query complexity analysis.",
     "main": "./dist/middleware/index.js",
     "types": "./dist/middleware/index.d.ts",
     "type": "module",
-    "files": ["dist"],
     "scripts": {
         "test": "jest --passWithNoTests --coverage --detectOpenHandles",
         "lint": "eslint src test",
@@ -55,6 +54,7 @@
         "ioredis-mock": "^8.2.2",
         "jest": "^28.1.0",
         "lint-staged": "^12.4.1",
+        "npm": "^8.16.0",
         "prettier": "2.6.2",
         "ts-jest": "^28.0.2",
         "ts-node": "^10.8.0",
