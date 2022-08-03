@@ -135,7 +135,7 @@ type Query {
 
 Requests are rate-limited based on the IP address associated with the request.
 
-On startup, the GraphQL (GQL) schema is parsed to build an object that maps GQL types/fields to their corresponding weights. Type weights can be provided during <a href="typeWeights">initial configuration</a>. When a request is received, this object is used to cross reference the fields queried by the user and compute the complexity of each field. The total complexity of the request is the sum of these values.
+On startup, the GraphQL (GQL) schema is parsed to build an object that maps GQL types/fields to their corresponding weights. Type weights can be provided during <a href="#typeWeights">initial configuration</a>. When a request is received, this object is used to cross reference the fields queried by the user and compute the complexity of each field. The total complexity of the request is the sum of these values.
 
 Complexity is determined, statically (before any resolvers are called) to estimate the upper bound of the response size - a proxy for the work done by the server to build the response. The total complexity is then used to allow/block the request based on popular rate-limiting algorithms.
 
