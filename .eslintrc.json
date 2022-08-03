@@ -15,11 +15,10 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": "latest",
-        "project": "./tsconfig.eslint.json"
+        "project": "./tsconfig.json"
     },
     "plugins": [
-        "import",
-        "prettier"
+        "import"
     ],
     "rules": {
         "no-plusplus": [
