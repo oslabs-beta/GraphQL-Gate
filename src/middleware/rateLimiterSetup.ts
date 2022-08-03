@@ -1,43 +1,63 @@
 import Redis from 'ioredis';
-import { RateLimiterOptions, RateLimiterSelection } from '../@types/rateLimit';
+import { RateLimiterConfig } from '../@types/rateLimit';
 import TokenBucket from '../rateLimiters/tokenBucket';
+import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
+import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
+import FixedWindow from '../rateLimiters/fixedWindow';
 
 /**
  * Instatieate the rateLimiting algorithm class based on the developer selection and options
  *
  * @export
- * @param {RateLimiterSelection} selection
- * @param {RateLimiterOptions} options
+ * @param {RateLimiterConfig} rateLimiter limiter selection and option
  * @param {Redis} client
+ * @param {number} keyExpiry
  * @return {*}
  */
 export default function setupRateLimiter(
-    selection: RateLimiterSelection,
-    options: RateLimiterOptions,
-    client: Redis
+    rateLimiter: RateLimiterConfig,
+    client: Redis,
+    keyExpiry: number
 ) {
-    switch (selection) {
-        case 'TOKEN_BUCKET':
-            // todo validate options
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return new TokenBucket(options.bucketSize, options.refillRate, client);
-            break;
-        case 'LEAKY_BUCKET':
-            throw new Error('Leaky Bucket algonithm has not be implemented.');
-        case 'FIXED_WINDOW':
-            throw new Error('Fixed Window algonithm has not be implemented.');
-        case 'SLIDING_WINDOW_LOG':
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return new SlidingWindowLog(options.windowSize, options.capacity, client);
-        case 'SLIDING_WINDOW_COUNTER':
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            return new SlidingWindowCounter(options.windowSize, options.capacity, client);
-            break;
-        default:
-            // typescript should never let us invoke this function with anything other than the options above
-            throw new Error('Selected rate limiting algorithm is not suppported');
+    try {
+        switch (rateLimiter.type) {
+            case 'TOKEN_BUCKET':
+                return new TokenBucket(
+                    rateLimiter.capacity,
+                    rateLimiter.refillRate,
+                    client,
+                    keyExpiry
+                );
+                break;
+            case 'LEAKY_BUCKET':
+                throw new Error('Leaky Bucket algonithm has not be implemented.');
+            case 'FIXED_WINDOW':
+                return new FixedWindow(
+                    rateLimiter.capacity,
+                    rateLimiter.windowSize,
+                    client,
+                    keyExpiry
+                );
+            case 'SLIDING_WINDOW_LOG':
+                return new SlidingWindowLog(
+                    rateLimiter.windowSize,
+                    rateLimiter.capacity,
+                    client,
+                    keyExpiry
+                );
+            case 'SLIDING_WINDOW_COUNTER':
+                return new SlidingWindowCounter(
+                    rateLimiter.windowSize,
+                    rateLimiter.capacity,
+                    client,
+                    keyExpiry
+                );
+                break;
+            default:
+                // typescript should never let us invoke this function with anything other than the options above
+                throw new Error('Selected rate limiting algorithm is not suppported');
+        }
+    } catch (err) {
+        throw new Error(`Error in expressGraphQLRateLimiter setting up rate-limiter: ${err}`);
     }
 }

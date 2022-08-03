@@ -19,6 +19,8 @@ import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLim
 class SlidingWindowCounter implements RateLimiter {
     private windowSize: number;
 
+    private keyExpiry: number;
+
     private capacity: number;
 
     private client: Redis;
@@ -29,12 +31,15 @@ class SlidingWindowCounter implements RateLimiter {
      * @param capacity max capacity of tokens allowed per fixed window
      * @param client redis client where rate limiter will cache information
      */
-    constructor(windowSize: number, capacity: number, client: Redis) {
+    constructor(windowSize: number, capacity: number, client: Redis, expiry: number) {
         this.windowSize = windowSize;
         this.capacity = capacity;
         this.client = client;
-        if (windowSize <= 0 || capacity <= 0)
-            throw SyntaxError('SlidingWindowCounter windowSize and capacity must be positive');
+        this.keyExpiry = expiry;
+        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+            throw SyntaxError(
+                'SlidingWindowCounter window size, capacity and keyExpiry must be positive'
+            );
     }
 
     /**
@@ -76,9 +81,6 @@ class SlidingWindowCounter implements RateLimiter {
         timestamp: number,
         tokens = 1
     ): Promise<RateLimiterResponse> {
-        // set the expiry of key-value pairs in the cache to 24 hours
-        const keyExpiry = 86400000;
-
         // attempt to get the value for the uuid from the redis cache
         const windowJSON = await this.client.get(uuid);
 
@@ -92,13 +94,13 @@ class SlidingWindowCounter implements RateLimiter {
             };
 
             if (tokens <= this.capacity) {
-                await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+                await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
                 return { success: true, tokens: this.capacity - newUserWindow.currentTokens };
             }
 
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(newUserWindow));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(newUserWindow));
             // tokens property represents how much capacity remains
-            return { success: false, tokens: this.capacity };
+            return { success: false, tokens: this.capacity, retryAfter: Infinity };
         }
 
         // if the cache is populated
@@ -131,7 +133,7 @@ class SlidingWindowCounter implements RateLimiter {
         let rollingWindowProportion = 0;
         let previousRollingTokens = 0;
 
-        if (updatedUserWindow.fixedWindowStart && updatedUserWindow.previousTokens) {
+        if (updatedUserWindow.fixedWindowStart) {
             // proportion of rolling window present in previous window
             rollingWindowProportion =
                 (this.windowSize - (timestamp - updatedUserWindow.fixedWindowStart)) /
@@ -153,7 +155,7 @@ class SlidingWindowCounter implements RateLimiter {
         // if request is allowed
         if (tokens + rollingTokens <= this.capacity) {
             updatedUserWindow.currentTokens += tokens;
-            await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+            await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
             return {
                 success: true,
                 tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
@@ -161,10 +163,46 @@ class SlidingWindowCounter implements RateLimiter {
         }
 
         // if request is blocked
-        await this.client.setex(uuid, keyExpiry, JSON.stringify(updatedUserWindow));
+        await this.client.setex(uuid, this.keyExpiry, JSON.stringify(updatedUserWindow));
+
+        const { previousTokens, currentTokens } = updatedUserWindow;
+        // Size and proportion of the window in seconds
+        const windowSizeSeconds = this.windowSize / 1000;
+        const rollingWindowProportionSeconds = windowSizeSeconds * rollingWindowProportion;
+        // Tokens available for the request to use
+        const tokensAvailable = this.capacity - (currentTokens + previousRollingTokens);
+        // Additional tokens that are needed for the request to pass
+        const tokensNeeded = tokens - tokensAvailable;
+        // share of the tokens needed that can come from the previous window
+        // 1. if the previous rolling portion of the window has more tokens than is needed for the request, than we need only those tokens needed from this window
+        // 2. otherwise we need all the previous rolling tokens(and then some) for the request to pass
+        const tokensNeededFromPreviousWindow =
+            previousRollingTokens >= tokensNeeded ? tokensNeeded : previousRollingTokens;
+        // time needed to wait to aquire the tokens needed from the previous window
+        // 1. if the tokens available in the previous rolling window equals those needed form this window, we need to wait the remaing protion of this window to pass
+        // 2. otherwise wait a fraction of that window to pass, determined by the ratio of previous rolling tokens available to the tokens needed from this window
+        const timeToWaitFromPreviousTokens =
+            previousRollingTokens === tokensNeededFromPreviousWindow
+                ? rollingWindowProportionSeconds
+                : rollingWindowProportionSeconds *
+                  ((previousTokens - tokensNeededFromPreviousWindow) / previousRollingTokens);
+        // tokens needed from the current window for the request to pass
+        const tokensNeededFromCurrentWindow = tokensNeeded - tokensNeededFromPreviousWindow;
+        // time needed to wait to aquire the from the current window tfor the request to pass
+        // 1. if the tokens needed from the current window is 0, thon no time is needed
+        // 2. otherwise wait a fraction of time as determined by
+        const timeToWaitFromCurrentTokens =
+            tokensNeededFromCurrentWindow === 0
+                ? 0
+                : windowSizeSeconds * (tokensNeededFromCurrentWindow / currentTokens);
+
         return {
             success: false,
             tokens: this.capacity - (updatedUserWindow.currentTokens + previousRollingTokens),
+            retryAfter:
+                tokens > this.capacity
+                    ? Infinity
+                    : Math.ceil(timeToWaitFromPreviousTokens + timeToWaitFromCurrentTokens),
         };
     }
 

@@ -77,7 +77,7 @@ describe('SlidingWindowLog Rate Limiter', () => {
     });
 
     beforeEach(() => {
-        limiter = new SlidingWindowLog(WINDOW_SIZE, CAPACITY, client);
+        limiter = new SlidingWindowLog(WINDOW_SIZE, CAPACITY, client, 80000);
         timestamp = new Date().valueOf();
     });
 
@@ -434,37 +434,49 @@ describe('SlidingWindowLog Rate Limiter', () => {
          * */
         beforeEach(() => {
             timestamp = 1000;
+            limiter = new SlidingWindowLog(WINDOW_SIZE * 5, CAPACITY, client, 80000);
         });
 
         test('the limiting request was is at the beginning of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 9 }, // limiting request
-                { timestamp: timestamp + 100, tokens: 1 }, // newer request
+                { timestamp: timestamp + 1000, tokens: 1 }, // newer request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 2000, 9);
+            expect(retryAfter).toBe((WINDOW_SIZE * 5 - 2000) / 1000); // 3 seconds
         });
 
         test('the limiting request was is at the end of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 1 }, // older request
-                { timestamp: timestamp + 100, tokens: 9 }, // limiting request
+                { timestamp: timestamp + 1000, tokens: 9 }, // limiting request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + 100 + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 2000, 9);
+            expect(retryAfter).toBe(Math.ceil((1000 + WINDOW_SIZE * 5 - 2000) / 1000)); // 4 seconds
         });
 
         test('the limiting request was is the middle of the log', async () => {
             const requestLog = [
                 { timestamp, tokens: 1 }, // older request
-                { timestamp: timestamp + 100, tokens: 8 }, // limiting request
-                { timestamp: timestamp + 200, tokens: 1 }, // newer request
+                { timestamp: timestamp + 1000, tokens: 8 }, // limiting request
+                { timestamp: timestamp + 2000, tokens: 1 }, // newer request
             ];
             await setLogInClient(client, user1, requestLog);
-            const { retryAfter } = await limiter.processRequest(user1, timestamp + 200, 9);
-            expect(retryAfter).toBe(timestamp + 100 + WINDOW_SIZE);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 3000, 9);
+            expect(retryAfter).toBe(Math.ceil((1000 + WINDOW_SIZE * 5 - 3000) / 1000)); // 3 seconds
+        });
+
+        test('request exceeds the capacity', async () => {
+            const requestLog = [
+                { timestamp, tokens: 1 }, // older request
+                { timestamp: timestamp + 1000, tokens: 8 }, // limiting request
+                { timestamp: timestamp + 2000, tokens: 1 }, // newer request
+            ];
+            await setLogInClient(client, user1, requestLog);
+            const { retryAfter } = await limiter.processRequest(user1, timestamp + 3000, 11);
+            expect(retryAfter).toBe(Infinity);
         });
     });
     test('users have their own logs', async () => {
@@ -521,23 +533,23 @@ describe('SlidingWindowLog Rate Limiter', () => {
 
     describe('is configurable...', () => {
         test('does not allow capacity or window size <= 0', () => {
-            expect(() => new SlidingWindowLog(0, 1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(0, 1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(-10, 1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(-10, 1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(10, -1, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(10, -1, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
-            expect(() => new SlidingWindowLog(10, 0, client)).toThrow(
-                'SlidingWindowLog window size and capacity must be positive'
+            expect(() => new SlidingWindowLog(10, 0, client, 8000)).toThrow(
+                'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );
         });
 
         test('...allows custom window size and capacity', async () => {
             const customWindow = 500;
-            const customSizelimiter = new SlidingWindowLog(customWindow, CAPACITY, client);
+            const customSizelimiter = new SlidingWindowLog(customWindow, CAPACITY, client, 8000);
 
             let customSizeSuccess = await customSizelimiter
                 .processRequest(user1, timestamp, CAPACITY)
@@ -557,7 +569,12 @@ describe('SlidingWindowLog Rate Limiter', () => {
             customSizelimiter.reset();
 
             const customCapacity = 5;
-            const customCapacitylimiter = new SlidingWindowLog(WINDOW_SIZE, customCapacity, client);
+            const customCapacitylimiter = new SlidingWindowLog(
+                WINDOW_SIZE,
+                customCapacity,
+                client,
+                8000
+            );
 
             let customCapacitySuccess = await customCapacitylimiter
                 .processRequest(user1, timestamp, customCapacity + 1)
