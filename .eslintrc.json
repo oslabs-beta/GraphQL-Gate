@@ -15,16 +15,25 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": "latest",
-        "project": "./tsconfig.json"
+        "project": "./tsconfig.eslint.json"
     },
-    "plugins": ["import", "prettier"],
+    "plugins": [
+        "import",
+        "prettier"
+    ],
     "rules": {
-        "no-plusplus": [2, {
-            "allowForLoopAfterthoughts": true
-        }],
+        "no-plusplus": [
+            2,
+            {
+                "allowForLoopAfterthoughts": true
+            }
+        ],
         "prettier/prettier": [
             "error"
         ]
-    }, 
-    "ignorePatterns": ["jest.*", "build/*"]
+    },
+    "ignorePatterns": [
+        "jest.*",
+        "dist/*"
+    ]
 }
