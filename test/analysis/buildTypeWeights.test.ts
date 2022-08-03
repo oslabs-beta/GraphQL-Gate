@@ -1264,6 +1264,12 @@ describe('Test buildTypeWeightsFromSchema function', () => {
             );
         });
 
+        test('there is an unbounded list and user chooses to not enforce bounded lists', () => {
+            expect(() => buildTypeWeightsFromSchema(schema, {}, false)).not.toThrowError(
+                'ERROR: buildTypeWeights: Use directive @listCost(cost: Int!) on unbounded lists, or limit query results with first,last,limit'
+            );
+        });
+
         // TODO: throw validation error if schema is invalid
         xtest('schema is invalid', () => {});
     });
