@@ -20,7 +20,7 @@ deploy:
     on:
         branch: main
         tags: false
-    skip_cleanup: false
+    skip_cleanup: true
     provider: npm
     email: $NPM_EMAIL_ADDRESS
     api_key: $NPM_API_KEY
