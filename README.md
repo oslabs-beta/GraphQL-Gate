@@ -35,7 +35,7 @@ NOTE: a Redis server instance will need to be started in order for the limiter t
 
 ```javascript
 // import package
-import expressGraphQLRateLimiter from 'graphql-limiter';
+import { expressGraphQLRateLimiter } from 'graphql-limiter';
 
 /**
  * Import other dependencies
