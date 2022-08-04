@@ -11,7 +11,8 @@
         "lint:fix": "eslint --fix src test @types",
         "prettier": "prettier --write .",
         "prepare": "husky install",
-        "build": "tsc"
+        "build": "tsc",
+        "build:fix": "node node_modules/.bin/yab dist"
     },
     "repository": {
         "type": "git",
