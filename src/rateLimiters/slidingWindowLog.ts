@@ -35,7 +35,7 @@ class SlidingWindowLog implements RateLimiter {
         this.capacity = capacity;
         this.client = client;
         this.keyExpiry = expiry;
-        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+        if (!windowSize || !capacity || windowSize <= 0 || capacity <= 0 || expiry <= 0)
             throw SyntaxError(
                 'SlidingWindowLog window size, capacity and keyExpiry must be positive'
             );

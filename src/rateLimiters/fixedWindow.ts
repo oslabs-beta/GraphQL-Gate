@@ -31,7 +31,7 @@ class FixedWindow implements RateLimiter {
         this.windowSize = windowSize;
         this.client = client;
         this.keyExpiry = expiry;
-        if (windowSize <= 0 || capacity <= 0 || expiry <= 0)
+        if (!windowSize || !capacity || windowSize <= 0 || capacity <= 0 || expiry <= 0)
             throw Error('FixedWindow windowSize, capacity and keyExpiry must be positive');
     }
 
@@ -68,7 +68,7 @@ class FixedWindow implements RateLimiter {
         // attempt to get the value for the uuid from the redis cache
         const windowJSON = await this.client.get(uuid);
 
-        if (windowJSON === null) {
+        if (!windowJSON) {
             const newUserWindow: Window = {
                 currentTokens: tokens > this.capacity ? 0 : tokens,
                 fixedWindowStart: timestamp,
