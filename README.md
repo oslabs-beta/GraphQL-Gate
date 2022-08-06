@@ -226,7 +226,6 @@ This package exposes 3 additional functionalities which comprise the internals o
 
         - `processQuery(queryAST: DocumentNode): number`
         - returns: complexity of the query and exposes `maxDepth` property for depth limiting
-        - usage:
 
             ```ts
             import { typeWeightsFromSchema } from 'graphql-limiter';
@@ -250,8 +249,6 @@ This package exposes 3 additional functionalities which comprise the internals o
 
         - `processRequest(uuid: string, timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
         - returns: `{ success: boolean, tokens: number, retryAfter?: number }` | where tokens is tokens available, retryAfter is time to wait in seconds before the request would be successful and success is false if the request is blocked
-
-        usage:
 
         ```ts
         import { rateLimiter } from 'graphql-limiter';
