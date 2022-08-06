@@ -8,7 +8,7 @@ node_js:
 branches:
     only:
         - dev
-        - main
+        # - main
 # scripts to run for each test
 script:
     - echo "Running tests against $(node -v) ..."
@@ -19,7 +19,8 @@ script:
 deploy:
     on:
         branch: main
-    skip_cleanup: false
+        tags: false
+    skip_cleanup: true
     provider: npm
     email: $NPM_EMAIL_ADDRESS
     api_key: $NPM_API_KEY
