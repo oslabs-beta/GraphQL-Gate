@@ -207,7 +207,7 @@ This package exposes 3 additional functionalities
 
 2. #### `ComplexityAnalysis` | calculate the complexity of the query based on the type weights and variables
    - `typeWeights: TypeWeightObject`
-   - `variables: Variables` | varibales on request
+   - `variables: Variables` | variables on request
    - returns Class
       - `processQuery(queryAST: DocumentNode): number`
 
