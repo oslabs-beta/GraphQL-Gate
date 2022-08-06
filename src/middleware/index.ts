@@ -7,7 +7,7 @@ import setupRateLimiter from './rateLimiterSetup';
 import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
 import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
-import ASTParser from '../analysis/ASTParser';
+import ComplexityAnalysis from '../analysis/ASTParser';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server
@@ -165,7 +165,7 @@ export default function expressGraphQLRateLimiter(
             res.status(400).json({ errors: validationErrors });
         }
 
-        const queryParser = new ASTParser(typeWeightObject, variables);
+        const queryParser = new ComplexityAnalysis(typeWeightObject, variables);
         const queryComplexity = queryParser.processQuery(queryAST);
 
         try {
