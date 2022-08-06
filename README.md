@@ -7,6 +7,9 @@
    </div>
    
 &nbsp;
+## Summary 
+
+Developed under tech-accelerator [OSLabs](https://opensourcelabs.io/), GraphQLGate strives for a principled approach to complexity analysis and rate-limiting for GraphQL queries by accurately estimating an upper-bound of the response size of the query. Within a loosly opinionated framework with lots of configuration options, you can reliably throttle GraphQL queries by complexity and depth to protect your GraphQL API. Our solution is inspired by [this paper](https://github.com/Alan-Cha/fse20/blob/master/submissions/functional/FSE-24/graphql-paper.pdf) from IBM reasearch teams. 
 
 ## Table of Contents
 
@@ -16,6 +19,7 @@
 -   [How It Works](#how-it-works)
 -   [Response](#response)
 -   [Error Handling](#error-handling)
+-   [Complexity Analysis](#complexity)
 -   [Future Development](#future-development)
 -   [Contributions](#contributions)
 -   [Developers](#developers)
@@ -190,6 +194,30 @@ query {
 
 -   Incoming queries are validated against the GraphQL schema. If the query is invalid, a response with status code `400` is returned along with an array of GraphQL Errors that were found.
 -   To avoid disrupting server activity, errors thrown during the analysis and rate-limiting of the query are logged and the request is passed onto the next piece of middleware in the chain.
+
+## <a name="comlpexity"></a> Complexity Analysis
+
+This package exposes 3 additional functionalities
+
+1. #### `typeWeightsFromSchema` | create the type weight object from the schema for complexity analysis
+   - `schema: GraphQLSchema` | GQL schema object
+   - `typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig`
+   - `enforceBoundedLists = false`
+   - returns `TypeWeightObject`  
+
+2. #### `ComplexityAnalysis` | calculate the complexity of the query based on the type weights and variables
+   - `typeWeights: TypeWeightObject`
+   - `variables: Variables` | varibales on request
+   - returns Class
+      - `processQuery(queryAST: DocumentNode): number`
+
+3. #### `rateLimiter` | returns a rate limiting implementation baed on selections
+   - `rateLimiter: RateLimiterConfig` | see "configuration -> rateLimiter
+   - `client: Redis` | an ioredis client
+   - `keyExpiry: number` | time (ms) for key to persist in cache
+   - returns Class 
+      - `processRequest(uuid: string,timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
+
 
 ## <a name="future-development"></a> Future Development
 
