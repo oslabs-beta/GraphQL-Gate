@@ -19,7 +19,7 @@ Developed under tech-accelerator [OSLabs](https://opensourcelabs.io/), GraphQLGa
 -   [How It Works](#how-it-works)
 -   [Response](#response)
 -   [Error Handling](#error-handling)
--   [Complexity Analysis](#complexity)
+-   [Internals](#internals)
 -   [Future Development](#future-development)
 -   [Contributions](#contributions)
 -   [Developers](#developers)
@@ -195,28 +195,34 @@ query {
 -   Incoming queries are validated against the GraphQL schema. If the query is invalid, a response with status code `400` is returned along with an array of GraphQL Errors that were found.
 -   To avoid disrupting server activity, errors thrown during the analysis and rate-limiting of the query are logged and the request is passed onto the next piece of middleware in the chain.
 
-## <a name="comlpexity"></a> Complexity Analysis
+## <a name="internals"></a> Internals
 
-This package exposes 3 additional functionalities
+This package exposes 3 additional functionalities which comprise the internals of the package. This is a breif documentaion on them.
+
+### Complexity Analysis
 
 1. #### `typeWeightsFromSchema` | create the type weight object from the schema for complexity analysis
-   - `schema: GraphQLSchema` | GQL schema object
-   - `typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig`
-   - `enforceBoundedLists = false`
-   - returns `TypeWeightObject`  
+   - `schema: GraphQLSchema` | GraphQL schema object
+   - `typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig` | type weight configuration
+   - `enforceBoundedLists = false` 
+   - returns: `TypeWeightObject`  
 
 2. #### `ComplexityAnalysis` | calculate the complexity of the query based on the type weights and variables
    - `typeWeights: TypeWeightObject`
    - `variables: Variables` | variables on request
-   - returns Class
+   - returns a class with method:
       - `processQuery(queryAST: DocumentNode): number`
+      - returns: complexity of the query and exposes `maxDepth` property for depth limiting
+
+### Rate-limiting
 
 3. #### `rateLimiter` | returns a rate limiting implementation baed on selections
-   - `rateLimiter: RateLimiterConfig` | see "configuration -> rateLimiter
+   - `rateLimiter: RateLimiterConfig` | see "configuration" -> rateLimiter
    - `client: Redis` | an ioredis client
    - `keyExpiry: number` | time (ms) for key to persist in cache
-   - returns Class 
-      - `processRequest(uuid: string,timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
+   - returns a class with method:
+      - `processRequest(uuid: string, timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
+      - returns: `{ success: boolean, tokens: number, retryAfter?: number }` | where tokens is tokens available, retryAfter is time to wait in seconds before the request would be successful and success is false if the request is blocked
 
 
 ## <a name="future-development"></a> Future Development
