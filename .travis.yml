@@ -16,13 +16,13 @@ script:
     - 'npm run test'
     - 'npm run build'
 # specify a job to run 
-deploy:
-    on:
-        branch: main
-        tags: false
-    skip_cleanup: true
-    provider: npm
-    email: $NPM_EMAIL_ADDRESS
-    api_key: $NPM_API_KEY
+# deploy:
+#     on:
+#         branch: main
+#         tags: false
+#     skip_cleanup: true
+#     provider: npm
+#     email: $NPM_EMAIL_ADDRESS
+#     api_key: $NPM_API_KEY
 
 
