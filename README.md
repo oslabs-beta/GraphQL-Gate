@@ -216,7 +216,7 @@ This package exposes 3 additional functionalities which comprise the internals o
 
 ### Rate-limiting
 
-3. #### `rateLimiter` | returns a rate limiting implementation baed on selections
+3. #### `rateLimiter` | returns a rate limiting implementation based on selections
    - `rateLimiter: RateLimiterConfig` | see "configuration" -> rateLimiter
    - `client: Redis` | an ioredis client
    - `keyExpiry: number` | time (ms) for key to persist in cache
