@@ -9,7 +9,7 @@
 &nbsp;
 ## Summary 
 
-Developed under tech-accelerator [OSLabs](https://opensourcelabs.io/), GraphQLGate strives for a principled approach to complexity analysis and rate-limiting for GraphQL queries by accurately estimating an upper-bound of the response size of the query. Within a loosly opinionated framework with lots of configuration options, you can reliably throttle GraphQL queries by complexity and depth to protect your GraphQL API. Our solution is inspired by [this paper](https://github.com/Alan-Cha/fse20/blob/master/submissions/functional/FSE-24/graphql-paper.pdf) from IBM reasearch teams. 
+Developed under tech-accelerator [OSLabs](https://opensourcelabs.io/), GraphQLGate strives for a principled approach to complexity analysis and rate-limiting for GraphQL queries by accurately estimating an upper-bound of the response size of the query. Within a loosely opinionated framework with lots of configuration options, you can reliably throttle GraphQL queries by complexity and depth to protect your GraphQL API. Our solution is inspired by [this paper](https://github.com/Alan-Cha/fse20/blob/master/submissions/functional/FSE-24/graphql-paper.pdf) from IBM research teams. 
 
 ## Table of Contents
 
