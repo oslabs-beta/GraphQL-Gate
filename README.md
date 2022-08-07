@@ -180,7 +180,7 @@ query {
 
 ```javascript
 {
-   graphglGate: {
+   graphqlGate: {
       success: boolean, // true when successful
       tokens: number, // tokens available after request
       compexity: number, // complexity of the query
@@ -212,6 +212,7 @@ This package exposes 3 additional functionalities which comprise the internals o
         ```ts
         import { typeWeightsFromSchema } from 'graphql-limiter';
         import { GraphQLSchema } from 'graphql/type/schema';
+        import { buildSchema } from 'graphql';
 
         let schema: GraphQLSchema = buildSchema(`...`);
 
@@ -248,10 +249,10 @@ This package exposes 3 additional functionalities which comprise the internals o
     - `rateLimiter: RateLimiterConfig` | see "configuration" -> rateLimiter
     - `client: Redis` | an ioredis client
     - `keyExpiry: number` | time (ms) for key to persist in cache
-    - returns a class with method:
+    - returns a rate limiter class with method:
 
         - `processRequest(uuid: string, timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
-        - returns: `{ success: boolean, tokens: number, retryAfter?: number }` | where tokens is tokens available, retryAfter is time to wait in seconds before the request would be successful and success is false if the request is blocked
+        - returns: `{ success: boolean, tokens: number, retryAfter?: number }` | where `tokens` is tokens available, `retryAfter` is time to wait in seconds before the request would be successful and `success` is false if the request is blocked
 
         ```ts
         import { rateLimiter } from 'graphql-limiter';
