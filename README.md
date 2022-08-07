@@ -229,13 +229,16 @@ This package exposes 3 additional functionalities which comprise the internals o
 
             ```ts
             import { typeWeightsFromSchema } from 'graphql-limiter';
-            import { parse } from 'graphql';
+            import { parse, validate } from 'graphql';
 
-            let query: DocumentNode = parse(`...`);
+            let queryAST: DocumentNode = parse(`...`);
 
             const queryParser: ASTParser = new ComplexityAnalysis(typeWeights, variables);
+            
+            // query must be validatied against the schema before processing the query
+            const validationErrors = validate(schema, queryAST);
 
-            const complexity: number = queryParser.parse(query);
+            const complexity: number = queryParser.processQuery(queryAST);
             ```
 
 ### Rate-limiting
@@ -259,8 +262,8 @@ This package exposes 3 additional functionalities which comprise the internals o
                 refillRate: 1,
                 capacity: 10,
             },
-            typeWeights,
-            true
+            redisClient,
+            86400000 // 24 hours
         );
 
         const response: RateLimiterResponse = limiter.processRequest(
@@ -268,8 +271,6 @@ This package exposes 3 additional functionalities which comprise the internals o
             new Date().valueOf(),
             5
         );
-
-        const complexity: number = queryParser.parse(query);
         ```
 
 ## <a name="future-development"></a> Future Development
