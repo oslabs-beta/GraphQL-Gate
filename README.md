@@ -229,11 +229,14 @@ This package exposes 3 additional functionalities which comprise the internals o
 
             ```ts
             import { typeWeightsFromSchema } from 'graphql-limiter';
-            import { parse } from 'graphql';
+            import { parse, validate } from 'graphql';
 
             let queryAST: DocumentNode = parse(`...`);
 
             const queryParser: ASTParser = new ComplexityAnalysis(typeWeights, variables);
+            
+            // query must be validatied against the schema before processing the query
+            const validationErrors = validate(schema, queryAST);
 
             const complexity: number = queryParser.processQuery(queryAST);
             ```
