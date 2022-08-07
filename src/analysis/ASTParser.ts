@@ -31,7 +31,7 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |-------------------|
  */
 
-class ComplexityAnalysis {
+class ASTParser {
     private typeWeights: TypeWeightObject;
 
     private depth: number;
@@ -306,4 +306,4 @@ class ComplexityAnalysis {
     }
 }
 
-export default ComplexityAnalysis;
+export default ASTParser;
