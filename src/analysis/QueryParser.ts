@@ -31,7 +31,7 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |-------------------|
  */
 
-class ASTParser {
+class QueryParser {
     private typeWeights: TypeWeightObject;
 
     private depth: number;
@@ -306,4 +306,4 @@ class ASTParser {
     }
 }
 
-export default ASTParser;
+export default QueryParser;
