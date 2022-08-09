@@ -43,7 +43,7 @@ class TokenBucket implements RateLimiter {
      * @return {*}  {Promise<RateLimiterResponse>}
      * @memberof TokenBucket
      */
-    async processRequest(
+    public async processRequest(
         uuid: string,
         timestamp: number,
         tokens = 1

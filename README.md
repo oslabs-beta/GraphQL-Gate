@@ -7,6 +7,9 @@
    </div>
    
 &nbsp;
+## Summary
+
+Developed under tech-accelerator [OSLabs](https://opensourcelabs.io/), GraphQLGate strives for a principled approach to complexity analysis and rate-limiting for GraphQL queries by accurately estimating an upper-bound of the response size of the query. Within a loosely opinionated framework with lots of configuration options, you can reliably throttle GraphQL queries by complexity and depth to protect your GraphQL API. Our solution is inspired by [this paper](https://github.com/Alan-Cha/fse20/blob/master/submissions/functional/FSE-24/graphql-paper.pdf) from IBM research teams.
 
 ## Table of Contents
 
@@ -16,6 +19,7 @@
 -   [How It Works](#how-it-works)
 -   [Response](#response)
 -   [Error Handling](#error-handling)
+-   [Internals](#internals)
 -   [Future Development](#future-development)
 -   [Contributions](#contributions)
 -   [Developers](#developers)
@@ -176,7 +180,7 @@ query {
 
 ```javascript
 {
-   graphglGate: {
+   graphqlGate: {
       success: boolean, // true when successful
       tokens: number, // tokens available after request
       compexity: number, // complexity of the query
@@ -190,6 +194,85 @@ query {
 
 -   Incoming queries are validated against the GraphQL schema. If the query is invalid, a response with status code `400` is returned along with an array of GraphQL Errors that were found.
 -   To avoid disrupting server activity, errors thrown during the analysis and rate-limiting of the query are logged and the request is passed onto the next piece of middleware in the chain.
+
+## <a name="internals"></a> Internals
+
+This package exposes 3 additional functionalities which comprise the internals of the package. This is a breif documentaion on them.
+
+### Complexity Analysis
+
+1. #### `typeWeightsFromSchema` | function to create the type weight object from the schema for complexity analysis
+
+    - `schema: GraphQLSchema` | GraphQL schema object
+    - `typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig` | type weight configuration
+    - `enforceBoundedLists = false`
+    - returns: `TypeWeightObject`
+    - usage:
+
+        ```ts
+        import { typeWeightsFromSchema } from 'graphql-limiter';
+        import { GraphQLSchema } from 'graphql/type/schema';
+        import { buildSchema } from 'graphql';
+
+        let schema: GraphQLSchema = buildSchema(`...`);
+
+        const typeWeights: TypeWeightObject = typeWeightsFromSchema(schema);
+        ```
+
+2. #### `ComplexityAnalysis` | class to calculate the complexity of the query based on the type weights and variables
+
+    - `typeWeights: TypeWeightObject`
+    - `variables: Variables` | variables on request
+    - returns a class with method:
+
+        - `processQuery(queryAST: DocumentNode): number`
+        - returns: complexity of the query and exposes `maxDepth` property for depth limiting
+
+            ```ts
+            import { typeWeightsFromSchema } from 'graphql-limiter';
+            import { parse, validate } from 'graphql';
+
+            let queryAST: DocumentNode = parse(`...`);
+
+            const queryParser: ASTParser = new ComplexityAnalysis(typeWeights, variables);
+            
+            // query must be validatied against the schema before processing the query
+            const validationErrors = validate(schema, queryAST);
+
+            const complexity: number = queryParser.processQuery(queryAST);
+            ```
+
+### Rate-limiting
+
+3. #### `rateLimiter` | returns a rate limiting class instance based on selections
+
+    - `rateLimiter: RateLimiterConfig` | see "configuration" -> rateLimiter
+    - `client: Redis` | an ioredis client
+    - `keyExpiry: number` | time (ms) for key to persist in cache
+    - returns a rate limiter class with method:
+
+        - `processRequest(uuid: string, timestamp: number, tokens = 1): Promise<RateLimiterResponse>`
+        - returns: `{ success: boolean, tokens: number, retryAfter?: number }` | where `tokens` is tokens available, `retryAfter` is time to wait in seconds before the request would be successful and `success` is false if the request is blocked
+
+        ```ts
+        import { rateLimiter } from 'graphql-limiter';
+
+        const limiter: RateLimiter = rateLimiter(
+            {
+                type: 'TOKEN_BUCKET',
+                refillRate: 1,
+                capacity: 10,
+            },
+            redisClient,
+            86400000 // 24 hours
+        );
+
+        const response: RateLimiterResponse = limiter.processRequest(
+            'user-1',
+            new Date().valueOf(),
+            5
+        );
+        ```
 
 ## <a name="future-development"></a> Future Development
 

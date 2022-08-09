@@ -8,14 +8,19 @@ node_js:
 branches:
     only:
         - dev
-        # - main
+        - main
 # scripts to run for each test
 script:
     - echo "Running tests against $(node -v) ..."
     - 'npm run lint'
     - 'npm run test'
     - 'npm run build'
-# specify a job to run 
+
+# specify deployment
+before_deploy:
+   - 'npm run build'
+   - 'npm run build:fix'
+   
 deploy:
     on:
         branch: main

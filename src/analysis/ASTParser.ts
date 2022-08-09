@@ -6,7 +6,6 @@ import {
     Kind,
     DirectiveNode,
     SelectionNode,
-    getArgumentValues,
 } from 'graphql';
 import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWeights';
 /**
@@ -19,26 +18,29 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *                            |
  *                        Definiton Node
  *              (operation and fragment definitons)
- *                     /                \
- *  |-----> Selection Set Node         not done
+ *                     /                |
+ *  |-----> Selection Set Node  <-------|
  *  |               /
  *  |          Selection Node
- *  |  (Field, Inline fragment and fragment spread)
- *  |      |            \               \
- *  |--Field Node       not done       not done
- *
+ *  |  (Field,    Inline fragment and fragment spread)
+ *  |      |            |                    \
+ *  |  Field Node       |                 fragmentCache
+ *  |       |           |
+ *  |---calculateCast   |
+ *  |                   |
+ *  |-------------------|
  */
 
 class ASTParser {
-    typeWeights: TypeWeightObject;
+    private typeWeights: TypeWeightObject;
 
-    depth: number;
+    private depth: number;
 
-    maxDepth: number;
+    public maxDepth: number;
 
-    variables: Variables;
+    private variables: Variables;
 
-    fragmentCache: { [index: string]: { complexity: number; depth: number } };
+    private fragmentCache: { [index: string]: { complexity: number; depth: number } };
 
     constructor(typeWeights: TypeWeightObject, variables: Variables) {
         this.typeWeights = typeWeights;
@@ -59,7 +61,6 @@ class ASTParser {
         let selectionsCost = 0;
         let calculatedWeight = 0;
 
-        // call the function to handle selection set node with selectionSet property if it is not undefined
         if (node.selectionSet) {
             selectionsCost += this.selectionSetNode(node.selectionSet, typeName);
         }
@@ -80,22 +81,26 @@ class ASTParser {
     private fieldNode(node: FieldNode, parentName: string): number {
         try {
             let complexity = 0;
+            // the node must have a parent in typeweights or the analysis will fail. this should never happen
             const parentType = this.typeWeights[parentName];
             if (!parentType) {
                 throw new Error(
                     `ERROR: ASTParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
                 );
             }
+
             let typeName: string | undefined;
             let typeWeight: FieldWeight | undefined;
-            if (node.name.value === '__typename') return complexity;
+
+            if (node.name.value === '__typename') return complexity; // this will be zero, ie. this field has no complexity
+
             if (node.name.value in this.typeWeights) {
-                // node is an object type n the typeWeight root
+                // node is an object type in the typeWeight root
                 typeName = node.name.value;
                 typeWeight = this.typeWeights[typeName].weight;
                 complexity += this.calculateCost(node, parentName, typeName, typeWeight);
             } else if (parentType.fields[node.name.value].resolveTo) {
-                // field resolves to another type in type weights or a list
+                // node is a field on a typeWeight root, field resolves to another type in type weights or a list
                 typeName = parentType.fields[node.name.value].resolveTo;
                 typeWeight = parentType.fields[node.name.value].weight;
                 // if this is a list typeWeight is a weight function
@@ -147,7 +152,8 @@ class ASTParser {
      * 2. there is a directive named inlcude and the value is true
      * 3. there is a directive named skip and the value is false
      */
-    directiveCheck(directive: DirectiveNode): boolean {
+    // THIS IS NOT CALLED ANYWEHERE. IN PROGRESS
+    private directiveCheck(directive: DirectiveNode): boolean {
         if (directive?.arguments) {
             // get the first argument
             const argument = directive.arguments[0];
@@ -172,8 +178,9 @@ class ASTParser {
 
     private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
+        // TODO: complete implementation of directives include and skip
         /**
-         * process this node if:
+         * process this node only if:
          * 1. there is no directive
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
@@ -182,9 +189,8 @@ class ASTParser {
         // if (directive && this.directiveCheck(directive[0])) {
         this.depth += 1;
         if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-        // check the kind property against the set of selection nodes that are possible
+        // the kind of a field node will either be field, fragment spread or inline fragment
         if (node.kind === Kind.FIELD) {
-            // call the function that handle field nodes
             complexity += this.fieldNode(node, parentName.toLowerCase());
         } else if (node.kind === Kind.FRAGMENT_SPREAD) {
             // add complexity and depth from fragment cache
@@ -214,25 +220,23 @@ class ASTParser {
         }
 
         this.depth -= 1;
-        // }
+        //* }
         return complexity;
     }
 
     private selectionSetNode(node: SelectionSetNode, parentName: string): number {
         let complexity = 0;
         let maxFragmentComplexity = 0;
-        // iterate shrough the 'selections' array on the seletion set node
         for (let i = 0; i < node.selections.length; i += 1) {
-            // call the function to handle seletion nodes
             // pass the current parent through because selection sets act only as intermediaries
             const selectionNode = node.selections[i];
-            const selectionCost = this.selectionNode(node.selections[i], parentName);
+            const selectionCost = this.selectionNode(selectionNode, parentName);
 
             // we need to get the largest possible complexity so we save the largest inline fragment
-            // FIXME: Consider the case where 2 typed fragments are applicable
             // e.g. ...UnionType and ...PartofTheUnion
             // this case these complexities should be summed in order to be accurate
             // However an estimation suffice
+            // FIXME: Consider the case where 2 typed fragments are applicable
             if (selectionNode.kind === Kind.INLINE_FRAGMENT) {
                 if (!selectionNode.typeCondition) {
                     // complexity is always applicable
@@ -248,22 +252,17 @@ class ASTParser {
 
     private definitionNode(node: DefinitionNode): number {
         let complexity = 0;
-        // check the kind property against the set of definiton nodes that are possible
+        // Operation definition is either query, mutation or subscripiton
         if (node.kind === Kind.OPERATION_DEFINITION) {
-            // check if the operation is in the type weights object.
             if (node.operation.toLocaleLowerCase() in this.typeWeights) {
-                // if it is, it is an object type, add it's type weight to the total
                 complexity += this.typeWeights[node.operation].weight;
-                // console.log(`the weight of ${node.operation} is ${complexity}`);
-                // call the function to handle selection set node with selectionSet property if it is not undefined
                 if (node.selectionSet) {
                     complexity += this.selectionSetNode(node.selectionSet, node.operation);
                 }
             }
         } else if (node.kind === Kind.FRAGMENT_DEFINITION) {
             // Fragments can only be defined on the root type.
-            // Parse the complexity of this fragment once and store it for use when analyzing other
-            // nodes. The complexity of a fragment can be added to the selection cost for the query.
+            // Parse the complexity of this fragment once and store it for use when analyzing other nodes
             const namedType = node.typeCondition.name.value;
             // Duplicate fragment names are not allowed by the GraphQL spec and an error is thrown if used.
             const fragmentName = node.name.value;
@@ -276,10 +275,12 @@ class ASTParser {
             // Don't count fragment complexity in the node's complexity. Only when fragment is used.
             this.fragmentCache[fragmentName] = {
                 complexity: fragmentComplexity,
-                depth: this.maxDepth - 1, // subtract one from the calculated depth of the fragment to correct for the additional depth the fragment ads to the query when used
+                depth: this.maxDepth - 1, // subtract one from the calculated depth of the fragment to correct for the additional depth the fragment adds to the query when used
             };
-        } // else {
-        //     // TODO: Verify that are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
+        }
+        // TODO: Verify that there are no other type definition nodes that need to be handled (see ast.d.ts in 'graphql')
+        // else {
+        //
         //     // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
         //     // TypeSystemExtensionNode(Schema, Type);
         //     throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
@@ -289,19 +290,18 @@ class ASTParser {
 
     private documentNode(node: DocumentNode): number {
         let complexity = 0;
-        // sort the definitions array by kind so that fragments are always parsed first.
+        // Sort the definitions array by kind so that fragments are always parsed first.
         // Fragments must be parsed first so that their complexity is available to other nodes.
         const sortedDefinitions = [...node.definitions].sort((a, b) =>
             a.kind.localeCompare(b.kind)
         );
         for (let i = 0; i < sortedDefinitions.length; i += 1) {
-            // call the function to handle the various types of definition nodes
             complexity += this.definitionNode(sortedDefinitions[i]);
         }
         return complexity;
     }
 
-    processQuery(queryAST: DocumentNode): number {
+    public processQuery(queryAST: DocumentNode): number {
         return this.documentNode(queryAST);
     }
 }
