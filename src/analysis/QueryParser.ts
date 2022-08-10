@@ -26,9 +26,9 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |      |            |                    \
  *  |  Field Node       |                 fragmentCache
  *  |       |           |
- *  |---calculateCast   |
+ *  |<--calculateCast   |
  *  |                   |
- *  |-------------------|
+ *  |<------------------|
  */
 
 class QueryParser {
@@ -85,7 +85,7 @@ class QueryParser {
             const parentType = this.typeWeights[parentName];
             if (!parentType) {
                 throw new Error(
-                    `ERROR: ASTParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
+                    `ERROR: QueryParser Failed to obtain parentType for parent: ${parentName} and node: ${node.name.value}`
                 );
             }
 
@@ -114,7 +114,7 @@ class QueryParser {
                     complexity += this.calculateCost(node, parentName, typeName, typeWeight);
                 } else {
                     throw new Error(
-                        `ERROR: ASTParser Failed to obtain resolved type name or weight for node: ${parentName}.${node.name.value}`
+                        `ERROR: QueryParser Failed to obtain resolved type name or weight for node: ${parentName}.${node.name.value}`
                     );
                 }
             } else {
@@ -126,19 +126,19 @@ class QueryParser {
                         complexity += typeWeight;
                     } else {
                         throw new Error(
-                            `ERROR: ASTParser Failed to obtain type weight for ${parentName}.${node.name.value}`
+                            `ERROR: QueryParser Failed to obtain type weight for ${parentName}.${node.name.value}`
                         );
                     }
                 } else {
                     throw new Error(
-                        `ERROR: ASTParser Failed to obtain type name for ${parentName}.${node.name.value}`
+                        `ERROR: QueryParser Failed to obtain type name for ${parentName}.${node.name.value}`
                     );
                 }
             }
             return complexity;
         } catch (err) {
             throw new Error(
-                `ERROR: ASTParser.fieldNode Uncaught error handling ${parentName}.${
+                `ERROR: QueryParser.fieldNode Uncaught error handling ${parentName}.${
                     node.name.value
                 }\n
                 ${err instanceof Error && err.stack}`
@@ -216,7 +216,7 @@ class QueryParser {
             complexity += this.selectionSetNode(node.selectionSet, namedType);
             this.depth += 1;
         } else {
-            throw new Error(`ERROR: ASTParser.selectionNode: node type not supported`);
+            throw new Error(`ERROR: QueryParser.selectionNode: node type not supported`);
         }
 
         this.depth -= 1;
@@ -283,7 +283,7 @@ class QueryParser {
         //
         //     // Other types include TypeSystemDefinitionNode (Schema, Type, Directvie) and
         //     // TypeSystemExtensionNode(Schema, Type);
-        //     throw new Error(`ERROR: ASTParser.definitionNode: ${node.kind} type not supported`);
+        //     throw new Error(`ERROR: QueryParser.definitionNode: ${node.kind} type not supported`);
         // }
         return complexity;
     }
