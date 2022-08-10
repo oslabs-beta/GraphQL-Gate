@@ -219,7 +219,7 @@ This package exposes 3 additional functionalities which comprise the internals o
         const typeWeights: TypeWeightObject = typeWeightsFromSchema(schema);
         ```
 
-2. #### `ComplexityAnalysis` | class to calculate the complexity of the query based on the type weights and variables
+2. #### `QueryParser` | class to calculate the complexity of the query based on the type weights and variables
 
     - `typeWeights: TypeWeightObject`
     - `variables: Variables` | variables on request
@@ -234,8 +234,8 @@ This package exposes 3 additional functionalities which comprise the internals o
 
             let queryAST: DocumentNode = parse(`...`);
 
-            const queryParser: ASTParser = new ComplexityAnalysis(typeWeights, variables);
-            
+            const queryParser: QueryParser = new QueryParser(typeWeights, variables);
+
             // query must be validatied against the schema before processing the query
             const validationErrors = validate(schema, queryAST);
 
