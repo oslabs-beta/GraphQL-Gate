@@ -33,19 +33,13 @@ import {
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 
-// These variables exist to provide a default value for typescript when accessing a weight
-// since all props are optioal in TypeWeightConfig
-const DEFAULT_MUTATION_WEIGHT = 10;
-const DEFAULT_OBJECT_WEIGHT = 1;
-const DEFAULT_SCALAR_WEIGHT = 0;
-const DEFAULT_CONNECTION_WEIGHT = 2;
-const DEFAULT_QUERY_WEIGHT = 1;
+// default configuration weights for GraphQL types
 export const defaultTypeWeightsConfig: TypeWeightSet = {
-    mutation: DEFAULT_MUTATION_WEIGHT,
-    object: DEFAULT_OBJECT_WEIGHT,
-    scalar: DEFAULT_SCALAR_WEIGHT,
-    connection: DEFAULT_CONNECTION_WEIGHT,
-    query: DEFAULT_QUERY_WEIGHT,
+    mutation: 10,
+    object: 1,
+    scalar: 0,
+    connection: 2,
+    query: 1,
 };
 
 /**
@@ -55,7 +49,7 @@ export const defaultTypeWeightsConfig: TypeWeightSet = {
  * @param {TypeWeightObject} typeWeightObject
  * @param {TypeWeightSet} typeWeights
  * @param {boolean} enforceBoundedLists
- * @return {*}  {Type}
+ * @return {Type}
  */
 function parseObjectFields(
     type: GraphQLObjectType | GraphQLInterfaceType,
@@ -86,7 +80,6 @@ function parseObjectFields(
         if (isScalarType(fieldType)) {
             result.fields[field] = {
                 weight: typeWeights.scalar,
-                // resolveTo: fields[field].name.toLowerCase(),
             };
         } else if (
             isInterfaceType(fieldType) ||
@@ -115,8 +108,7 @@ function parseObjectFields(
                 // fieldAdded is a boolean flag to check if we have added a something to the typeweight object for this field.
                 // if we reach end of the list and fieldAdded is false, we have an unbounded list.
                 let fieldAdded = false;
-                // if the @listCost directive is given for the field,
-                // apply the cost argument's value to the field's weight
+                // if the @listCost directive is given for the field, apply the cost argument's value to the field's weight
                 const directives = fields[field].astNode?.directives;
                 if (directives && directives.length > 0) {
                     directives.forEach((dir) => {
@@ -138,13 +130,17 @@ function parseObjectFields(
                     });
                 }
 
-                // if no directive is supplied to list field
+                // chcek for slicing arguments on field for bounding lists
                 fields[field].args.forEach((arg: GraphQLArgument) => {
                     // If field has an argument matching one of the limiting keywords and resolves to a list
                     // then the weight of the field should be dependent on both the weight of the resolved type and the limiting argument.
                     if (KEYWORDS.includes(arg.name)) {
                         // Get the type that comprises the list
                         fieldAdded = true;
+                        /** "weight" property is a function that calculates the list complexity based:
+                         * 1.  on the cost of it's field selections
+                         * 2. the value of the slicing argment (multiplier)
+                         * 3. the wight of the field itself  */
                         result.fields[field] = {
                             resolveTo: listType.toString().toLocaleLowerCase(),
                             weight: (
@@ -396,6 +392,7 @@ function parseTypes(
         }
     });
 
+    // parse union types to complete the build of the typeWeightObject
     return parseUnionTypes(unions, typeWeights, result);
 }
 

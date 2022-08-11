@@ -15,12 +15,17 @@ script:
     - 'npm run lint'
     - 'npm run test'
     - 'npm run build'
-# specify a job to run 
+
+# specify deployment
+before_deploy:
+   - 'npm run build'
+   - 'npm run build:fix'
+   
 deploy:
     on:
         branch: main
-        tags: true
-    skip_cleanup: false
+        tags: false
+    skip_cleanup: true
     provider: npm
     email: $NPM_EMAIL_ADDRESS
     api_key: $NPM_API_KEY

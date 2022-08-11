@@ -6,7 +6,7 @@
         "removeComments": false,
         "preserveConstEnums": true,
         "sourceMap": true,
-        "target": "es5",
+        "target": "es6",
         "lib": [
             "dom",
             "dom.iterable",
@@ -29,7 +29,9 @@
             "node",
             "jest"
         ],
-        "outDir": "build/"
+        "outDir": "dist",
+        "declaration": true,
+        "declarationDir": "dist",
     },
     "include": [
         "src/**/*.ts",
@@ -39,6 +41,7 @@
     ],
     "exclude": [
         "node_modules",
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "dist",
     ]
 }

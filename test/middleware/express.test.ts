@@ -433,7 +433,7 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple valid requests at > 10 second intervals', async () => {
-                    const requests = [];
+                    const requests: Array<void> = [];
                     for (let i = 0; i < 3; i++) {
                         requests.push(
                             middleware(
@@ -453,7 +453,7 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple valid requests at within one second', async () => {
-                    const requests = [];
+                    const requests: Array<void> = [];
 
                     for (let i = 0; i < 3; i++) {
                         // Send 3 queries of complexity 2. These should all succeed
@@ -514,7 +514,7 @@ describe('Express Middleware tests', () => {
                 });
 
                 test('Multiple queries that exceed token limit', async () => {
-                    const requests = [];
+                    const requests: Array<void> = [];
 
                     for (let i = 0; i < 5; i++) {
                         // Send 5 queries of complexity 2. These should all succeed
@@ -549,7 +549,9 @@ describe('Express Middleware tests', () => {
                     expect(mockResponse.json).toBeCalled();
                 });
 
-                xtest('Retry-After header is on blocked response', () => {});
+                xtest('Retry-After header is on blocked response', () => {
+                    // TODO:
+                });
             });
         });
 
