@@ -409,7 +409,7 @@ function parseTypes(
  * @param enforceBoundedLists Defaults to false
  * @param typeWeightsConfig Defaults to {mutation: 10, object: 1, field: 0, connection: 2}
  */
-function buildTypeWeightsFromSchema(
+export default function buildTypeWeightsFromSchema(
     schema: GraphQLSchema,
     typeWeightsConfig: TypeWeightConfig = defaultTypeWeightsConfig,
     enforceBoundedLists = false
@@ -437,5 +437,3 @@ function buildTypeWeightsFromSchema(
         throw new Error(`Error in expressGraphQLRateLimiter when parsing schema object: ${err}`);
     }
 }
-
-export default buildTypeWeightsFromSchema;

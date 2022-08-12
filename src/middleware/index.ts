@@ -23,7 +23,7 @@ import QueryParser from '../analysis/QueryParser';
  * if the query is allowed or sends a 429 status if the request is blocked
  * @throws Error
  */
-export default function expressGraphQLRateLimiter(
+function expressGraphQLRateLimiter(
     schema: GraphQLSchema,
     middlewareConfig: ExpressMiddlewareConfig
 ): RequestHandler {
@@ -215,3 +215,5 @@ export default function expressGraphQLRateLimiter(
         }
     };
 }
+
+export default expressGraphQLRateLimiter;
