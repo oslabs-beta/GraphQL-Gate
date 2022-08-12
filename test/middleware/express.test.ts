@@ -375,7 +375,7 @@ describe('Express Middleware tests', () => {
 
         describe('Adds expected properties to res.locals', () => {
             test('Adds UNIX timestamp', async () => {
-                jest.useRealTimers();
+                // jest.useRealTimers();
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
                 jest.useFakeTimers();
 

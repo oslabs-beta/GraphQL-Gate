@@ -1,11 +1,9 @@
-import EventEmitter from 'events';
 import { parse, validate } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
 import setupRateLimiter from './rateLimiterSetup';
 import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
-import { RateLimiterResponse } from '../@types/rateLimit';
 import { connect } from '../utils/redis';
 import ASTParser from '../analysis/ASTParser';
 
@@ -66,71 +64,6 @@ export default function expressGraphQLRateLimiter(
         middlewareSetup.redis.keyExpiry
     );
 
-    /**
-     * We are using a queue and event emitter to handle situations where a user has two concurrent requests being processed.
-     * The trailing request will be added to the queue to and await the prior request processing by the rate-limiter
-     * This will maintain the consistency and accuracy of the cache when under load from one user
-     */
-    // stores request IDs for each user in an array to be processed
-    const requestQueues: { [index: string]: string[] } = {};
-    // Manages processing of requests queue
-    const requestEvents = new EventEmitter();
-
-    // processes requests (by resolving  promises) that have been throttled by throttledProcess
-    async function processRequestResolver(
-        userId: string,
-        timestamp: number,
-        tokens: number,
-        resolve: (value: RateLimiterResponse | PromiseLike<RateLimiterResponse>) => void,
-        reject: (reason: any) => void
-    ) {
-        try {
-            const response = await rateLimiter.processRequest(userId, timestamp, tokens);
-            requestQueues[userId] = requestQueues[userId].slice(1);
-            resolve(response);
-            // trigger the next event and delete the request queue for this user if there are no more requests to process
-            requestEvents.emit(requestQueues[userId][0]);
-            if (requestQueues[userId].length === 0) delete requestQueues[userId];
-        } catch (err) {
-            reject(err);
-        }
-    }
-
-    /**
-     * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
-     * Throttling is based on a event driven promise fulfillment approach.
-     * Each time a request is received a promise is added to the user's request queue. The promise "subscribes"
-     * to the previous request in the user's queue then calls processRequest and resolves once the previous request
-     * is complete.
-     * @param userId
-     * @param timestamp
-     * @param tokens
-     * @returns
-     */
-    async function throttledProcess(
-        userId: string,
-        timestamp: number,
-        tokens: number
-    ): Promise<RateLimiterResponse> {
-        // Alternatively use crypto.randomUUID() to generate a random uuid
-        const requestId = `${timestamp}${tokens}`;
-
-        if (!requestQueues[userId]) {
-            requestQueues[userId] = [];
-        }
-        requestQueues[userId].push(requestId);
-
-        return new Promise((resolve, reject) => {
-            if (requestQueues[userId].length > 1) {
-                requestEvents.once(requestId, async () => {
-                    await processRequestResolver(userId, timestamp, tokens, resolve, reject);
-                });
-            } else {
-                processRequestResolver(userId, timestamp, tokens, resolve, reject);
-            }
-        });
-    }
-
     /** Rate-limiting middleware */
     return async (
         req: Request,
@@ -169,7 +102,7 @@ export default function expressGraphQLRateLimiter(
         const queryComplexity = queryParser.processQuery(queryAST);
 
         try {
-            const rateLimiterResponse = await throttledProcess(
+            const rateLimiterResponse = await rateLimiter.processRequest(
                 ip,
                 requestTimestamp,
                 queryComplexity
