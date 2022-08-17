@@ -14,7 +14,11 @@ import FixedWindow from '../rateLimiters/fixedWindow.js';
  * @param {number} keyExpiry
  * @return {*}
  */
-function setupRateLimiter(rateLimiter: RateLimiterConfig, client: Redis, keyExpiry: number) {
+export default function setupRateLimiter(
+    rateLimiter: RateLimiterConfig,
+    client: Redis,
+    keyExpiry: number
+) {
     try {
         switch (rateLimiter.type) {
             case 'TOKEN_BUCKET':
@@ -57,5 +61,3 @@ function setupRateLimiter(rateLimiter: RateLimiterConfig, client: Redis, keyExpi
         throw new Error(`Error in expressGraphQLRateLimiter setting up rate-limiter: ${err}`);
     }
 }
-
-export default setupRateLimiter;
