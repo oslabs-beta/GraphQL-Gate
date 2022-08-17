@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiter, RateLimiterResponse, RedisBucket } from '../@types/rateLimit';
+import { RateLimiter, RateLimiterResponse, RedisBucket } from '../@types/rateLimit.js';
 
 /**
  * The TokenBucket instance of a RateLimiter limits requests based on a unique user ID.

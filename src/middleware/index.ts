@@ -2,12 +2,14 @@ import EventEmitter from 'events';
 import { parse, validate } from 'graphql';
 import { GraphQLSchema } from 'graphql/type/schema';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import buildTypeWeightsFromSchema, { defaultTypeWeightsConfig } from '../analysis/buildTypeWeights';
-import setupRateLimiter from './rateLimiterSetup';
-import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware';
-import { RateLimiterResponse } from '../@types/rateLimit';
-import { connect } from '../utils/redis';
-import QueryParser from '../analysis/QueryParser';
+import buildTypeWeightsFromSchema, {
+    defaultTypeWeightsConfig,
+} from '../analysis/buildTypeWeights.js';
+import setupRateLimiter from './rateLimiterSetup.js';
+import { ExpressMiddlewareConfig, ExpressMiddlewareSet } from '../@types/expressMiddleware.js';
+import { RateLimiterResponse } from '../@types/rateLimit.js';
+import { connect } from '../utils/redis.js';
+import QueryParser from '../analysis/QueryParser.js';
 
 /**
  * Primary entry point for adding GraphQL Rate Limiting middleware to an Express Server

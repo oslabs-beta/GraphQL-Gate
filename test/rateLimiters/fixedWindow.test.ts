@@ -1,6 +1,6 @@
 import * as ioredis from 'ioredis';
-import { FixedWindow as Window } from '../../src/@types/rateLimit';
-import FixedWindow from '../../src/rateLimiters/fixedWindow';
+import { FixedWindow as Window } from '../../src/@types/rateLimit.js';
+import FixedWindow from '../../src/rateLimiters/fixedWindow.js';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');

@@ -1,6 +1,6 @@
 import * as ioredis from 'ioredis';
-import { RedisBucket } from '../../src/@types/rateLimit';
-import TokenBucket from '../../src/rateLimiters/tokenBucket';
+import { RedisBucket } from '../../src/@types/rateLimit.js';
+import TokenBucket from '../../src/rateLimiters/tokenBucket.js';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');

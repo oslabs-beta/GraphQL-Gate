@@ -29,7 +29,7 @@ import {
     Type,
     Fields,
     FieldMap,
-} from '../@types/buildTypeWeights';
+} from '../@types/buildTypeWeights.js';
 
 export const KEYWORDS = ['first', 'last', 'limit'];
 

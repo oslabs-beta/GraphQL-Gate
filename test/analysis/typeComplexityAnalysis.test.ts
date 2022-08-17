@@ -1,6 +1,6 @@
 import { parse } from 'graphql';
-import QueryParser from '../../src/analysis/QueryParser';
-import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights';
+import QueryParser from '../../src/analysis/QueryParser.js';
+import { TypeWeightObject, Variables } from '../../src/@types/buildTypeWeights.js';
 
 /** 
  * Here is the schema that creates the following 'typeWeightsObject' used for the tests

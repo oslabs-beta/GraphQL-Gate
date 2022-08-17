@@ -1,9 +1,9 @@
 import Redis from 'ioredis';
-import { RateLimiterConfig } from '../@types/rateLimit';
-import TokenBucket from '../rateLimiters/tokenBucket';
-import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter';
-import SlidingWindowLog from '../rateLimiters/slidingWindowLog';
-import FixedWindow from '../rateLimiters/fixedWindow';
+import { RateLimiterConfig } from '../@types/rateLimit.js';
+import TokenBucket from '../rateLimiters/tokenBucket.js';
+import SlidingWindowCounter from '../rateLimiters/slidingWindowCounter.js';
+import SlidingWindowLog from '../rateLimiters/slidingWindowLog.js';
+import FixedWindow from '../rateLimiters/fixedWindow.js';
 
 /**
  * Instatieate the rateLimiting algorithm class based on the developer selection and options

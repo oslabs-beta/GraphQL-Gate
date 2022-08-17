@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLimit';
+import { RateLimiter, RateLimiterResponse, RedisWindow } from '../@types/rateLimit.js';
 
 /**
  * The SlidingWindowCounter instance of a RateLimiter limits requests based on a unique user ID.

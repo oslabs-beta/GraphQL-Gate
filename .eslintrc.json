@@ -28,6 +28,10 @@
                 "allowForLoopAfterthoughts": true
             }
         ],
+        "import/extensions": [
+            2,
+            "ignorePackages"
+        ],
         "prettier/prettier": [
             "error"
         ]
