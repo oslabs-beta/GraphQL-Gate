@@ -15,10 +15,11 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": "latest",
-        "project": "./tsconfig.json"
+        "project": "./tsconfig.eslint.json"
     },
     "plugins": [
-        "import", "prettier"
+        "import",
+        "prettier"
     ],
     "rules": {
         "no-plusplus": [
@@ -26,6 +27,10 @@
             {
                 "allowForLoopAfterthoughts": true
             }
+        ],
+        "import/extensions": [
+            2,
+            "ignorePackages"
         ],
         "prettier/prettier": [
             "error"

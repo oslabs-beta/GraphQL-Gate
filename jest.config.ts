@@ -5,7 +5,20 @@ const config: Config.InitialOptions = {
     roots: ['./test'],
     preset: 'ts-jest',
     testEnvironment: 'node',
-    moduleFileExtensions: ['js', 'ts'],
+    // moduleFileExtensions: ['js', 'ts'],
+    // Bellow is needed to resolve imports with .js extensions
+    transform: {
+        '\\.[jt]s?$': 'ts-jest',
+    },
+    globals: {
+        'ts-jest': {
+            useESM: true,
+        },
+    },
+    moduleNameMapper: {
+        '(.+)\\.js': '$1',
+    },
+    extensionsToTreatAsEsm: ['.ts'],
 };
 
 export default config;
