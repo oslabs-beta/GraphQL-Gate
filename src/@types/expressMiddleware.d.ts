@@ -1,6 +1,6 @@
 import { RedisOptions } from 'ioredis';
-import { TypeWeightConfig, TypeWeightSet } from './buildTypeWeights';
-import { RateLimiterConfig } from './rateLimit';
+import { TypeWeightConfig, TypeWeightSet } from './buildTypeWeights.d.ts';
+import { RateLimiterConfig } from './rateLimit.d.ts';
 
 // extend ioredis configuration options to include an expiry prooperty for rate limiting cache
 interface RedisConfig {
