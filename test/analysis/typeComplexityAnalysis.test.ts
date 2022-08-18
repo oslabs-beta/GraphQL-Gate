@@ -855,7 +855,7 @@ describe('Test getQueryTypeComplexity function', () => {
         });
 
         // TODO: refine complexity analysis to consider directives includes and skip
-        xdescribe('with directives @includes and @skip', () => {
+        describe('with directives @includes and @skip', () => {
             test('@includes on interfaces', () => {
                 query = `
                     query {
@@ -871,10 +871,10 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }
                     }`;
-                expect(mockCharacterFriendsFunction).toHaveBeenCalledTimes(0);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
                 // Query 1 + 1 hero + max(...Character 3, ...Human 0) = 5
                 expect(queryParser.processQuery(parse(query))).toBe(5);
-
+                mockCharacterFriendsFunction.mockReset();
                 query = `
                     query {
                         hero(episode: EMPIRE) {
@@ -889,7 +889,7 @@ describe('Test getQueryTypeComplexity function', () => {
                             }
                         }
                     }`;
-                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                expect(mockCharacterFriendsFunction).toHaveBeenCalledTimes(0);
                 // Query 1 + 1 hero = 2
                 expect(queryParser.processQuery(parse(query))).toBe(2);
             });
@@ -912,7 +912,7 @@ describe('Test getQueryTypeComplexity function', () => {
                 expect(mockCharacterFriendsFunction).toHaveBeenCalledTimes(0);
                 // Query 1 + 1 hero = 2
                 expect(queryParser.processQuery(parse(query))).toBe(2);
-
+                mockCharacterFriendsFunction.mockReset();
                 query = `
                     query {
                         hero(episode: EMPIRE) {
@@ -987,7 +987,8 @@ describe('Test getQueryTypeComplexity function', () => {
                 // 1 query + 1 hero + 1 human
                 expect(queryParser.processQuery(parse(query))).toBe(3);
             });
-            test('with arguments and varibales', () => {
+
+            test('@skip with arguments and varibales', () => {
                 variables = { directive: false };
                 queryParser = new QueryParser(typeWeights, variables);
                 query = `query ($directive: Boolean!){ 
@@ -1008,7 +1009,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     hero(episode: EMPIRE) { 
                         id, name 
                     } 
-                    human(id: 1) @includes(if: $directive) { 
+                    human(id: 1) @skip(if: $directive) { 
                         id, 
                         name, 
                         homePlanet 
@@ -1018,7 +1019,38 @@ describe('Test getQueryTypeComplexity function', () => {
                 expect(queryParser.processQuery(parse(query))).toBe(2);
             });
 
-            xtest('and other directive are ignored', () => {
+            test('@includes with arguments and varibales', () => {
+                variables = { directive: false };
+                queryParser = new QueryParser(typeWeights, variables);
+                query = `query ($directive: Boolean!){ 
+                    hero(episode: EMPIRE) { 
+                        id, name 
+                    } 
+                    human(id: 1) @include(if: $directive) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                // 1 query + 1 hero
+                expect(queryParser.processQuery(parse(query))).toBe(2);
+                variables = { directive: true };
+                queryParser = new QueryParser(typeWeights, variables);
+                query = `query ($directive: Boolean!){ 
+                    hero(episode: EMPIRE) { 
+                        id, name 
+                    } 
+                    human(id: 1) @include(if: $directive) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                // 1 query + 1 hero + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(3);
+            });
+
+            test('and other directives or arguments are ignored', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
                         id, name 

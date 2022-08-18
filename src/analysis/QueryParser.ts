@@ -151,11 +151,16 @@ class QueryParser {
      * 1. there is no directive
      * 2. there is a directive named inlcude and the value is true
      * 3. there is a directive named skip and the value is false
+     * 4. there is a directive of any other form
      */
-    // THIS IS NOT CALLED ANYWEHERE. IN PROGRESS
     private directiveCheck(directive: DirectiveNode): boolean {
-        if (directive?.arguments) {
-            // get the first argument
+        // check if there is a directive "include" or "skip" and arguments are present
+        // evaluate the state of the directive to ignore or calculate the compexity of this queried field
+        if (
+            directive?.arguments &&
+            (directive.name.value === 'include' || directive.name.value === 'skip')
+        ) {
+            // only consider the first argument
             const argument = directive.arguments[0];
             // ensure the argument name is 'if'
             const argumentHasVariables =
@@ -173,6 +178,7 @@ class QueryParser {
                 (directive.name.value === 'skip' && directiveArgumentValue === false)
             );
         }
+        // return true to process all queried fields without/other directives
         return true;
     }
 
@@ -185,42 +191,44 @@ class QueryParser {
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
-        // const directive = node.directives;
-        // if (directive && this.directiveCheck(directive[0])) {
-        this.depth += 1;
-        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-        // the kind of a field node will either be field, fragment spread or inline fragment
-        if (node.kind === Kind.FIELD) {
-            complexity += this.fieldNode(node, parentName.toLowerCase());
-        } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-            // add complexity and depth from fragment cache
-            const { complexity: fragComplexity, depth: fragDepth } =
-                this.fragmentCache[node.name.value];
-            complexity += fragComplexity;
-            this.depth += fragDepth;
-            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-            this.depth -= fragDepth;
-
-            // This is a leaf
-            // need to parse fragment definition at root and get the result here
-        } else if (node.kind === Kind.INLINE_FRAGMENT) {
-            const { typeCondition } = node;
-
-            // named type is the type from which inner fields should be take
-            // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
-            const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
-
-            // TODO: Handle directives like @include and @skip
-            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
-            this.depth -= 1;
-            complexity += this.selectionSetNode(node.selectionSet, namedType);
+        const directive = node.directives;
+        if (directive && this.directiveCheck(directive[0])) {
             this.depth += 1;
-        } else {
-            throw new Error(`ERROR: QueryParser.selectionNode: node type not supported`);
-        }
+            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+            // the kind of a field node will either be field, fragment spread or inline fragment
+            if (node.kind === Kind.FIELD) {
+                complexity += this.fieldNode(node, parentName.toLowerCase());
+            } else if (node.kind === Kind.FRAGMENT_SPREAD) {
+                // add complexity and depth from fragment cache
+                const { complexity: fragComplexity, depth: fragDepth } =
+                    this.fragmentCache[node.name.value];
+                complexity += fragComplexity;
+                this.depth += fragDepth;
+                if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+                this.depth -= fragDepth;
 
-        this.depth -= 1;
-        //* }
+                // This is a leaf
+                // need to parse fragment definition at root and get the result here
+            } else if (node.kind === Kind.INLINE_FRAGMENT) {
+                const { typeCondition } = node;
+
+                // named type is the type from which inner fields should be take
+                // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
+                const namedType = typeCondition
+                    ? typeCondition.name.value.toLowerCase()
+                    : parentName;
+
+                // TODO: Handle directives like @include and @skip
+                // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
+                this.depth -= 1;
+                complexity += this.selectionSetNode(node.selectionSet, namedType);
+                this.depth += 1;
+            } else {
+                throw new Error(`ERROR: QueryParser.selectionNode: node type not supported`);
+            }
+
+            this.depth -= 1;
+        }
         return complexity;
     }
 
