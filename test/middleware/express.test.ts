@@ -2,9 +2,9 @@ import 'ts-jest';
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { GraphQLSchema, buildSchema } from 'graphql';
 import * as ioredis from 'ioredis';
-import expressGraphQLRateLimiter from '../../src/middleware/index.js';
+import expressGraphQLRateLimiter from '../../src/middleware/index';
 
-import * as redis from '../../src/utils/redis.js';
+import * as redis from '../../src/utils/redis';
 
 const mockConnect = jest.spyOn(redis, 'connect');
 

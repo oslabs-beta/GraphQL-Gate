@@ -1,7 +1,7 @@
 import 'ts-jest';
 import * as ioredis from 'ioredis';
-import { RateLimiterResponse, RedisLog } from '../../src/@types/rateLimit.js';
-import SlidingWindowLog from '../../src/rateLimiters/slidingWindowLog.js';
+import { RateLimiterResponse, RedisLog } from '../../src/@types/rateLimit';
+import SlidingWindowLog from '../../src/rateLimiters/slidingWindowLog';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const RedisMock = require('ioredis-mock');

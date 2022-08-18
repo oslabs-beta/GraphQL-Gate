@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "import/extensions": [
+      "off"
+    ]
+  }
+}
