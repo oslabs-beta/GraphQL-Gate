@@ -69,7 +69,7 @@ export default function expressGraphQLRateLimiter(
         req: Request,
         res: Response,
         next: NextFunction
-    ): Promise<void | Response<any, Record<string, any>>> => {
+    ): Promise<void | Response<unknown, Record<string, unknown>>> => {
         const requestTimestamp = new Date().valueOf();
         // access the query and variables passed to the server in the body or query string
         let query;
@@ -82,8 +82,9 @@ export default function expressGraphQLRateLimiter(
             variables = req.body.variables;
         }
         if (!query) {
+            // eslint-disable-next-line no-console
             console.error(
-                'Error in expressGraphQLRateLimiter: There is no query on the request. Rate-Limiting skipped'
+                '[graphql-gate] Error in expressGraphQLRateLimiter: There is no query on the request. Rate-Limiting skipped'
             );
             return next();
         }
@@ -140,9 +141,9 @@ export default function expressGraphQLRateLimiter(
             }
             return next();
         } catch (err) {
-            // log the error to the console and pass the request onto the next middleware.
+            // eslint-disable-next-line no-console
             console.error(
-                `Error in expressGraphQLRateLimiter processing query. Rate limiting is skipped: ${err}`
+                `[graphql-gate] Error in expressGraphQLRateLimiter processing query. Rate limiting is skipped: ${err}`
             );
             return next(err);
         }

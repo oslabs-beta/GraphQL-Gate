@@ -149,17 +149,6 @@ export default function setupRateLimiter(
 
         const boundProcessRequest = rateLimiter.processRequest.bind(rateLimiter);
 
-        /**
-         * Throttle rateLimiter.processRequest based on user IP to prevent inaccurate redis reads
-         * Throttling is based on a event driven promise fulfillment approach.
-         * Each time a request is received a promise is added to the user's request queue. The promise "subscribes"
-         * to the previous request in the user's queue then calls processRequest and resolves once the previous request
-         * is complete.
-         * @param userId
-         * @param timestamp
-         * @param tokens
-         * @returns
-         */
         rateLimiter.processRequest = async (
             userId: string,
             timestamp: number,
