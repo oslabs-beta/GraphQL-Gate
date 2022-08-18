@@ -19,7 +19,6 @@ script:
 # specify deployment
 before_deploy:
    - 'npm run build'
-   - 'npm run build:fix'
    
 deploy:
     on:
