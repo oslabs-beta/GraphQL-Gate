@@ -22,10 +22,10 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |-----> Selection Set Node  <-------|
  *  |               /
  *  |          Selection Node
- *  |  (Field,    Inline fragment and fragment spread)
- *  |      |            |                    \
- *  |  Field Node       |                 fragmentCache
- *  |       |           |
+ *  |  (Field,    Inline fragment, directives and fragment spread)
+ *  |      |            |              \               \
+ *  |  Field Node       |               \               \
+ *  |      |            |       directiveCheck      fragmentCache
  *  |<--calculateCast   |
  *  |                   |
  *  |<------------------|
