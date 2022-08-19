@@ -147,6 +147,8 @@ export default function setupRateLimiter(
                 throw new Error('Selected rate limiting algorithm is not suppported');
         }
 
+        // Overwrite the processRequest method with a throttled implementation to ensure async redis interactions are handled
+        // sequentially for each user.
         const boundProcessRequest = rateLimiter.processRequest.bind(rateLimiter);
 
         rateLimiter.processRequest = async (
