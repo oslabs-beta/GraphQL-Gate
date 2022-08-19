@@ -375,9 +375,7 @@ describe('Express Middleware tests', () => {
 
         describe('Adds expected properties to res.locals', () => {
             test('Adds UNIX timestamp', async () => {
-                jest.useRealTimers();
                 await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
-                jest.useFakeTimers();
 
                 // confirm that this is timestamp +/- 5 minutes of now.
                 const now: number = Date.now().valueOf();
