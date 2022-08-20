@@ -22,10 +22,10 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |-----> Selection Set Node  <-------|
  *  |               /
  *  |          Selection Node
- *  |  (Field,    Inline fragment and fragment spread)
- *  |      |            |                    \
- *  |  Field Node       |                 fragmentCache
- *  |       |           |
+ *  |  (Field,    Inline fragment, directives and fragment spread)
+ *  |      |            |              \                  \
+ *  |  Field Node       |               \                  \
+ *  |      |            |    directiveExcludeField        fragmentCache
  *  |<--calculateCast   |
  *  |                   |
  *  |<------------------|
@@ -148,79 +148,85 @@ class QueryParser {
 
     /**
      * Return true if:
-     * 1. there is no directive
-     * 2. there is a directive named inlcude and the value is true
-     * 3. there is a directive named skip and the value is false
+     * 2. there is a directive named inlcude and the value is false
+     * 3. there is a directive named skip and the value is true
      */
-    // THIS IS NOT CALLED ANYWEHERE. IN PROGRESS
-    private directiveCheck(directive: DirectiveNode): boolean {
-        if (directive?.arguments) {
-            // get the first argument
-            const argument = directive.arguments[0];
-            // ensure the argument name is 'if'
-            const argumentHasVariables =
-                argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
-            // access the value of the argument depending on whether it is passed as a variable or not
-            let directiveArgumentValue;
-            if (argument.value.kind === Kind.BOOLEAN) {
-                directiveArgumentValue = Boolean(argument.value.value);
-            } else if (argumentHasVariables) {
-                directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
-            }
+    private directiveExcludeField(directives: DirectiveNode[]): boolean {
+        let skipField = false;
 
-            return (
-                (directive.name.value === 'include' && directiveArgumentValue === true) ||
-                (directive.name.value === 'skip' && directiveArgumentValue === false)
-            );
-        }
-        return true;
+        directives.forEach((directive) => {
+            if (
+                directive?.arguments &&
+                (directive.name.value === 'include' || directive.name.value === 'skip') &&
+                directive.arguments[0].name.value === 'if'
+            ) {
+                // only consider the first argument
+                const argument = directive.arguments[0];
+
+                const argumentHasVariables = argument.value.kind === Kind.VARIABLE;
+                let directiveArgumentValue;
+                if (argument.value.kind === Kind.BOOLEAN) {
+                    directiveArgumentValue = Boolean(argument.value.value);
+                } else if (argumentHasVariables) {
+                    directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
+                }
+
+                if (
+                    (directive.name.value === 'include' && directiveArgumentValue === false) ||
+                    (directive.name.value === 'skip' && directiveArgumentValue === true)
+                ) {
+                    skipField = true;
+                }
+            }
+        });
+
+        return skipField;
     }
 
     private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
-        // TODO: complete implementation of directives include and skip
         /**
          * process this node only if:
-         * 1. there is no directive
+         * 1. there is no include or skip directive
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
-        // const directive = node.directives;
-        // if (directive && this.directiveCheck(directive[0])) {
-        this.depth += 1;
-        if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-        // the kind of a field node will either be field, fragment spread or inline fragment
-        if (node.kind === Kind.FIELD) {
-            complexity += this.fieldNode(node, parentName.toLowerCase());
-        } else if (node.kind === Kind.FRAGMENT_SPREAD) {
-            // add complexity and depth from fragment cache
-            const { complexity: fragComplexity, depth: fragDepth } =
-                this.fragmentCache[node.name.value];
-            complexity += fragComplexity;
-            this.depth += fragDepth;
-            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
-            this.depth -= fragDepth;
-
-            // This is a leaf
-            // need to parse fragment definition at root and get the result here
-        } else if (node.kind === Kind.INLINE_FRAGMENT) {
-            const { typeCondition } = node;
-
-            // named type is the type from which inner fields should be take
-            // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
-            const namedType = typeCondition ? typeCondition.name.value.toLowerCase() : parentName;
-
-            // TODO: Handle directives like @include and @skip
-            // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
-            this.depth -= 1;
-            complexity += this.selectionSetNode(node.selectionSet, namedType);
+        if (node.directives && !this.directiveExcludeField([...node.directives])) {
             this.depth += 1;
-        } else {
-            throw new Error(`ERROR: QueryParser.selectionNode: node type not supported`);
-        }
+            if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+            // the kind of a field node will either be field, fragment spread or inline fragment
+            if (node.kind === Kind.FIELD) {
+                complexity += this.fieldNode(node, parentName.toLowerCase());
+            } else if (node.kind === Kind.FRAGMENT_SPREAD) {
+                // add complexity and depth from fragment cache
+                const { complexity: fragComplexity, depth: fragDepth } =
+                    this.fragmentCache[node.name.value];
+                complexity += fragComplexity;
+                this.depth += fragDepth;
+                if (this.depth > this.maxDepth) this.maxDepth = this.depth;
+                this.depth -= fragDepth;
 
-        this.depth -= 1;
-        //* }
+                // This is a leaf
+                // need to parse fragment definition at root and get the result here
+            } else if (node.kind === Kind.INLINE_FRAGMENT) {
+                const { typeCondition } = node;
+
+                // named type is the type from which inner fields should be take
+                // If the TypeCondition is omitted, an inline fragment is considered to be of the same type as the enclosing context
+                const namedType = typeCondition
+                    ? typeCondition.name.value.toLowerCase()
+                    : parentName;
+
+                // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
+                this.depth -= 1;
+                complexity += this.selectionSetNode(node.selectionSet, namedType);
+                this.depth += 1;
+            } else {
+                throw new Error(`ERROR: QueryParser.selectionNode: node type not supported`);
+            }
+
+            this.depth -= 1;
+        }
         return complexity;
     }
 
