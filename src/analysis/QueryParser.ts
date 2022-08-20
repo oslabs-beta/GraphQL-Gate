@@ -148,51 +148,51 @@ class QueryParser {
 
     /**
      * Return true if:
-     * 1. there is no directive
+     * 1. there is no directive skip or include
      * 2. there is a directive named inlcude and the value is true
      * 3. there is a directive named skip and the value is false
-     * 4. there is a directive of any other form
      */
-    private directiveCheck(directive: DirectiveNode): boolean {
-        // check if there is a directive "include" or "skip" and arguments are present
-        // evaluate the state of the directive to ignore or calculate the compexity of this queried field
-        if (
-            directive?.arguments &&
-            (directive.name.value === 'include' || directive.name.value === 'skip')
-        ) {
-            // only consider the first argument
-            const argument = directive.arguments[0];
-            // ensure the argument name is 'if'
-            const argumentHasVariables =
-                argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
-            // access the value of the argument depending on whether it is passed as a variable or not
-            let directiveArgumentValue;
-            if (argument.value.kind === Kind.BOOLEAN) {
-                directiveArgumentValue = Boolean(argument.value.value);
-            } else if (argumentHasVariables) {
-                directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
-            }
+    private directiveCheck(directives: DirectiveNode[]): boolean {
+        // set the default of the return value of directiveCheck to true, reset to false if the directive include or skip is found with the argument is false or true respectively
+        let directiveCheck = true;
+        directives.forEach((directive) => {
+            if (
+                directive?.arguments &&
+                (directive.name.value === 'include' || directive.name.value === 'skip')
+            ) {
+                // only consider the first argument
+                const argument = directive.arguments[0];
+                // ensure the argument name is 'if'
+                const argumentHasVariables =
+                    argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
+                // access the value of the argument depending on whether it is passed as a variable or not
+                let directiveArgumentValue;
+                if (argument.value.kind === Kind.BOOLEAN) {
+                    directiveArgumentValue = Boolean(argument.value.value);
+                } else if (argumentHasVariables) {
+                    directiveArgumentValue = Boolean(this.variables[argument.value.name.value]);
+                }
 
-            return (
-                (directive.name.value === 'include' && directiveArgumentValue === true) ||
-                (directive.name.value === 'skip' && directiveArgumentValue === false)
-            );
-        }
-        // return true to process all queried fields without/other directives
-        return true;
+                if (
+                    (directive.name.value === 'include' && directiveArgumentValue !== true) ||
+                    (directive.name.value === 'skip' && directiveArgumentValue !== false)
+                ) {
+                    directiveCheck = false;
+                }
+            }
+        });
+        return directiveCheck;
     }
 
     private selectionNode(node: SelectionNode, parentName: string): number {
         let complexity = 0;
-        // TODO: complete implementation of directives include and skip
         /**
          * process this node only if:
          * 1. there is no directive
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
-        const directive = node.directives;
-        if (directive && this.directiveCheck(directive[0])) {
+        if (node.directives && this.directiveCheck([...node.directives])) {
             this.depth += 1;
             if (this.depth > this.maxDepth) this.maxDepth = this.depth;
             // the kind of a field node will either be field, fragment spread or inline fragment
@@ -218,7 +218,6 @@ class QueryParser {
                     ? typeCondition.name.value.toLowerCase()
                     : parentName;
 
-                // TODO: Handle directives like @include and @skip
                 // subtract 1 before, and add one after, entering the fragment selection to negate the additional level of depth added
                 this.depth -= 1;
                 complexity += this.selectionSetNode(node.selectionSet, namedType);
