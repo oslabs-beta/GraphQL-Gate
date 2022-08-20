@@ -23,9 +23,9 @@ import { FieldWeight, TypeWeightObject, Variables } from '../@types/buildTypeWei
  *  |               /
  *  |          Selection Node
  *  |  (Field,    Inline fragment, directives and fragment spread)
- *  |      |            |              \               \
- *  |  Field Node       |               \               \
- *  |      |            |       directiveCheck      fragmentCache
+ *  |      |            |              \                  \
+ *  |  Field Node       |               \                  \
+ *  |      |            |    directiveExcludeField        fragmentCache
  *  |<--calculateCast   |
  *  |                   |
  *  |<------------------|
@@ -187,7 +187,7 @@ class QueryParser {
         let complexity = 0;
         /**
          * process this node only if:
-         * 1. there is no directive
+         * 1. there is no include or skip directive
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
