@@ -148,24 +148,22 @@ class QueryParser {
 
     /**
      * Return true if:
-     * 1. there is no directive skip or include
-     * 2. there is a directive named inlcude and the value is true
-     * 3. there is a directive named skip and the value is false
+     * 2. there is a directive named inlcude and the value is false
+     * 3. there is a directive named skip and the value is true
      */
-    private directiveCheck(directives: DirectiveNode[]): boolean {
-        // set the default of the return value of directiveCheck to true, reset to false if the directive include or skip is found with the argument is false or true respectively
-        let directiveCheck = true;
+    private directiveExcludeField(directives: DirectiveNode[]): boolean {
+        let skipField = false;
+
         directives.forEach((directive) => {
             if (
                 directive?.arguments &&
-                (directive.name.value === 'include' || directive.name.value === 'skip')
+                (directive.name.value === 'include' || directive.name.value === 'skip') &&
+                directive.arguments[0].name.value === 'if'
             ) {
                 // only consider the first argument
                 const argument = directive.arguments[0];
-                // ensure the argument name is 'if'
-                const argumentHasVariables =
-                    argument.value.kind === Kind.VARIABLE && argument.name.value === 'if';
-                // access the value of the argument depending on whether it is passed as a variable or not
+
+                const argumentHasVariables = argument.value.kind === Kind.VARIABLE;
                 let directiveArgumentValue;
                 if (argument.value.kind === Kind.BOOLEAN) {
                     directiveArgumentValue = Boolean(argument.value.value);
@@ -174,14 +172,15 @@ class QueryParser {
                 }
 
                 if (
-                    (directive.name.value === 'include' && directiveArgumentValue !== true) ||
-                    (directive.name.value === 'skip' && directiveArgumentValue !== false)
+                    (directive.name.value === 'include' && directiveArgumentValue === false) ||
+                    (directive.name.value === 'skip' && directiveArgumentValue === true)
                 ) {
-                    directiveCheck = false;
+                    skipField = true;
                 }
             }
         });
-        return directiveCheck;
+
+        return skipField;
     }
 
     private selectionNode(node: SelectionNode, parentName: string): number {
@@ -192,7 +191,7 @@ class QueryParser {
          * 2. there is a directive named inlcude and the value is true
          * 3. there is a directive named skip and the value is false
          */
-        if (node.directives && this.directiveCheck([...node.directives])) {
+        if (node.directives && !this.directiveExcludeField([...node.directives])) {
             this.depth += 1;
             if (this.depth > this.maxDepth) this.maxDepth = this.depth;
             // the kind of a field node will either be field, fragment spread or inline fragment
