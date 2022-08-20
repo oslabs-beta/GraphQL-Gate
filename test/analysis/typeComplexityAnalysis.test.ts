@@ -935,7 +935,11 @@ describe('Test getQueryTypeComplexity function', () => {
             test('@include on object types', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @include(if: true) { 
                         id, 
@@ -943,12 +947,17 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero + 1 human
-                expect(queryParser.processQuery(parse(query))).toBe(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
 
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        }  
                     } 
                     human(id: 1) @include(if: false) { 
                         id, 
@@ -956,14 +965,19 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero
-                expect(queryParser.processQuery(parse(query))).toBe(2);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends
+                expect(queryParser.processQuery(parse(query))).toBe(5);
             });
 
             test('@skip on object types', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @skip(if: true) { 
                         id, 
@@ -971,12 +985,17 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero
-                expect(queryParser.processQuery(parse(query))).toBe(2);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends
+                expect(queryParser.processQuery(parse(query))).toBe(5);
 
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        }  
                     } 
                     human(id: 1) @skip(if: false) { 
                         id, 
@@ -984,8 +1003,9 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero + 1 human
-                expect(queryParser.processQuery(parse(query))).toBe(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
             });
 
             test('@skip with arguments and varibales', () => {
@@ -993,7 +1013,11 @@ describe('Test getQueryTypeComplexity function', () => {
                 queryParser = new QueryParser(typeWeights, variables);
                 query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @skip(if: $directive) { 
                         id, 
@@ -1001,13 +1025,18 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero + 1 human
-                expect(queryParser.processQuery(parse(query))).toBe(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
                 variables = { directive: true };
                 queryParser = new QueryParser(typeWeights, variables);
                 query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @skip(if: $directive) { 
                         id, 
@@ -1015,8 +1044,9 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero
-                expect(queryParser.processQuery(parse(query))).toBe(2);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends
+                expect(queryParser.processQuery(parse(query))).toBe(5);
             });
 
             test('@include with arguments and varibales', () => {
@@ -1024,7 +1054,11 @@ describe('Test getQueryTypeComplexity function', () => {
                 queryParser = new QueryParser(typeWeights, variables);
                 query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @include(if: $directive) { 
                         id, 
@@ -1032,13 +1066,18 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero
-                expect(queryParser.processQuery(parse(query))).toBe(2);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends
+                expect(queryParser.processQuery(parse(query))).toBe(5);
                 variables = { directive: true };
                 queryParser = new QueryParser(typeWeights, variables);
                 query = `query ($directive: Boolean!){ 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        }  
                     } 
                     human(id: 1) @include(if: $directive) { 
                         id, 
@@ -1046,14 +1085,19 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero + 1 human
-                expect(queryParser.processQuery(parse(query))).toBe(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
             });
 
             test('and other directives or arguments are ignored', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @ignore(if: true) { 
                         id, 
@@ -1061,11 +1105,16 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero + 1 human
-                expect(queryParser.processQuery(parse(query))).toBe(3);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
                 query = `query { 
                     hero(episode: EMPIRE) { 
-                        id, name 
+                        id, 
+                        name
+                        friends(first: 3) {
+                            name
+                        } 
                     } 
                     human(id: 1) @include(when: false) { 
                         id, 
@@ -1073,11 +1122,12 @@ describe('Test getQueryTypeComplexity function', () => {
                         homePlanet 
                     } 
                 }`;
-                // 1 query + 1 hero
-                expect(queryParser.processQuery(parse(query))).toBe(2);
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 3 friends + 1 hero 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(6);
             });
 
-            test('@include with other diretcives', () => {
+            test('@include with other directives', () => {
                 query = `query { 
                     hero(episode: EMPIRE) { 
                         id, 
@@ -1093,7 +1143,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     } 
                 }`;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
-                // 1 query + 1 hero + 1 human
+                // 1 query + 1 hero + 3 friends
                 expect(queryParser.processQuery(parse(query))).toBe(5);
                 query = `query { 
                     hero(episode: EMPIRE) { 
@@ -1110,7 +1160,7 @@ describe('Test getQueryTypeComplexity function', () => {
                     } 
                 }`;
                 mockCharacterFriendsFunction.mockReturnValueOnce(3);
-                // 1 query + 1 hero
+                // 1 query + 1 hero + 3 friends + 1 human
                 expect(queryParser.processQuery(parse(query))).toBe(6);
             });
         });
