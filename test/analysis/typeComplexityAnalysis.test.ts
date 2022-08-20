@@ -1163,6 +1163,43 @@ describe('Test getQueryTypeComplexity function', () => {
                 // 1 query + 1 hero + 3 friends + 1 human
                 expect(queryParser.processQuery(parse(query))).toBe(6);
             });
+
+            test('@skip with other directives', () => {
+                query = `query { 
+                    hero(episode: EMPIRE) { 
+                        id, 
+                        name 
+                        friends(first: 3) {
+                            name
+                        }
+                    } 
+                    human(id: 1) @ignore(if: true) @skip(if: false) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends
+                expect(queryParser.processQuery(parse(query))).toBe(6);
+                query = `query { 
+                    hero(episode: EMPIRE) { 
+                        id, 
+                        name 
+                        friends(first: 3) {
+                            name
+                        }
+                    } 
+                    human(id: 1) @ignore(if: true) @skip(if: true) { 
+                        id, 
+                        name, 
+                        homePlanet 
+                    } 
+                }`;
+                mockCharacterFriendsFunction.mockReturnValueOnce(3);
+                // 1 query + 1 hero + 3 friends + 1 human
+                expect(queryParser.processQuery(parse(query))).toBe(5);
+            });
         });
 
         describe('with nested lists', () => {
